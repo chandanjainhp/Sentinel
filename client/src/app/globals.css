@@ -1,0 +1,364 @@
+/* Design tokens: Night Watch color + type system */
+@import '../colors_and_type.css';
+
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* =============================================
+   Global keyboard focus indicator
+   In addition to (not replacement of) inline focus borders.
+============================================= */
+*:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[role="menuitem"]:focus-visible {
+  outline-offset: 3px;
+}
+
+/* Skip-to-content — visible only on keyboard focus */
+.skip-to-content {
+  position: absolute;
+  top: -100%;
+  left: 8px;
+  z-index: 9999;
+  padding: 8px 16px;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-focus);
+  color: var(--fg-1);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.skip-to-content:focus {
+  top: 8px;
+}
+
+/* =============================================
+   LIGHT MODE — CSS CUSTOM PROPERTIES
+============================================= */
+:root {
+  /* --- Primary brand scale --- */
+  --primary-50:  #eff6ff;
+  --primary-100: #dbeafe;
+  --primary-200: #bfdbfe;
+  --primary-300: #93c5fd;
+  --primary-400: #60a5fa;
+  --primary-500: #3b82f6;
+  --primary-600: #2563eb;
+  --primary-700: #1d4ed8;
+  --primary-800: #1e40af;
+  --primary-900: #1e3a8a;
+
+  /* --- Neutral surfaces --- */
+  --surface:      #ffffff;
+  --surface-2:    #f8fafc;
+  --surface-3:    #f1f5f9;
+  --surface-4:    #e2e8f0;
+  --surface-warm: #f8f9fb;
+  --surface-alt:  #f1f5f9;
+  --surface-dark: #e2e8f0;
+
+  /* --- Border --- */
+  --border: #e2e8f0;
+
+  /* --- Text --- */
+  --text-primary:   #0f172a;
+  --text-secondary: #475569;
+  --text-muted:     #94a3b8;
+
+  /* --- Primary semantic action --- */
+  --primary:       #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-light: #93c5fd;
+  --primary-dark:  #1e40af;
+
+  /* --- Badge --- */
+  --badge-bg:   #dbeafe;
+  --badge-text: #1d4ed8;
+
+  /* --- Semantic: success --- */
+  --success:       #22c55e;
+  --success-light: #dcfce7;
+  --success-text:  #15803d;
+
+  /* --- Semantic: warning --- */
+  --warning:       #f59e0b;
+  --warning-light: #fef3c7;
+  --warning-text:  #b45309;
+
+  /* --- Semantic: danger --- */
+  --danger:       #ef4444;
+  --danger-light: #fee2e2;
+  --danger-text:  #b91c1c;
+
+  /* --- Semantic: error --- */
+  --error:       #ef4444;
+  --error-light: #fee2e2;
+  --error-text:  #b91c1c;
+
+  /* --- Semantic: info --- */
+  --info:       #3b82f6;
+  --info-light: #dbeafe;
+  --info-text:  #1d4ed8;
+
+  /* --- Agent --- */
+  --agent-blue:     #3b82f6;
+  --agent-blue-dim: #60a5fa;
+
+  /* --- Severity --- */
+  --severity-harmless:  #22c55e;
+  --severity-monitor:   #f59e0b;
+  --severity-escalate:  #ef4444;
+  --severity-uncertain: #6366f1;
+  --severity-unknown:   #94a3b8;
+
+  /* --- Shadows --- */
+  --shadow-card: 0px 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-deep: 0px 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* =============================================
+   DARK MODE — mapped to Night Watch tokens
+   (colors_and_type.css defines: --bg-base, --fg-1,
+   --accent, --sev-serious, --border-default, etc.)
+============================================= */
+.dark {
+  /* --- Neutral surfaces --- */
+  --surface:      var(--bg-surface-1);   /* #11151c */
+  --surface-2:    var(--bg-surface-2);   /* #161b24 */
+  --surface-3:    var(--bg-surface-3);   /* #1c222d */
+  --surface-4:    var(--bg-base);        /* #07090c */
+  --surface-warm: var(--bg-surface-1);
+  --surface-alt:  var(--bg-surface-2);
+  --surface-dark: var(--bg-base);
+
+  /* --- Border --- */
+  --border: var(--border-default);       /* #232b38 */
+
+  /* --- Text --- */
+  --text-primary:   var(--fg-1);         /* #e6ecf3 */
+  --text-secondary: var(--fg-3);         /* #6b7686 */
+  --text-muted:     var(--fg-4);         /* #434d5c */
+
+  /* --- Primary → radar blue accent --- */
+  --primary:       var(--accent);        /* #b8d4e8 */
+  --primary-hover: var(--border-focus);  /* #b8d4e8 */
+  --primary-light: var(--accent-dim);    /* #4a6778 */
+  --primary-dark:  var(--accent-deep);   /* #15222b */
+
+  /* --- Badge --- */
+  --badge-bg:   var(--bg-surface-2);
+  --badge-text: var(--accent);
+
+  /* --- Success (keep green) --- */
+  --success:       #22c55e;
+  --success-light: #052e16;
+  --success-text:  #4ade80;
+
+  /* --- Warning → severity minor (amber) --- */
+  --warning:       var(--sev-minor);     /* #e89a2b */
+  --warning-light: var(--sev-minor-bg);  /* #2a1c0a */
+  --warning-text:  var(--sev-minor);
+
+  /* --- Danger/Error → severity serious (red) --- */
+  --danger:       var(--sev-serious);    /* #ff3838 */
+  --danger-light: var(--sev-serious-bg); /* #2d0d12 */
+  --danger-text:  var(--sev-serious);
+  --error:        var(--sev-serious);
+  --error-light:  var(--sev-serious-bg);
+  --error-text:   var(--sev-serious);
+
+  /* --- Info → accent blue --- */
+  --info:       var(--accent);
+  --info-light: var(--accent-deep);
+  --info-text:  var(--accent);
+
+  /* --- Agent --- */
+  --agent-blue:     var(--accent);
+  --agent-blue-dim: var(--accent-dim);
+
+  /* --- Severity (mapped to Night Watch severity system) --- */
+  --severity-harmless:  var(--sev-harmless);  /* #7d8a6a */
+  --severity-monitor:   var(--sev-minor);     /* #e89a2b */
+  --severity-escalate:  var(--sev-serious);   /* #ff3838 */
+  --severity-uncertain: var(--sev-unknown);   /* #6b7686 */
+  --severity-unknown:   var(--sev-unknown);
+
+  /* --- Shadows --- */
+  --shadow-card: 0px 6px 20px rgba(0, 0, 0, 0.45);
+  --shadow-deep: 0px 16px 40px rgba(0, 0, 0, 0.6);
+}
+
+/* =============================================
+   TAILWIND V4 THEME MAPPING
+============================================= */
+@theme inline {
+  /* --- Typography --- */
+  --font-sans:  'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-mono:  'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  --font-serif: 'IBM Plex Serif', Georgia, 'Times New Roman', serif;
+
+  /* --- Letter spacing --- */
+  --letter-spacing-display: -2.125px;
+  --letter-spacing-heading: -1.5px;
+  --letter-spacing-sub:     -0.625px;
+  --letter-spacing-card:    -0.25px;
+  --letter-spacing-badge:   0.125px;
+
+  /* --- Primary brand scale --- */
+  --color-primary-50:  #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+
+  /* --- Neutral surfaces (theme-aware) --- */
+  --color-surface:      var(--surface);
+  --color-surface-2:    var(--surface-2);
+  --color-surface-3:    var(--surface-3);
+  --color-surface-4:    var(--surface-4);
+  --color-surface-warm: var(--surface-warm);
+  --color-surface-alt:  var(--surface-alt);
+  --color-surface-dark: var(--surface-dark);
+
+  /* --- Border --- */
+  --color-border: var(--border);
+
+  /* --- Text --- */
+  --color-text-primary:   var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted:     var(--text-muted);
+
+  /* --- Primary semantic (theme-aware) --- */
+  --color-primary:       var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-light: var(--primary-light);
+  --color-primary-dark:  var(--primary-dark);
+
+  /* --- Badge --- */
+  --color-badge-bg:   var(--badge-bg);
+  --color-badge-text: var(--badge-text);
+
+  /* --- Semantic: success --- */
+  --color-success:       var(--success);
+  --color-success-light: var(--success-light);
+  --color-success-text:  var(--success-text);
+
+  /* --- Semantic: warning --- */
+  --color-warning:       var(--warning);
+  --color-warning-light: var(--warning-light);
+  --color-warning-text:  var(--warning-text);
+
+  /* --- Semantic: danger --- */
+  --color-danger:       var(--danger);
+  --color-danger-light: var(--danger-light);
+  --color-danger-text:  var(--danger-text);
+
+  /* --- Semantic: error --- */
+  --color-error:       var(--error);
+  --color-error-light: var(--error-light);
+  --color-error-text:  var(--error-text);
+
+  /* --- Semantic: info --- */
+  --color-info:       var(--info);
+  --color-info-light: var(--info-light);
+  --color-info-text:  var(--info-text);
+
+  /* --- Severity --- */
+  --color-severity-harmless:  var(--severity-harmless);
+  --color-severity-monitor:   var(--severity-monitor);
+  --color-severity-escalate:  var(--severity-escalate);
+  --color-severity-uncertain: var(--severity-uncertain);
+  --color-severity-unknown:   var(--severity-unknown);
+
+  /* --- Agent --- */
+  --color-agent-blue:     var(--agent-blue);
+  --color-agent-blue-dim: var(--agent-blue-dim);
+
+  /* --- Shadows --- */
+  --shadow-card: var(--shadow-card);
+  --shadow-deep: var(--shadow-deep);
+
+  /* --- Standard Tailwind token fallbacks --- */
+  --color-background:         var(--surface);
+  --color-foreground:         var(--text-primary);
+  --color-primary-foreground: #ffffff;
+  --color-muted:              var(--surface-warm);
+  --color-muted-foreground:   var(--text-secondary);
+  --color-card:               var(--surface);
+  --color-card-foreground:    var(--text-primary);
+}
+
+/* =============================================
+   BASE RESET
+============================================= */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    @apply bg-surface-4 text-text-primary antialiased;
+    font-feature-settings: "lnum" 1, "locl" 1;
+  }
+
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+  }
+
+  * {
+    @apply border-border;
+    transition-property: background-color, border-color, color;
+    transition-timing-function: ease;
+    transition-duration: 150ms;
+  }
+
+  svg,
+  img,
+  video,
+  canvas {
+    transition: none;
+  }
+}
+
+/* =============================================
+   ANIMATIONS
+============================================= */
+@keyframes pulse-ring {
+  0%   { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2);   opacity: 0; }
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+@keyframes feed-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.dot-pulse {
+  animation: status-pulse 1.5s ease-in-out infinite;
+}
+
+.feed-item-enter {
+  animation: feed-in 0.2s ease-out forwards;
+}

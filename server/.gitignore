@@ -1,0 +1,83 @@
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.*
+.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime files
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Build output
+dist/
+build/
+
+# Temporary files
+tmp/
+temp/
+.cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Package manager
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+
+# TypeScript
+*.tsbuildinfo
+
+# Testing
+jest-html-reporters-*.html
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Uploads
+uploads/
+public/uploads/
+
+# Generated files
+*.tgz
+
+# Certificates
+*.pem
+*.key
+*.crt
+
+# Local history
+.history/
+
+# Docker overrides
+docker-compose.override.yml
+
+# Misc
+.vercel/
+.netlify/

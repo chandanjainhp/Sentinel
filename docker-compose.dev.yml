@@ -1,0 +1,8 @@
+# Local development data plane only (Mongo + Redis).
+# Usage: docker compose -f docker-compose.dev.yml up -d
+# Then run API/UI on the host: cd server && bun run dev / cd client && npm run dev
+#
+# Full Pi / Cloudflare production stack: docker-compose.yml
+
+include:
+  - path: server/docker-compose.local.yml

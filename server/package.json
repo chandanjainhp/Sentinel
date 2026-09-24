@@ -1,0 +1,48 @@
+{
+  "name": "sentinel-server",
+  "version": "1.0.0",
+  "description": "Deliver a hosted, AI-first intelligence platform that transforms fragmented overnight operational signals into a validated morning briefing for industrial site operators.",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.js",
+    "start": "bun src/index.js",
+    "test": "bun test",
+    "test:agentic": "bun test src/tests/agentic-flow.test.js"
+  },
+  "author": "chandanjainhp",
+  "license": "ISC",
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
+    "@sentry/node": "^10.68.0",
+    "bcrypt": "^6.0.0",
+    "bullmq": "^5.81.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4",
+    "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.3.2",
+    "helmet": "^8.1.0",
+    "ioredis": "^5.3.2",
+    "joi": "^17.13.4",
+    "jsonwebtoken": "^9.0.3",
+    "mailgen": "^2.0.34",
+    "mongoose": "^8.24.2",
+    "nodemailer": "^9.0.3",
+    "pino": "^10.3.1",
+    "pino-http": "^11.0.0",
+    "rate-limit-redis": "^6.0.0"
+  },
+  "overrides": {
+    "minimatch": "^10.0.1",
+    "brace-expansion": "^5.0.8",
+    "form-data": ">=4.0.6",
+    "body-parser": ">=1.20.6",
+    "qs": ">=6.14.1"
+  }
+}

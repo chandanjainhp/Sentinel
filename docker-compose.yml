@@ -1,0 +1,226 @@
+# Sentinel — Raspberry Pi 5 (arm64) production stack via Cloudflare Tunnel
+#
+# No host port publishing: traffic enters only through cloudflared.
+# Local day-to-day Mongo/Redis: docker compose -f docker-compose.dev.yml up -d
+#
+# Prerequisites:
+#   1. cp server/.env.example server/.env  — fill secrets + CLOUDFLARE_TUNNEL_TOKEN
+#   2. docker compose --env-file server/.env up -d --build
+#   3. Cloudflare: map public hostname → http://client:3000
+#
+# Memory limits below target an 8GB Pi 5. On a 16GB Pi you can raise server/client/mongo
+# (e.g. server 1536M, mongo 1536M) — ask if you want a tuned 16GB overlay file.
+
+name: sentinel
+
+services:
+  mongodb:
+    image: mongo:7.0
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-sentinel}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in server/.env}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-sentinel}
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - sentinel
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand({ ping: 1 }).ok"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: "1.0"
+        reservations:
+          memory: 256M
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in server/.env}
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 192mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - sentinel
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping | grep -q PONG"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 64M
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: server/.env
+        required: true
+    environment:
+      NODE_ENV: production
+      PORT: "8000"
+      MONGODB_URL: mongodb://${MONGO_ROOT_USER:-sentinel}:${MONGO_ROOT_PASSWORD}@mongodb:27017/${MONGO_DB:-sentinel}?authSource=admin
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      CLIENT_URL: ${CLIENT_URL:?set CLIENT_URL in server/.env}
+      CORS_ORIGIN: ${CORS_ORIGIN:?set CORS_ORIGIN in server/.env}
+      # ML service (in-network). The stack degrades gracefully if it is down.
+      ML_SERVICE_URL: http://ml-service:9000
+      # LLM wiring — leave everything unset to run Argus on deterministic
+      # fallback explanations. LM Studio runs on the host; point
+      # OPENAI_BASE_URL at host.docker.internal (see extra_hosts below).
+      LLM_PROVIDER: ${LLM_PROVIDER:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LOCAL_LLM_MODEL: ${LOCAL_LLM_MODEL:-}
+      LMSTUDIO_MODEL: ${LMSTUDIO_MODEL:-}
+      LMSTUDIO_MAX_TOKENS: ${LMSTUDIO_MAX_TOKENS:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      MOCK_AI: ${MOCK_AI:-false}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Lets OPENAI_BASE_URL=http://host.docker.internal:1234/v1 reach LM Studio
+    # running on the host machine.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - sentinel
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "fetch('http://127.0.0.1:8000/api/v1/health').then((r)=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: "1.5"
+        reservations:
+          memory: 256M
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      # Internal Docker DNS — Next rewrites /api/v1 → server (not exposed publicly)
+      API_UPSTREAM_URL: http://server:8000
+    depends_on:
+      server:
+        condition: service_healthy
+    networks:
+      - sentinel
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000').then((r)=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 128M
+
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      ML_PORT: "9000"
+    volumes:
+      # Host-trained checkpoints (see ml-service/CONTRACT.md). The service
+      # starts even with an empty models dir and reports degraded / 503.
+      - ./ml-service/models:/app/models:ro
+    networks:
+      - sentinel
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys;sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:9000/health',timeout=5).status==200 else 1)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 128M
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN in server/.env}
+    depends_on:
+      client:
+        condition: service_healthy
+      server:
+        condition: service_healthy
+    networks:
+      - sentinel
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+        reservations:
+          memory: 32M
+
+networks:
+  sentinel:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  redis_data:

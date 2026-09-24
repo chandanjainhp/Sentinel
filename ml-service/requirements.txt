@@ -1,0 +1,10 @@
+# Runtime dependencies ONLY (everything the service imports).
+# Upstream's requirements.txt also lists jupyter, matplotlib, seaborn, h5py, onnx, ...; none are needed here.
+# For a CPU-only torch wheel: pip install torch --index-url https://download.pytorch.org/whl/cpu   (the Dockerfile does this)
+torch>=2.2,<3        # upstream models/ import torch (+ tqdm, pyyaml) at import time
+numpy>=1.26,<3
+tqdm>=4.65           # imported by upstream models/*.py at module import
+pyyaml>=6.0          # imported by upstream models/base_model.py; also reads the base config in training
+fastapi>=0.110,<1
+uvicorn>=0.27,<1
+pydantic>=2.5,<3
