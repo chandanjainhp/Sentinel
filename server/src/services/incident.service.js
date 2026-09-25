@@ -7,8 +7,22 @@ import {
   argusExplainJobId,
   argusRegenerateJobId,
 } from "../queues/argus-explain.queue.js";
+import { SEVERITY_RANK } from "./argus-explain.service.js";
 import mongoose from "mongoose";
 
+/**
+ * One live incident per machine (Fix B).
+ *
+ * Every scored prediction in a warning/critical state lands on the machine's
+ * existing open OR reviewed incident instead of creating a new one: reason,
+ * evidence and predictionId are refreshed to the latest prediction,
+ * occurrenceCount is bumped, lastSeenAt is set, and severity escalates
+ * warning → critical when the new prediction is worse (never downgrades).
+ * A new incident is created only when the previous one was closed.
+ *
+ * On escalation the argus-explain job is re-enqueued under the new severity
+ * jobId, so the explanation reflects the worse state.
+ */
 export const createIncidentIfEligible = async ({
   machine,
   prediction,
@@ -16,25 +30,65 @@ export const createIncidentIfEligible = async ({
   anomalyScore,
   faultProbability,
 }) => {
-  const cooldownCutoff = new Date(Date.now() - 15 * 60 * 1000); // 15-minute cooldown window
-
   const existingIncident = await Incident.findOne({
     userId: machine.userId,
     machineId: machine._id,
-    status: "open",
-    createdAt: { $gte: cooldownCutoff },
+    status: { $in: ["open", "reviewed"] },
+  }).sort({ createdAt: -1 });
+
+  const buildTitle = () =>
+    `${severity.toUpperCase()}: ${machine.name} (${machine.assetId}) - ${prediction.faultType || "Abnormal signal detected"}`;
+
+  const buildReason = () =>
+    `Machine ${machine.name} reached ${severity} state. Anomaly Score: ${anomalyScore}, Fault Probability: ${faultProbability}, Fault Type: ${prediction.faultType || "none"}.`;
+
+  const buildEvidence = () => ({
+    predictionId: prediction.predictionId,
+    model: prediction.model,
+    anomalyScore,
+    faultProbability,
+    faultType: prediction.faultType,
+    rulValue: prediction.rulValue,
+    timestamp: prediction.timestamp,
   });
 
   if (existingIncident) {
+    const escalated =
+      (SEVERITY_RANK[severity] ?? 0) > (SEVERITY_RANK[existingIncident.severity] ?? 0);
+
+    existingIncident.predictionId = prediction._id;
+    existingIncident.reason = buildReason();
+    existingIncident.evidence = buildEvidence();
+    existingIncident.occurrenceCount = (existingIncident.occurrenceCount || 1) + 1;
+    existingIncident.lastSeenAt = new Date();
+
+    if (escalated) {
+      existingIncident.severity = severity;
+      existingIncident.title = buildTitle();
+      existingIncident.type =
+        prediction.faultType && prediction.faultType !== "none"
+          ? "fault_risk"
+          : "anomaly";
+    }
+
+    await existingIncident.save();
+
+    // Re-explain on escalation (new jobId with the new severity); same-severity
+    // updates keep the existing explanation — the underlying state did not change.
+    if (escalated) {
+      await dispatchArgusExplain({
+        incidentId: existingIncident.incidentId,
+        severity,
+        jobId: argusExplainJobId(existingIncident.incidentId, severity),
+      });
+    }
+
     return existingIncident;
   }
 
   const type = prediction.faultType && prediction.faultType !== "none"
     ? "fault_risk"
     : (anomalyScore >= 0.75 ? "anomaly" : "machine_health");
-
-  const title = `${severity.toUpperCase()}: ${machine.name} (${machine.assetId}) - ${prediction.faultType || "Abnormal signal detected"}`;
-  const reason = `Machine ${machine.name} reached ${severity} state. Anomaly Score: ${anomalyScore}, Fault Probability: ${faultProbability}, Fault Type: ${prediction.faultType || "none"}.`;
 
   const incident = await Incident.create({
     userId: machine.userId,
@@ -43,18 +97,12 @@ export const createIncidentIfEligible = async ({
     predictionId: prediction._id,
     type,
     severity,
-    title,
-    reason,
-    evidence: {
-      predictionId: prediction.predictionId,
-      model: prediction.model,
-      anomalyScore,
-      faultProbability,
-      faultType: prediction.faultType,
-      rulValue: prediction.rulValue,
-      timestamp: prediction.timestamp,
-    },
+    title: buildTitle(),
+    reason: buildReason(),
+    evidence: buildEvidence(),
     status: "open",
+    occurrenceCount: 1,
+    lastSeenAt: new Date(),
   });
 
   // Argus explanation for the NEW incident. jobId deduplicates: the same
