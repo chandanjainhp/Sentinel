@@ -3,10 +3,11 @@
 import { use } from "react";
 import Link from "next/link";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
-import { useIncidentById, useIncidentEvidenceGraph } from "@/hooks/useIncidents";
+import { useIncidentById, useIncidentEvidenceGraph, useIncidentExplain } from "@/hooks/useIncidents";
 import { useAuthStore } from "@/store/authStore";
 import EvidenceChain from "@/components/incident/EvidenceChain";
 import AgentReasoning from "@/components/incident/AgentReasoning";
+import ArgusExplanation from "@/components/incident/ArgusExplanation";
 import { getSeverity } from "@/lib/severity";
 
 
@@ -48,6 +49,10 @@ export default function IncidentDetailView({ params }) {
 
   const { data: incidentResponse, isLoading: isLoadingIncident } = useIncidentById(id);
   const { data: evidenceGraphResponse, isLoading: isLoadingGraph } = useIncidentEvidenceGraph(id);
+  const {
+    mutate: regenerateExplanation,
+    isPending: isRegeneratingExplanation,
+  } = useIncidentExplain(id);
 
   if (isLoadingIncident || isLoadingGraph) {
     return <LoadingSkeleton />;
@@ -188,6 +193,24 @@ export default function IncidentDetailView({ params }) {
             </span>
           </div>
         </div>
+
+        {/* Argus Explanation */}
+        <section style={{ width: "100%", marginBottom: "48px" }}>
+          <div style={{
+            fontFamily: "var(--font-mono)", fontSize: "11px",
+            textTransform: "uppercase", letterSpacing: "0.14em",
+            color: "var(--fg-1)", fontWeight: 600,
+            borderBottom: "1px solid var(--border-hairline)",
+            paddingBottom: "8px", marginBottom: "24px",
+          }}>
+            Argus Explanation
+          </div>
+          <ArgusExplanation
+            explanation={incident.explanation}
+            onRegenerate={() => regenerateExplanation()}
+            isRegenerating={isRegeneratingExplanation}
+          />
+        </section>
 
         {/* Evidence Chain */}
         <section style={{ width: "100%", marginBottom: "48px" }}>

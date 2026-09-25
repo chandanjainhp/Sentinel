@@ -2,6 +2,11 @@ import { Incident } from "../models/incident.model.js";
 import { Site } from "../models/site.model.js";
 import { Machine } from "../models/machine.model.js";
 import { ApiError } from "../utils/api-error.js";
+import {
+  dispatchArgusExplain,
+  argusExplainJobId,
+  argusRegenerateJobId,
+} from "../queues/argus-explain.queue.js";
 import mongoose from "mongoose";
 
 export const createIncidentIfEligible = async ({
@@ -50,6 +55,14 @@ export const createIncidentIfEligible = async ({
       timestamp: prediction.timestamp,
     },
     status: "open",
+  });
+
+  // Argus explanation for the NEW incident. jobId deduplicates: the same
+  // incident+severity never re-runs automatically (see argus-explain.queue.js).
+  await dispatchArgusExplain({
+    incidentId: incident.incidentId,
+    severity,
+    jobId: argusExplainJobId(incident.incidentId, severity),
   });
 
   return incident;
@@ -110,6 +123,33 @@ export const getIncidentById = async (incidentIdParam, userFilter = {}) => {
     throw new ApiError(404, "Incident not found");
   }
   return incident;
+};
+
+/**
+ * Re-queue the Argus explanation for one incident (user-initiated).
+ * Uses a regenerate jobId so it always re-runs regardless of earlier jobs.
+ */
+export const requestIncidentExplanation = async (incidentIdParam, userFilter = {}) => {
+  const isObjectId = mongoose.Types.ObjectId.isValid(incidentIdParam);
+  const query = isObjectId
+    ? { ...userFilter, $or: [{ incidentId: incidentIdParam }, { _id: incidentIdParam }] }
+    : { ...userFilter, incidentId: incidentIdParam };
+
+  const incident = await Incident.findOne(query);
+  if (!incident) {
+    throw new ApiError(404, "Incident not found");
+  }
+
+  await dispatchArgusExplain({
+    incidentId: incident.incidentId,
+    severity: incident.severity,
+    jobId: argusRegenerateJobId(incident.incidentId, incident.severity),
+  });
+
+  return {
+    incidentId: incident.incidentId,
+    explanationStatus: incident.explanation?.status ?? "pending",
+  };
 };
 
 export const updateIncidentStatus = async (incidentIdParam, newStatus, userId, userFilter = {}) => {

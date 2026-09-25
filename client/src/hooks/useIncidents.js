@@ -1,8 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getIncidents,
   getIncidentById,
   getIncidentEvidenceGraph,
+  explainIncident,
 } from "@/lib/api";
 import { normalizeIncident } from "@/lib/projectContext";
 import { incidentQueryKey } from "@/store/incidentFilterStore";
@@ -78,4 +79,24 @@ export function useIncidentEvidenceGraph(id, options = {}) {
     enabled: !!id,
     ...options,
   });
+}
+
+/**
+ * Ask Argus to (re-)explain this incident. The server enqueues a job; the
+ * card refetches the incident a few seconds later to pick up the result.
+ */
+export function useIncidentExplain(id, options = {}) {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: () => explainIncident(id),
+    ...options,
+  });
+  const regenerate = (...args) => {
+    const result = mutation.mutate(...args);
+    // Best-effort refetch chain; each refetch is cheap and the last one wins.
+    setTimeout(() => queryClient.invalidateQueries({ queryKey: ["incidents", "byId", id] }), 4000);
+    setTimeout(() => queryClient.invalidateQueries({ queryKey: ["incidents", "byId", id] }), 10000);
+    return result;
+  };
+  return { ...mutation, regenerate };
 }

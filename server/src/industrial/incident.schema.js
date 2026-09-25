@@ -69,3 +69,11 @@ export const updateIncidentStatusSchema = z.object({
 
   query: z.object({}),
 });
+
+export const incidentExplainSchema = z.object({
+  body: z.object({}),
+  params: z.object({
+    incidentId: z.string().min(1),
+  }),
+  query: z.object({}),
+});

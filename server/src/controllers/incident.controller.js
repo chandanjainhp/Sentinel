@@ -13,6 +13,12 @@ export const getIncident = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, incident, "Incident fetched successfully"));
 });
 
+export const explainIncident = asyncHandler(async (req, res) => {
+  const { incidentId } = req.params;
+  const result = await incidentService.requestIncidentExplanation(incidentId, req.userFilter);
+  return res.status(202).json(new ApiResponse(202, result, "Incident explanation requested"));
+});
+
 export const updateIncidentStatus = asyncHandler(async (req, res) => {
   const { incidentId } = req.params;
   const { status } = req.body;

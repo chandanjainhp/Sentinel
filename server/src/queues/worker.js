@@ -1,20 +1,27 @@
 import Redis from 'ioredis';
 import { startPredictionWorker, stopPredictionWorker } from './prediction.worker.js';
+import { startArgusExplainWorker, stopArgusExplainWorker } from './argus-explain.worker.js';
 
 /**
  * Background workers for Sentinel.
  *
- * Wave 0 of the cohesion plan: only queues with live producers are served.
- * The prediction queue is fed by event ingestion (event.service.js).
+ * Live queues:
+ *   - prediction     — fed by event ingestion (event.service.js)
+ *   - argus-explain  — fed by incident creation/escalation and by
+ *                      POST /api/v1/incidents/:id/explain (built in Wave 4,
+ *                      Fix A). Deterministic fallback explanation when the
+ *                      LLM is unavailable.
  *
  * Neutralized on purpose (their backing services no longer exist and any
  * incoming job would have crashed the worker):
- *   - investigations  — rebuilt in Wave 3 as the Argus explanation worker
  *   - correlation     — service file missing; no producer
  *   - briefings       — service file missing; no producer (briefing page is a
  *                       "coming later" stub as of Wave 0)
  *   - webhooks        — handler referenced Site.getSite() which does not exist;
  *                       it would have thrown on every delivery
+ *   - investigations  — legacy investigation agent queue (see
+ *                       investigation.queue.js): producer still exists, but no
+ *                       worker consumes it in this codebase.
  */
 
 let workerRedisConnection = null;
@@ -67,6 +74,9 @@ export const startWorker = async () => {
 
     startPredictionWorker(workerRedisConnection);
     console.log('[Worker] ✓ Prediction worker started (queue: prediction)');
+
+    startArgusExplainWorker(workerRedisConnection);
+    console.log('[Worker] ✓ Argus explain worker started (queue: argus-explain)');
   } catch (error) {
     console.error('[Worker] Failed to start worker:', error);
     throw error;
@@ -80,6 +90,7 @@ export const startWorker = async () => {
 export const stopWorker = async () => {
   try {
     await stopPredictionWorker();
+    await stopArgusExplainWorker();
 
     if (workerRedisConnection) {
       await workerRedisConnection.quit();

@@ -11,6 +11,20 @@ export function normalizeProjectContext(raw) {
 export function normalizeIncident(incident) {
   if (!incident || typeof incident !== 'object') return incident;
   const id = incident.id || incident._id?.toString?.() || incident._id || null;
+  const rawExplanation = incident.explanation || null;
+  const explanation = rawExplanation
+    ? {
+        summary: rawExplanation.summary ?? '',
+        likelyCause: rawExplanation.likelyCause ?? '',
+        recommendedAction: rawExplanation.recommendedAction ?? '',
+        urgency: rawExplanation.urgency ?? 'monitor',
+        source: rawExplanation.source ?? null,
+        provider: rawExplanation.provider ?? null,
+        model: rawExplanation.model ?? null,
+        status: rawExplanation.status ?? 'pending',
+        generatedAt: rawExplanation.generatedAt ?? null,
+      }
+    : null;
   return {
     id,
     _id: id,
@@ -24,6 +38,7 @@ export function normalizeIncident(incident) {
     projectContext: normalizeProjectContext(incident.projectContext),
     correlation: incident.correlation || null,
     agentSummary: incident.agentSummary || null,
+    explanation,
   };
 }
 

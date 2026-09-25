@@ -299,6 +299,7 @@ export const getIncidents = async ({
   });
 export const getIncidentById = async (id) => api.get(`/incidents/${id}`);
 export const getIncidentEvidenceGraph = async (id) => api.get(`/incidents/${id}/graph`);
+export const explainIncident = async (id) => api.post(`/incidents/${id}/explain`);
 
 // Briefing
 export const getLatestBriefing = async (nightDate) => api.get(`/briefings/latest`, { params: { nightDate } });
