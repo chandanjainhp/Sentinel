@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List, Optional
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from app.routes import predict
 from app.schemas.prediction import HealthResponse, ModelInfo
@@ -27,6 +30,32 @@ def create_app(models_dir: Optional[Path] = None) -> FastAPI:
 
     app = FastAPI(title="Sentinel ML service", version="1.0.0", lifespan=lifespan)
     app.include_router(predict.router)
+
+    @app.exception_handler(RequestValidationError)
+    async def json_safe_validation_handler(request: Request, exc: RequestValidationError):
+        """422 with a JSON-legal body even when the invalid input is NaN/Infinity.
+
+        The default handler embeds the offending value verbatim in the error
+        body; json.dumps then rejects non-finite floats and the client gets an
+        unhandled 500 instead of the contract's 422.
+        """
+
+        def json_safe(value):
+            if value is None or isinstance(value, (str, int, bool)):
+                return value
+            if isinstance(value, float):
+                return value if math.isfinite(value) else str(value)
+            if isinstance(value, (list, dict)):
+                return value  # pydantic only puts primitives here; kept for safety
+            # bytes / other objects (e.g. a raw non-JSON body): stringify,
+            # truncated, so the error body stays small and JSON-legal.
+            text = str(value)
+            return text[:200] + ("…" if len(text) > 200 else "")
+
+        return JSONResponse(
+            status_code=422,
+            content={"detail": [{**err, "input": json_safe(err.get("input"))} for err in exc.errors()]},
+        )
 
     @app.get("/health", response_model=HealthResponse)
     def health(request: Request):

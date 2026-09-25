@@ -40,6 +40,8 @@ def generate_healthy(
     n: int, seed: int = 0, interval_s: float = DEFAULT_INTERVAL_S
 ) -> np.ndarray:
     """Return an (n, 4) array with columns == FEATURES (healthy operation)."""
+    if n <= 0:
+        return np.empty((0, len(FEATURES)), dtype=np.float64)
     rng = np.random.default_rng(seed)
     t = np.arange(n, dtype=np.float64)
     day = 86400.0 / interval_s
