@@ -1,5 +1,6 @@
 import { Machine } from "../models/machine.model.js";
 import { getSiteById } from "./site.service.js";
+import { getMachineCoverage } from "./coverage.service.js";
 import { ApiError } from "../utils/api-error.js";
 import mongoose from "mongoose";
 
@@ -67,4 +68,23 @@ export const deleteMachine = async (machineIdParam, userFilter = {}) => {
     throw new ApiError(404, "Machine not found");
   }
   return machine;
+};
+
+/**
+ * Coverage status for every machine owned by the user (machines with no
+ * sensors at all are included — they are the most gated ones).
+ */
+export const getAllMachineCoverages = async (userFilter = {}) => {
+  const machines = await Machine.find(userFilter).sort({ createdAt: -1 });
+  return Promise.all(
+    machines.map(async (machine) => ({
+      machineId: String(machine._id),
+      machineKey: machine.machineId,
+      name: machine.name,
+      assetId: machine.assetId,
+      machineType: machine.machineType,
+      siteId: String(machine.siteId),
+      coverage: await getMachineCoverage(String(machine._id), { userFilter }),
+    }))
+  );
 };

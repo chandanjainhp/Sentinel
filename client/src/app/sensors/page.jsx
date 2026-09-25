@@ -6,10 +6,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Dialog from "@radix-ui/react-dialog";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
-import { Ban, Check, ChevronRight, CircleDashed, Loader2, Pencil, Plus, Radio } from "lucide-react";
+import {
+  Ban, Check, ChevronRight, CircleDashed, Loader2, Pencil, Plus, Radio,
+  ShieldCheck, ShieldAlert, ShieldOff,
+} from "lucide-react";
 import {
   getSensorSummary, listSensors, getSites, getMachinesForSite,
-  updateSensor, deleteSensor, getApiKeyMeta,
+  updateSensor, deleteSensor, getApiKeyMeta, getMachineCoverages,
 } from "@/lib/api";
 import AddSensorModal from "@/components/sensors/AddSensorModal";
 
@@ -329,6 +332,192 @@ function OnboardingChecklist({ steps }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Machine readiness — minimum sensor-coverage gating, per machine.   */
+/* No manual trigger: once a machine becomes ready, the next incoming */
+/* event flows through the prediction pipeline automatically.         */
+/* ------------------------------------------------------------------ */
+
+const GATE_STATE_UI = {
+  FULLY_COVERED: {
+    icon: ShieldCheck,
+    color: "var(--sev-harmless)",
+    label: "Live",
+    detail: "Predictions run automatically on incoming events",
+  },
+  PARTIAL_REPORTING: {
+    icon: ShieldAlert,
+    color: "var(--sev-minor)",
+    label: "Partial reporting",
+    detail: "All required sensors attached, but some are not reporting",
+  },
+  GATE_CLOSED: {
+    icon: ShieldOff,
+    color: "var(--fg-4)",
+    label: "Gate closed",
+    detail: "Not enough sensors attached yet — predictions will not run",
+  },
+};
+
+function ChannelPill({ channel, state }) {
+  const colors = {
+    covered: { color: "var(--sev-harmless)", borderColor: "var(--border-default)" },
+    missing: { color: "var(--sev-serious)", borderColor: "var(--border-default)" },
+    notRequired: { color: "var(--fg-4)", borderColor: "var(--border-hairline)" },
+  };
+  return (
+    <span
+      title={state === "covered" ? "Reporting" : state === "missing" ? "Required, not reporting" : "Not required"}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "5px",
+        padding: "2px 8px",
+        border: "1px solid",
+        borderRadius: "2px",
+        fontFamily: MONO,
+        fontSize: "9px",
+        fontWeight: 600,
+        textTransform: "uppercase",
+        letterSpacing: "0.08em",
+        ...colors[state],
+      }}
+    >
+      {state === "covered" ? <Check size={9} /> : state === "missing" ? <Ban size={9} /> : null}
+      {channel}
+    </span>
+  );
+}
+
+function MachineReadinessRow({ entry }) {
+  const { coverage } = entry;
+  const ui = GATE_STATE_UI[coverage.gateState] || GATE_STATE_UI.GATE_CLOSED;
+  const Icon = ui.icon;
+
+  const channelState = (channel) =>
+    coverage.covered.includes(channel)
+      ? "covered"
+      : coverage.missing.includes(channel)
+        ? "missing"
+        : "notRequired";
+
+  return (
+    <div style={{
+      display: "flex",
+      flexWrap: "wrap",
+      alignItems: "center",
+      gap: "14px",
+      padding: "12px 16px",
+      borderBottom: "1px solid var(--border-hairline)",
+    }}>
+      {/* Three-state indicator */}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: "190px" }}>
+        <Icon size={15} style={{ color: ui.color }} />
+        <div>
+          <div style={{
+            fontFamily: SANS, fontSize: "13px", fontWeight: 600,
+            color: "var(--fg-1)", lineHeight: 1.2,
+          }}>
+            {entry.name}
+          </div>
+          <div style={{
+            fontFamily: MONO, fontSize: "9px", fontWeight: 600,
+            textTransform: "uppercase", letterSpacing: "0.1em",
+            color: ui.color, marginTop: "2px",
+          }}>
+            {ui.label}
+          </div>
+        </div>
+      </div>
+
+      {/* Sensors working / total */}
+      <div style={{
+        fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)",
+        whiteSpace: "nowrap",
+      }}>
+        {coverage.sensorsWorking}/{coverage.sensorsTotal} sensors working
+      </div>
+
+      {/* Required channel pills */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", flex: 1, minWidth: "220px" }}>
+        {coverage.required.map((channel) => (
+          <ChannelPill key={channel} channel={channel} state={channelState(channel)} />
+        ))}
+      </div>
+
+      {/* Helper text (missing detail when gated) */}
+      <div style={{
+        fontFamily: SANS, fontSize: "11px", color: "var(--fg-3)",
+        flexBasis: "100%", display: coverage.isReady ? "none" : "block",
+      }}>
+        {coverage.gateState === "GATE_CLOSED" && coverage.unattached.length > 0 && (
+          <>
+            Attach sensors for: <span style={{ color: "var(--fg-1)", fontFamily: MONO, fontSize: "10px" }}>{coverage.unattached.join(", ")}</span>
+          </>
+        )}
+        {coverage.gateState === "PARTIAL_REPORTING" && (
+          <>
+            Waiting for readings from: <span style={{ color: "var(--fg-1)", fontFamily: MONO, fontSize: "10px" }}>{coverage.missing.join(", ")}</span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MachineReadinessSection({ machines, isLoading }) {
+  if (isLoading) {
+    return (
+      <section style={{
+        background: "var(--bg-surface-1)",
+        border: "1px solid var(--border-default)",
+        borderRadius: "2px",
+        padding: "24px 16px",
+        marginBottom: "24px",
+        display: "flex", alignItems: "center", gap: "8px",
+        color: "var(--fg-3)", fontFamily: MONO, fontSize: "11px",
+      }}>
+        <Loader2 size={14} className="animate-spin" />
+        Loading machine readiness…
+      </section>
+    );
+  }
+
+  if (!machines || machines.length === 0) return null;
+
+  return (
+    <section style={{
+      background: "var(--bg-surface-1)",
+      border: "1px solid var(--border-default)",
+      borderRadius: "2px",
+      overflow: "hidden",
+      marginBottom: "24px",
+    }}>
+      <div style={{
+        padding: "10px 16px",
+        borderBottom: "1px solid var(--border-hairline)",
+        background: "var(--bg-surface-2)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}>
+        <span style={{
+          fontFamily: MONO, fontSize: "10px", fontWeight: 600,
+          textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--fg-3)",
+        }}>
+          Machine readiness
+        </span>
+        <span style={{ fontFamily: MONO, fontSize: "10px", color: "var(--fg-4)" }}>
+          predictions start automatically once required sensors report
+        </span>
+      </div>
+      {machines.map((entry) => (
+        <MachineReadinessRow key={entry.machineId} entry={entry} />
+      ))}
+    </section>
+  );
+}
+
 export default function SensorsPage() {
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
@@ -366,6 +555,15 @@ export default function SensorsPage() {
   const { data: keyMeta } = useQuery({
     queryKey: ["api-key"],
     queryFn: getApiKeyMeta,
+  });
+
+  // Coverage gating: per-machine required-channel readiness (10s polling so
+  // machines flip to "Live" as soon as their sensors start reporting).
+  const { data: machineCoverages, isLoading: coveragesLoading } = useQuery({
+    queryKey: ["machine-coverages"],
+    queryFn: getMachineCoverages,
+    refetchInterval: 10000,
+    refetchIntervalInBackground: false,
   });
 
   const summaryData = summary || { limit: 20, total: 0, remaining: 20, counts: {}, byType: {} };
@@ -486,6 +684,9 @@ export default function SensorsPage() {
 
       {/* Onboarding checklist */}
       <OnboardingChecklist steps={checklistSteps} />
+
+      {/* Machine readiness — per-machine coverage gating status */}
+      <MachineReadinessSection machines={machineCoverages} isLoading={coveragesLoading} />
 
       {/* Sensor table */}
       <section style={{

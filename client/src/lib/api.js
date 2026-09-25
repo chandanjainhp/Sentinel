@@ -322,6 +322,7 @@ export const createSensor = (machineId, data) =>
 export const updateSensor = (sensorId, data) => api.patch(`/sensors/${sensorId}`, data);
 export const deleteSensor = (sensorId) => api.delete(`/sensors/${sensorId}`);
 export const getMachinesForSite = (siteId) => api.get(`/machines/sites/${siteId}/machines`);
+export const getMachineCoverages = () => api.get("/machines/coverage");
 export const createMachine = (siteId, data) =>
   api.post(`/machines/sites/${siteId}/machines`, data);
 

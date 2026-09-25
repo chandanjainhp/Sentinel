@@ -1,6 +1,7 @@
 import { asyncHandler } from "../utils/async-handler.js";
 import { ApiResponse } from "../utils/api-response.js";
 import * as machineService from "../services/machine.service.js";
+import { getMachineCoverage } from "../services/coverage.service.js";
 
 export const createMachine = asyncHandler(async (req, res) => {
   const { siteId } = req.params;
@@ -19,7 +20,24 @@ export const getMachines = asyncHandler(async (req, res) => {
 export const getMachine = asyncHandler(async (req, res) => {
   const { machineId } = req.params;
   const machine = await machineService.getMachineById(machineId, req.userFilter);
-  return res.status(200).json(new ApiResponse(200, machine, "Machine fetched successfully"));
+
+  // Coverage rides along with the machine detail so the frontend gets both
+  // in a single call.
+  const coverage = await getMachineCoverage(machineId, { userFilter: req.userFilter });
+  return res.status(200).json(
+    new ApiResponse(200, { ...machine.toObject(), coverage }, "Machine fetched successfully")
+  );
+});
+
+export const getMachineCoverageStatus = asyncHandler(async (req, res) => {
+  const { machineId } = req.params;
+  const coverage = await getMachineCoverage(machineId, { userFilter: req.userFilter });
+  return res.status(200).json(new ApiResponse(200, coverage, "Machine coverage fetched successfully"));
+});
+
+export const getAllMachineCoverages = asyncHandler(async (req, res) => {
+  const coverages = await machineService.getAllMachineCoverages(req.userFilter);
+  return res.status(200).json(new ApiResponse(200, coverages, "Machine coverages fetched successfully"));
 });
 
 export const updateMachine = asyncHandler(async (req, res) => {

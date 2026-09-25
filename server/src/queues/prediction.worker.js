@@ -6,8 +6,10 @@ let workerInstance = null;
 export const startPredictionWorker = (connection) => {
   if (workerInstance) return workerInstance;
 
+  // Must match the producer's queue name (see prediction.queue.js).
+  const queueName = process.env.PREDICTION_QUEUE_NAME || "prediction";
   workerInstance = new Worker(
-    "prediction",
+    queueName,
     async (job) => {
       if (job.name === "predict") {
         return runPrediction(job.data);

@@ -12,7 +12,9 @@ import {
   parseMlResponse,
   ML_RECOMMENDED_WINDOW,
 } from "./ml-contract.service.js";
-import { ML_SERVICE_URL, ML_TIMEOUT_MS } from "./ml-contract.service.js";
+import { ML_SERVICE_URL, ML_TIMEOUT_MS, getMlServiceUrl } from "./ml-contract.service.js";
+import { getMachineCoverage } from "./coverage.service.js";
+import { EVENT_TAGS } from "../models/event.model.js";
 import { ApiError } from "../utils/api-error.js";
 import mongoose from "mongoose";
 
@@ -39,6 +41,34 @@ const releaseRunSlot = (machineKey) => {
   else machineRuns.set(machineKey, current - 1);
 };
 
+/**
+ * Minimum sensor-coverage gate.
+ *
+ * Before spending an ML call, verify the machine has enough of its required
+ * sensor types attached AND actively reporting (see coverage.service.js).
+ * When the gate is closed:
+ *   - the event stays stored as-is,
+ *   - ML inference and everything downstream (prediction → health → incident)
+ *     is skipped without erroring the job,
+ *   - the event is tagged SKIPPED_INSUFFICIENT_COVERAGE so the skip is
+ *     observable and auditable.
+ * The next event that arrives once the machine becomes ready flows through
+ * the normal pipeline automatically — no manual trigger.
+ */
+const checkCoverageGate = async (machine) => {
+  try {
+    return await getMachineCoverage(String(machine._id));
+  } catch (err) {
+    // The gate must never wedge the pipeline: on failure, open it and let
+    // the existing window checks in buildMachineWindow decide scoreability.
+    console.error(
+      `[PredictionService] Coverage check failed for machine ${machine._id}, proceeding:`,
+      err.message
+    );
+    return { isReady: true };
+  }
+};
+
 export const runPrediction = async ({ eventId, machineId }) => {
   const isEventObjId = mongoose.Types.ObjectId.isValid(eventId);
   const event = isEventObjId
@@ -63,6 +93,25 @@ export const runPrediction = async ({ eventId, machineId }) => {
     return { skipped: true, reason: "prediction already running for machine" };
   }
   try {
+    // ── Minimum sensor-coverage gate ──
+    const coverage = await checkCoverageGate(machine);
+    if (!coverage.isReady) {
+      await Event.updateOne(
+        { _id: event._id },
+        { $addToSet: { tags: EVENT_TAGS.SKIPPED_INSUFFICIENT_COVERAGE } }
+      ).catch((err) =>
+        console.error(
+          "[PredictionService] Failed to tag event with coverage skip:",
+          err.message
+        )
+      );
+      return {
+        skipped: true,
+        reason: "SKIPPED_INSUFFICIENT_COVERAGE",
+        missing: coverage.missing,
+      };
+    }
+
     return await predictForMachine({ event, machine });
   } finally {
     releaseRunSlot(String(machine._id));
@@ -100,7 +149,7 @@ const predictForMachine = async ({ event, machine }) => {
 
   let parsed;
   try {
-    const response = await fetch(`${ML_SERVICE_URL}/predict`, {
+    const response = await fetch(`${getMlServiceUrl()}/predict`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

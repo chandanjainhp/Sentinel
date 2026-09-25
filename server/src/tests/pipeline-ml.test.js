@@ -14,16 +14,15 @@ let server;
 let mlServer;
 let mlMode = "ok"; // ok | down | insufficient
 let mlRequests = [];
+let happyMachineId; // set by test 1, referenced by the ML-down test
 const ML_PORT = 9111;
 const PORT = 8091;
 const BASE_URL = `http://localhost:${PORT}/api/v1`;
 
-// bun test runs files concurrently — isolate this suite's database so another
-// file's dropDatabase() cannot race it.
-process.env.MONGODB_URL = (process.env.MONGODB_URL || "").replace(
-  /\/([A-Za-z0-9_-]+)(\?|$)\//,
-  "/sentinel_pipeline$2"
-);
+// Test files run in one bun process sharing the worker and DB connection.
+// Do NOT rewrite MONGODB_URL/REDIS_URL here — the BullMQ worker is a
+// process-wide singleton, and a dev worker on the same Redis will steal
+// prediction jobs; run the suite against a test Redis instead.
 
 const scoredResponse = (windowLen) => ({
   machineId: "mock-machine",
@@ -133,19 +132,24 @@ const registerAndSetup = async (suffix) => {
     })
   ).json()).data;
 
-  const sensor = (await (
-    await fetch(`${BASE_URL}/sensors/machines/${machine.machineId}/sensors`, {
-      method: "POST",
-      headers: authHeaders,
-      body: JSON.stringify({ name: `Sensor ${suffix}`, type: "vibration" }),
-    })
-  ).json()).data;
+  // The coverage gate requires every required channel (ML baseline ∪ type
+  // extras — pumps need pressure) to have a reporting sensor.
+  const sensors = {};
+  for (const type of ["temperature", "vibration", "current", "rpm", "pressure"]) {
+    sensors[type] = (await (
+      await fetch(`${BASE_URL}/sensors/machines/${machine.machineId}/sensors`, {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({ name: `${type} ${suffix}`, type }),
+      })
+    ).json()).data;
+  }
 
   const secret = (await (
     await fetch(`${BASE_URL}/settings/api-key`, { method: "POST", headers: authHeaders })
   ).json()).data.secret;
 
-  return { authHeaders, site, machine, sensor, secret };
+  return { authHeaders, site, machine, sensors, secret };
 };
 
 const postEvent = async (secret, { site, machine, sensor }, values, timestamp = new Date().toISOString()) =>
@@ -166,12 +170,26 @@ const postEvent = async (secret, { site, machine, sensor }, values, timestamp = 
     }),
   });
 
+/** One event per sensor per cycle; values keyed by channel. */
+const postReadings = async (secret, env, valuesByChannel, timestamp = new Date().toISOString()) => {
+  const results = [];
+  for (const [channel, value] of Object.entries(valuesByChannel)) {
+    results.push(
+      await postEvent(secret, { ...env, sensor: env.sensors[channel] }, { [channel]: value }, timestamp)
+    );
+  }
+  return results;
+};
+
 describe("Wave 1: ingestion → contract ML call → honest health", () => {
   beforeAll(async () => {
     process.env.ML_SERVICE_URL = `http://localhost:${ML_PORT}`;
     await startMockMl();
     await connectDatabases();
-    await mongoose.connection.dropDatabase();
+    // Deterministic runs: clear data but keep indexes — dropDatabase() would
+    // race with BullMQ retries from earlier suites still in flight.
+    const collections = await mongoose.connection.db.collections();
+    for (const c of collections) await c.deleteMany({});
     await startWorker();
     server = app.listen(PORT);
   });
@@ -185,18 +203,19 @@ describe("Wave 1: ingestion → contract ML call → honest health", () => {
 
   it("scores a full machine window: prediction stored, health HEALTHY, contract-shaped call", { timeout: 30000 }, async () => {
     const env = await registerAndSetup("happy");
-    // One sensor carries all four channels per event (the merge is tested in
-    // unit tests; here the pipeline is the subject).
+    // One event per sensor per cycle (the multi-sensor merge is exercised by
+    // the coverage suite; here the pipeline is the subject).
     const base = Date.now() - 40 * 10000;
     for (let i = 0; i < 40; i += 1) {
       const ts = new Date(base + i * 10000).toISOString();
-      const res = await postEvent(env.secret, env, {
+      const results = await postReadings(env.secret, env, {
         temperature: 60 + Math.sin(i / 5),
         vibration: 2 + Math.sin(i / 7) * 0.2,
         current: 10,
         rpm: 1500,
+        pressure: 3.4,
       }, ts);
-      expect(res.status).toBe(201);
+      for (const res of results) expect(res.status).toBe(201);
     }
 
     const gotPrediction = await waitUntil(async () =>
@@ -228,28 +247,32 @@ describe("Wave 1: ingestion → contract ML call → honest health", () => {
     expect(machine.healthUnknownReason ?? null).toBeNull();
     const { Incident } = await import("../models/incident.model.js");
     expect(await Incident.countDocuments({})).toBe(0);
+    happyMachineId = env.machine._id; // referenced by the ML-down test below
   });
 
   it("ML down → no prediction, no fabricated scores, machine UNKNOWN with reason; events still stored", { timeout: 30000 }, async () => {
     mlMode = "down";
     const env = await registerAndSetup("down");
+    const downMachineId = env.machine._id;
     const before = await Event.countDocuments({});
 
     for (let i = 0; i < 35; i += 1) {
       const ts = new Date(Date.now() - (35 - i) * 10000).toISOString();
-      const res = await postEvent(env.secret, env, {
-        temperature: 60, vibration: 2, current: 10, rpm: 1500,
+      const results = await postReadings(env.secret, env, {
+        temperature: 60, vibration: 2, current: 10, rpm: 1500, pressure: 3.4,
       }, ts);
-      expect(res.status).toBe(201);
+      for (const res of results) expect(res.status).toBe(201);
     }
 
-    // Ingestion is unaffected by ML being down.
-    expect((await Event.countDocuments({})) - before).toBe(35);
+    // Ingestion is unaffected by ML being down (5 sensors × 35 cycles).
+    expect((await Event.countDocuments({})) - before).toBe(175);
 
-    // No new prediction may appear (existing count = 1 from test 1).
+    // No new prediction may appear beyond the happy-path machine's, and no
+    // incident may be created from unscored, gated or unreachable states.
     await new Promise((r) => setTimeout(r, 3000));
     const { Incident } = await import("../models/incident.model.js");
-    expect(await Prediction.countDocuments({})).toBe(1);
+    expect(await Prediction.countDocuments({ machineId: happyMachineId })).toBe(1);
+    expect(await Prediction.countDocuments({ machineId: downMachineId })).toBe(0);
     expect(await Incident.countDocuments({})).toBe(0);
 
     // Machine is UNKNOWN with the unreachable reason.
@@ -263,8 +286,8 @@ describe("Wave 1: ingestion → contract ML call → honest health", () => {
     mlMode = "model503";
     const env = await registerAndSetup("m503");
     for (let i = 0; i < 35; i += 1) {
-      await postEvent(env.secret, env, {
-        temperature: 60, vibration: 2, current: 10, rpm: 1500,
+      await postReadings(env.secret, env, {
+        temperature: 60, vibration: 2, current: 10, rpm: 1500, pressure: 3.4,
       }, new Date(Date.now() - (35 - i) * 10000).toISOString());
     }
     await waitUntil(async () => {
@@ -282,8 +305,8 @@ describe("Wave 1: ingestion → contract ML call → honest health", () => {
 
     for (let i = 0; i < 32; i += 1) {
       const ts = new Date(Date.now() - (32 - i) * 10000).toISOString();
-      await postEvent(env.secret, env, {
-        temperature: 60, vibration: 2, current: 10, rpm: 1500,
+      await postReadings(env.secret, env, {
+        temperature: 60, vibration: 2, current: 10, rpm: 1500, pressure: 3.4,
       }, ts);
     }
 
@@ -297,18 +320,10 @@ describe("Wave 1: ingestion → contract ML call → honest health", () => {
     mlMode = "ok";
   });
 
-  it("missing a required channel entirely → UNKNOWN with Missing-channel reason", { timeout: 30000 }, async () => {
-    const env = await registerAndSetup("channel");
-    for (let i = 0; i < 5; i += 1) {
-      await postEvent(env.secret, env, { vibration: 2 });
-    }
-    await waitUntil(async () => {
-      const m = await Machine.findById(env.machine._id).lean();
-      return m.status === "unknown" && /Missing channel/.test(m.healthUnknownReason || "");
-    });
-    const machine = await Machine.findById(env.machine._id).lean();
-    expect(machine.healthUnknownReason).toBe("Missing channel: temperature");
-  });
+  // NOTE: events processed while a machine is below the coverage gate
+  // legitimately carry the SKIPPED_INSUFFICIENT_COVERAGE tag; the gate
+  // semantics (tagged when gated, untagged once ready) are covered in
+  // coverage-gating.test.js.
 
   it("POST /api/v1/test/* is not mounted in production (404)", async () => {
     // The app under test is mounted with NODE_ENV=test; assert the route

@@ -1,12 +1,16 @@
 import * as Sentry from '@sentry/node';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import logger from './utils/logger.js';
+
+// Load environment variables BEFORE importing app.js
+// In ESM, imports are evaluated before the module body runs,
+// so dotenv.config() must be called before any imports that depend on env vars
+dotenv.config({ path: './.env' });
+
 import app from './app.js';
 import { connectDatabases, disconnectDatabases } from './db/index.js';
 import { startWorker, stopWorker } from './queues/worker.js';
-import logger from './utils/logger.js';
-
-dotenv.config({ path: './.env' });
 
 Sentry.init({
   dsn: process.env.SENTRY_DSN,

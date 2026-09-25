@@ -1,6 +1,15 @@
 import mongoose from "mongoose";
 import crypto from "node:crypto";
 
+/**
+ * Processing tags stamped on events by the pipeline. A tag marks an event as
+ * processed in a special way — it is never an error state.
+ */
+export const EVENT_TAGS = Object.freeze({
+  /** Event stored, but ML inference skipped: machine lacked sensor coverage. */
+  SKIPPED_INSUFFICIENT_COVERAGE: "SKIPPED_INSUFFICIENT_COVERAGE",
+});
+
 const eventSchema = new mongoose.Schema(
   {
     eventId: {
@@ -90,6 +99,14 @@ const eventSchema = new mongoose.Schema(
         "unknown",
       ],
       default: "unknown",
+      index: true,
+    },
+
+    /** Pipeline processing tags (see EVENT_TAGS). */
+    tags: {
+      type: [String],
+      enum: Object.values(EVENT_TAGS),
+      default: [],
       index: true,
     },
 

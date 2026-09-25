@@ -3,6 +3,8 @@ import {
   createMachine,
   getMachines,
   getMachine,
+  getMachineCoverageStatus,
+  getAllMachineCoverages,
   updateMachine,
   deleteMachine,
 } from "../controllers/machine.controller.js";
@@ -24,6 +26,12 @@ router.use(scopeToUser);
 router.post("/sites/:siteId/machines", validate(createMachineSchema), createMachine);
 
 router.get("/sites/:siteId/machines", validate(siteMachineParamsSchema), getMachines);
+
+// Static paths must be registered BEFORE /:machineId so they are not
+// captured by the parameterized route.
+router.get("/coverage", getAllMachineCoverages);
+
+router.get("/:machineId/coverage", validate(machineIdSchema), getMachineCoverageStatus);
 
 router.get("/:machineId", validate(machineIdSchema), getMachine);
 

@@ -32,6 +32,14 @@ export const CHANNEL_MAX_AGE_SEC = Number(process.env.CHANNEL_MAX_AGE_SEC || 300
 export const ML_TIMEOUT_MS = Number(process.env.ML_TIMEOUT_MS || 5000);
 export const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://localhost:9000";
 
+/**
+ * ML base URL at call time. Tests (and deployments) may set ML_SERVICE_URL
+ * after modules have loaded — the constant above is captured at import time,
+ * this getter always reflects the current environment.
+ */
+export const getMlServiceUrl = () =>
+  process.env.ML_SERVICE_URL || ML_SERVICE_URL;
+
 /* ── Machine-type mapping (decision M3) ─────────────────────────── */
 
 // The demo model is trained for generic_motor. Free-text machine types from
