@@ -23,7 +23,35 @@ import mongoose from "mongoose";
  * On escalation the argus-explain job is re-enqueued under the new severity
  * jobId, so the explanation reflects the worse state.
  */
-export const createIncidentIfEligible = async ({
+
+/**
+ * Per-machine serialization for create-vs-update (adversarial-test fix).
+ *
+ * createIncidentIfEligible is check-then-act: two concurrent predictions for
+ * the same machine could both see "no open incident" and both create one.
+ * The embedded worker runs jobs for a machine's events concurrently, so the
+ * race is real (proven by adversarial-incidents.test.js). Chaining per-machine
+ * promises closes it within this process. NOTE: a multi-replica deployment
+ * needs a Mongo partial unique index instead — tracked in BUGS_FOUND.md.
+ */
+const machineChains = new Map();
+
+const withMachineLock = (machineId, fn) => {
+  const key = String(machineId);
+  const previous = machineChains.get(key) ?? Promise.resolve();
+  const next = previous.then(fn, fn);
+  machineChains.set(
+    key,
+    next.catch(() => {})
+  );
+  return next;
+};
+export const createIncidentIfEligible = async (params) =>
+  withMachineLock(params.machine?._id ?? params.machine?.machineId, () =>
+    createIncidentIfEligibleUnsafe(params)
+  );
+
+const createIncidentIfEligibleUnsafe = async ({
   machine,
   prediction,
   severity,
