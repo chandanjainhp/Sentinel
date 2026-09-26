@@ -293,9 +293,11 @@ export const getIncidents = async ({
   severity,
   workPackageId,
   assetId,
+  from,
+  to,
 } = {}) =>
   api.get(`/incidents`, {
-    params: { nightDate, status, severity, workPackageId, assetId },
+    params: { nightDate, status, severity, workPackageId, assetId, from, to },
   });
 export const getIncidentById = async (id) => api.get(`/incidents/${id}`);
 export const getIncidentEvidenceGraph = async (id) => api.get(`/incidents/${id}/graph`);

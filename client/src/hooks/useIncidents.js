@@ -35,9 +35,23 @@ function bucket(incidents) {
 
 /**
  * @param {object} filters — nightDate, severity, status, workPackageId, assetId
+ *
+ * nightDate is a client-side concept ("the night being viewed"); the server's
+ * incident list filters on createdAt from/to, so it is converted here. Passing
+ * nightDate as a raw query param would be silently ignored server-side and
+ * the "overnight" counts would silently be all-time counts instead.
  */
 export function useIncidents(filters = {}, options = {}) {
   const key = incidentQueryKey(filters);
+
+  const nightWindow = key.nightDate
+    ? (() => {
+        const from = new Date(`${key.nightDate}T00:00:00`);
+        const to = new Date(from.getTime() + 24 * 60 * 60 * 1000);
+        if (Number.isNaN(from.getTime())) return {};
+        return { from: from.toISOString(), to: to.toISOString() };
+      })()
+    : {};
 
   return useQuery({
     queryKey: ["incidents", key],
@@ -48,6 +62,7 @@ export function useIncidents(filters = {}, options = {}) {
         status: key.status || undefined,
         workPackageId: key.workPackageId || undefined,
         assetId: key.assetId || undefined,
+        ...nightWindow,
       }),
     select: (data) => bucket(normalizeList(data)),
     staleTime: 15 * 1000,

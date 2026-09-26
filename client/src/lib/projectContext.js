@@ -35,6 +35,8 @@ export function normalizeIncident(incident) {
     status: incident.status,
     priority: incident.priority,
     nightDate: incident.nightDate,
+    machineId: incident.machineId || null,
+    machine: incident.machine || null,
     projectContext: normalizeProjectContext(incident.projectContext),
     correlation: incident.correlation || null,
     agentSummary: incident.agentSummary || null,
@@ -42,18 +44,20 @@ export function normalizeIncident(incident) {
   };
 }
 
-export function uniqueWorkPackages(incidents = []) {
-  return new Set(
-    incidents
-      .map((i) => i.projectContext?.workPackageId)
-      .filter(Boolean)
-  ).size;
-}
-
+/**
+ * Distinct machines referenced by the given incidents. "Assets" in this
+ * build are machines: the Incident model has no projectContext/asset field,
+ * so counts derived from projectContext would always be 0.
+ */
 export function uniqueAssets(incidents = []) {
-  return new Set(
-    incidents
-      .map((i) => i.projectContext?.assetId)
-      .filter(Boolean)
-  ).size;
+  const ids = new Set(
+    incidents.map((i) => i.machineId).filter(Boolean)
+  );
+  // Fall back to machine names when only the populated machine doc is present.
+  if (ids.size === 0) {
+    for (const name of incidents.map((i) => i.machine?.name).filter(Boolean)) {
+      ids.add(name);
+    }
+  }
+  return ids.size;
 }
