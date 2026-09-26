@@ -42,9 +42,9 @@ export const getOvernightAlerts = async (nightDate) => {
     );
 
     return events.map((event) => {
-      const wp = event.projectContext?.workPackageId || 'unknown-WP';
-      const asset = event.projectContext?.assetId;
-      const ctx = asset ? `${wp} / ${asset}` : wp;
+      // projectContext was never populated in this build (no model, route, or
+      // writer); label events by the machine they came from instead.
+      const ctx = event.machineId || 'unknown-machine';
       let rawSummary = '';
       switch (event.type) {
         case 'equipment_anomaly':
@@ -70,8 +70,7 @@ export const getOvernightAlerts = async (nightDate) => {
       return {
         id: event._id.toString(),
         type: event.type,
-        workPackageId: wp,
-        assetId: asset || null,
+        machineId: event.machineId || null,
         time: formatTime(event.timestamp),
         severity: event.severity || 'uncertain',
         rawSummary,

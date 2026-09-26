@@ -113,8 +113,6 @@ const getFullHealth = asyncHandler(async (req, res) => {
     eventsBySeverity,
     incidentsByStatus,
     incidentsBySeverity,
-    eventsByWp,
-    incidentsByWp,
   ] = await Promise.all([
     Event.countDocuments({ nightDate: { $gte: start, $lte: end } }),
     Incident.countDocuments({ nightDate: { $gte: start, $lte: end } }),
@@ -131,16 +129,6 @@ const getFullHealth = asyncHandler(async (req, res) => {
     Incident.aggregate([
       { $match: { nightDate: { $gte: start, $lte: end } } },
       { $group: { _id: { $ifNull: ["$severity", "uncertain"] }, count: { $sum: 1 } } },
-      { $project: { _id: 0, key: { $ifNull: ["$_id", "unknown"] }, count: 1 } },
-    ]),
-    Event.aggregate([
-      { $match: { nightDate: { $gte: start, $lte: end } } },
-      { $group: { _id: "$projectContext.workPackageId", count: { $sum: 1 } } },
-      { $project: { _id: 0, key: { $ifNull: ["$_id", "unknown"] }, count: 1 } },
-    ]),
-    Incident.aggregate([
-      { $match: { nightDate: { $gte: start, $lte: end } } },
-      { $group: { _id: "$projectContext.workPackageId", count: { $sum: 1 } } },
       { $project: { _id: 0, key: { $ifNull: ["$_id", "unknown"] }, count: 1 } },
     ]),
   ]);
@@ -177,8 +165,6 @@ const getFullHealth = asyncHandler(async (req, res) => {
       eventsBySeverity: toMap(eventsBySeverity),
       incidentsByStatus: toMap(incidentsByStatus),
       incidentsBySeverity: toMap(incidentsBySeverity),
-      eventsByWorkPackage: toMap(eventsByWp),
-      incidentsByWorkPackage: toMap(incidentsByWp),
     },
   };
 
