@@ -1,12 +1,4 @@
-/** Normalize industrial projectContext from API payloads. */
-
-export function normalizeProjectContext(raw) {
-  if (!raw || typeof raw !== 'object') return null;
-  const workPackageId = raw.workPackageId ? String(raw.workPackageId) : null;
-  const assetId = raw.assetId ? String(raw.assetId) : null;
-  if (!workPackageId && !assetId) return null;
-  return { workPackageId, assetId };
-}
+/** Incident normalization helpers. */
 
 export function normalizeIncident(incident) {
   if (!incident || typeof incident !== 'object') return incident;
@@ -37,7 +29,6 @@ export function normalizeIncident(incident) {
     nightDate: incident.nightDate,
     machineId: incident.machineId || null,
     machine: incident.machine || null,
-    projectContext: normalizeProjectContext(incident.projectContext),
     correlation: incident.correlation || null,
     agentSummary: incident.agentSummary || null,
     explanation,

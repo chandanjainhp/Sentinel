@@ -1,15 +1,14 @@
 import { create } from 'zustand';
 
 /**
- * Incident list filters for industrial project context.
- * No geo/zone fields.
+ * Incident list filters. Only fields the server actually filters on
+ * (see incident.service getIncidents) plus nightDate, which useIncidents
+ * converts to a createdAt from/to window.
  */
 export const useIncidentFilterStore = create((set) => ({
   nightDate: null,
   severity: null,
   status: null,
-  workPackageId: null,
-  assetId: null,
   priority: null,
 
   setFilter: (key, value) =>
@@ -26,8 +25,6 @@ export const useIncidentFilterStore = create((set) => ({
             'nightDate',
             'severity',
             'status',
-            'workPackageId',
-            'assetId',
             'priority',
           ].includes(key)
         ) {
@@ -41,8 +38,6 @@ export const useIncidentFilterStore = create((set) => ({
     set({
       severity: null,
       status: null,
-      workPackageId: null,
-      assetId: null,
       priority: null,
     }),
 }));
@@ -53,7 +48,5 @@ export function incidentQueryKey(filters = {}) {
     nightDate: filters.nightDate || null,
     severity: filters.severity || null,
     status: filters.status || null,
-    workPackageId: filters.workPackageId || null,
-    assetId: filters.assetId || null,
   };
 }

@@ -34,7 +34,7 @@ function bucket(incidents) {
 }
 
 /**
- * @param {object} filters — nightDate, severity, status, workPackageId, assetId
+ * @param {object} filters — nightDate, severity, status
  *
  * nightDate is a client-side concept ("the night being viewed"); the server's
  * incident list filters on createdAt from/to, so it is converted here. Passing
@@ -57,11 +57,8 @@ export function useIncidents(filters = {}, options = {}) {
     queryKey: ["incidents", key],
     queryFn: () =>
       getIncidents({
-        nightDate: key.nightDate || undefined,
         severity: key.severity || undefined,
         status: key.status || undefined,
-        workPackageId: key.workPackageId || undefined,
-        assetId: key.assetId || undefined,
         ...nightWindow,
       }),
     select: (data) => bucket(normalizeList(data)),

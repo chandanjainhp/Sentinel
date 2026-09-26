@@ -9,7 +9,6 @@ import { getSites } from "@/lib/api";
 import { useIncidents } from "@/hooks/useIncidents";
 import { uniqueAssets } from "@/lib/projectContext";
 import SeverityBadge from "@/components/events/SeverityBadge";
-import ProjectContextBadge from "@/components/shared/ProjectContextBadge";
 
 const MONO = "var(--font-mono)";
 const SANS = "var(--font-sans)";
@@ -356,7 +355,7 @@ export default function OverviewPage() {
                   color: "var(--fg-4)",
                   marginTop: "var(--space-1)",
                 }}>
-                  <ProjectContextBadge projectContext={incident.projectContext} fallback="—" />
+                  {incident.machine?.name || incident.machineId || "—"}
                 </div>
               </div>
               <div style={{

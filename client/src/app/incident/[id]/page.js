@@ -244,28 +244,6 @@ export default function IncidentDetailView({ params }) {
         display: "flex", flexDirection: "column",
         overflowY: "auto", padding: "24px", gap: "24px",
       }}>
-        <div style={{
-          background: "var(--bg-surface-1)",
-          border: "1px solid var(--border-default)",
-          padding: "16px",
-        }}>
-          <div style={{
-            fontFamily: "var(--font-mono)", fontSize: "10px",
-            textTransform: "uppercase", letterSpacing: "0.14em",
-            color: "var(--fg-3)", marginBottom: "12px",
-          }}>
-            Project Context
-          </div>
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", color: "var(--fg-1)" }}>
-            {incident.projectContext?.workPackageId || "—"}
-          </div>
-          {incident.projectContext?.assetId && (
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--fg-3)", marginTop: "6px" }}>
-              Asset · {incident.projectContext.assetId}
-            </div>
-          )}
-        </div>
-
         {/* Involved Entities */}
         <div style={{
           background: "var(--bg-surface-1)",

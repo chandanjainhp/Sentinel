@@ -288,16 +288,13 @@ export const getEventById = async (id) => api.get(`/events/${id}`);
 
 // Incidents
 export const getIncidents = async ({
-  nightDate,
   status,
   severity,
-  workPackageId,
-  assetId,
   from,
   to,
 } = {}) =>
   api.get(`/incidents`, {
-    params: { nightDate, status, severity, workPackageId, assetId, from, to },
+    params: { status, severity, from, to },
   });
 export const getIncidentById = async (id) => api.get(`/incidents/${id}`);
 export const getIncidentEvidenceGraph = async (id) => api.get(`/incidents/${id}/graph`);

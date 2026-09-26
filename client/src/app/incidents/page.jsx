@@ -11,7 +11,6 @@ import { useIncidentFilterStore } from "@/store/incidentFilterStore";
 import AgentFeed from "@/components/agent/AgentFeed";
 import EventPanel from "@/components/events/EventPanel";
 import SeverityBadge from "@/components/events/SeverityBadge";
-import ProjectContextBadge from "@/components/shared/ProjectContextBadge";
 import { Activity, ShieldAlert, Calendar, Play } from "lucide-react";
 
 const MONO = "var(--font-mono)";
@@ -62,8 +61,8 @@ const IncidentRow = memo(function IncidentRow({
       <td style={{ padding: "12px 16px", fontFamily: SANS, fontSize: "13px", color: "var(--fg-1)", fontWeight: 500 }}>
         {incident.title || "Unnamed Incident"}
       </td>
-      <td style={{ padding: "12px 16px" }}>
-        <ProjectContextBadge projectContext={incident.projectContext} fallback="—" />
+      <td style={{ padding: "12px 16px", fontFamily: MONO, fontSize: "12px", color: "var(--fg-2)" }}>
+        {incident.machine?.name || incident.machineId || "—"}
       </td>
       <td style={{ padding: "12px 16px", fontFamily: MONO, fontSize: "12px", color: "var(--fg-2)" }}>
         P{incident.priority}
@@ -90,9 +89,8 @@ export default function IncidentsPage() {
 
 function IncidentsWorkspace({ nightDate }) {
   const severityFilter = useIncidentFilterStore((s) => s.severity);
+  const statusFilter = useIncidentFilterStore((s) => s.status);
   const priorityFilter = useIncidentFilterStore((s) => s.priority);
-  const workPackageId = useIncidentFilterStore((s) => s.workPackageId);
-  const assetId = useIncidentFilterStore((s) => s.assetId);
   const setFilter = useIncidentFilterStore((s) => s.setFilter);
 
   const [selectedIncidentId, setSelectedIncidentId] = useState(null);
@@ -101,8 +99,7 @@ function IncidentsWorkspace({ nightDate }) {
   const { data: incidentsData, isLoading } = useIncidents({
     nightDate,
     severity: severityFilter,
-    workPackageId,
-    assetId,
+    status: statusFilter,
   });
   const incidents = incidentsData?.incidents ?? [];
 
@@ -249,51 +246,10 @@ function IncidentsWorkspace({ nightDate }) {
               }}
             >
               <option value="all">All Severities</option>
-              <option value="serious">Serious</option>
+              <option value="critical">Critical</option>
+              <option value="warning">Warning</option>
               <option value="minor">Minor</option>
-              <option value="harmless">Harmless</option>
-              <option value="uncertain">Uncertain</option>
             </select>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Work Package</label>
-            <input
-              value={workPackageId || ""}
-              onChange={(e) => setFilter("workPackageId", e.target.value.trim())}
-              placeholder="WP-104"
-              style={{
-                background: "var(--bg-surface-1)",
-                color: "var(--fg-1)",
-                border: "1px solid var(--border-default)",
-                borderRadius: "2px",
-                padding: "6px 12px",
-                fontFamily: MONO,
-                fontSize: "13px",
-                outline: "none",
-                width: "120px",
-              }}
-            />
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Asset</label>
-            <input
-              value={assetId || ""}
-              onChange={(e) => setFilter("assetId", e.target.value.trim())}
-              placeholder="Crane-04"
-              style={{
-                background: "var(--bg-surface-1)",
-                color: "var(--fg-1)",
-                border: "1px solid var(--border-default)",
-                borderRadius: "2px",
-                padding: "6px 12px",
-                fontFamily: MONO,
-                fontSize: "13px",
-                outline: "none",
-                width: "120px",
-              }}
-            />
           </div>
         </div>
       </div>
@@ -312,7 +268,7 @@ function IncidentsWorkspace({ nightDate }) {
               <tr style={{ background: "var(--bg-surface-2)", borderBottom: "1px solid var(--border-default)" }}>
                 <th style={{ padding: "12px 16px", fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)", textTransform: "uppercase" }}>ID</th>
                 <th style={{ padding: "12px 16px", fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)", textTransform: "uppercase" }}>Title</th>
-                <th style={{ padding: "12px 16px", fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)", textTransform: "uppercase" }}>Work Package</th>
+                <th style={{ padding: "12px 16px", fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)", textTransform: "uppercase" }}>Machine</th>
                 <th style={{ padding: "12px 16px", fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)", textTransform: "uppercase" }}>Priority</th>
                 <th style={{ padding: "12px 16px", fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)", textTransform: "uppercase" }}>Severity</th>
               </tr>
@@ -395,8 +351,6 @@ function IncidentsWorkspace({ nightDate }) {
                   {selectedIncident.title || "Unnamed Incident"}
                 </h3>
                 <div style={{ display: "flex", gap: "12px", alignItems: "center", fontFamily: MONO, fontSize: "11px", color: "var(--fg-3)" }}>
-                  <ProjectContextBadge projectContext={selectedIncident.projectContext} fallback="—" />
-                  <span>·</span>
                   <span>P{selectedIncident.priority}</span>
                   <span>·</span>
                   <SeverityBadge severity={selectedIncident.severity || "uncertain"} />

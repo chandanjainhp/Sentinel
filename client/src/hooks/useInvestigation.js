@@ -146,12 +146,6 @@ export function useNightSummary(nightDate, options = {}) {
       const incidents = raw.map((i) => ({
         ...i,
         id: i.id || i._id,
-        projectContext: i.projectContext
-          ? {
-              workPackageId: i.projectContext.workPackageId || null,
-              assetId: i.projectContext.assetId || null,
-            }
-          : null,
       }));
       return {
         incidents,

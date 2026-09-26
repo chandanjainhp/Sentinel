@@ -4,13 +4,15 @@ import React, { memo } from "react";
 import { useRouter } from "next/navigation";
 import { formatNightLabel, formatTime } from "@/lib/formatters";
 import { getSeverity } from "@/lib/severity";
-import ProjectContextBadge from "@/components/shared/ProjectContextBadge";
 
 const TYPE_LABELS = {
   work_package: "WORK PACKAGE",
   temporal: "TEMPORAL",
   cross_type: "CROSS TYPE",
 };
+
+const MONO = "var(--font-mono)";
+const SANS = "var(--font-sans)";
 
 const EventCard = memo(({ incident }) => {
   const router = useRouter();
@@ -55,11 +57,15 @@ const EventCard = memo(({ incident }) => {
       </span>
 
       <div>
-        <div style={{ marginBottom: "2px" }}>
-          <ProjectContextBadge
-            projectContext={incident.projectContext}
-            fallback={incident.title || "Unknown WP"}
-          />
+        <div style={{
+          fontFamily: SANS,
+          fontSize: "13px",
+          color: "var(--fg-1)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}>
+          {incident.title || "Unnamed incident"}
         </div>
         <div
           style={{
