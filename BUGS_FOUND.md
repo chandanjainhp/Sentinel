@@ -6,8 +6,10 @@ Scope B (server Bun, 47 new across 7 files), Scope C (contract conformance,
 Every case is a named test — passing, or pinned as `it.todo` with the bug
 tracked here. Nothing was silently skipped.
 
-**Open deployment blockers: none.** 6 bugs were found and fixed during the
-pass; 2 "should fix soon" and 1 design decision remain open, none blocking.
+**Open deployment blockers: none. Open findings: none.** 9 bugs were found
+and fixed during the pass (6 during the scopes, then D1/F1/F2 on the owner's
+decision). The contract gaps and minors below remain pinned as known gaps by
+owner instruction — not fixed in this pass.
 
 ## Fixed during this pass
 
@@ -20,39 +22,32 @@ pass; 2 "should fix soon" and 1 design decision remain open, none blocking.
 | 5 | **blocks deploy (was)** | **`lastReadingAt` lost update** — plain `$set` is last-writer-wins; under concurrent ingestion an older event landing last dragged it backwards → sensors wrongly STALE, coverage gate spuriously closed | `concurrency-check.js` D3: `lastReadingAt=…536` vs newest posted `…567` | `server/src/services/event.service.js`: monotonic max-wins conditional update (unset-or-older guard; Mongo range ops never match null, so the first reading needed its own arm) — commit `aaa2142` |
 | 6 | should fix soon | **Duplicate stored predictions under concurrency** — `MAX_CONCURRENT_PREDICTIONS_PER_MACHINE = 2` let two same-machine jobs both pass the duplicate-window check before either stored (TOCTOU) | `concurrency-check.js` D4 intermittently found 2 predictions | `server/src/services/prediction.service.js`: limit is 1; flood-guard semantics already accept skipping overlapping runs — commit `aaa2142` |
 
-## Open — should fix soon (not blocking, should land before real traffic)
+## Fixed after the owner's decisions (this section's items were "open")
 
-**F1. Argus explain has no timeout guard around the LLM driver.**
-A provider that accepts the connection and never responds hangs
-`explainIncident` forever, and the argus worker runs `concurrency: 1`, so one
-hung call stalls ALL future explanations. Pinned as `it.todo` in
-`adversarial-argus.test.js`. Fix is small (wrap the driver call in a timeout →
-deterministic fallback), but the timeout value is a design choice — not taken
-unilaterally.
+**D1 (fixed — decision b). Idempotency key reuse with a different payload now
+returns 409, sequential AND concurrent.** Events store a `payloadHash`
+(SHA-256 of machine/sensor/type/timestamp/values) bound to the idempotency
+key; a replay must resend a byte-identical payload or get 409 from the
+payload-hash check (sequential) or the unique index (concurrent) — the two
+paths are now consistent. Legacy/direct documents (`payloadHash: null`) fail
+closed: any replay attempt 409s, never a false 200. The D1 `it.todo` is now
+two real tests in `adversarial-events.test.js` — commit `11186c4`.
 
-**F2. A Redis outage hangs `POST /events` indefinitely.**
-BullMQ producers wait forever for a dead Redis (`enableOfflineQueue` default)
-and event ingestion awaits `predictionQueue.add()` inside the request path, so
-the HTTP response never completes instead of failing bounded. Pinned as
-`it.todo` in `adversarial-worker.test.js`. Fix: short offline-queue timeout or
-fire-and-forget enqueue — a resilience-design decision.
+**F1 (fixed). Argus LLM call is bounded; a hung provider falls back.** The
+driver call is wrapped in `withTimeout` using the ML client's `ML_TIMEOUT_MS`
+(same pattern as the ML fetch); expiry is just another LLM failure — retry,
+then deterministic fallback. The concurrency-1 worker lane can no longer be
+wedged by one hung call. Test drives a never-settling driver end to end
+(bounded at 2 × timeout) and asserts the incident lands in fallback —
+commit `37352da`.
 
-## Open — needs owner decision
-
-**D1. Duplicate idempotency key + different payload: silent first-wins.**
-Current behavior (verified, not assumed — the Redis `idempotencyMiddleware` is
-dead code, never mounted; dedup lives in `event.service.js` + unique index):
-
-- sequential duplicate → **200 "Event already processed"** echoing the FIRST
-  event; the different payload is discarded with no comparison or signal;
-- concurrent duplicate → **409** from the `E11000` mapping — the same logical
-  conflict returns 200 or 409 depending on timing;
-- cross-user collisions are impossible (user-scoped keys) — safe.
-
-A buggy/malicious gateway reusing keys gets silent data loss today. Pinned as
-`it.todo` in `adversarial-events.test.js` pending a call: **(a)** keep silent
-first-wins as intended, **(b)** 409 on payload-hash mismatch, **(c)** keep
-behavior, document in CONTRACT.md.
+**F2 (fixed). A Redis outage can no longer hang `POST /events`.** The
+prediction enqueue is wrapped in `withTimeout` (again the ML client's
+timeout): on expiry the event stays stored — the historian's primary job —
+and is tagged `PREDICTION_QUEUING_DEGRADED` so the skip is observable and
+queryable. Test proves the bound against a truly dead endpoint (TEST-NET,
+offline queue holding the add) and the store-and-tag path through real
+ingestion — commit `93ad702`.
 
 ## Contract gaps & minors (pinned, intentionally not fixed)
 
@@ -72,11 +67,11 @@ behavior, document in CONTRACT.md.
   monotonic `lastReadingAt` (fix #5) correctly refuses to regress from the
   future.
 
-## Suite totals after the pass
+## Suite totals after the pass (incl. D1/F1/F2 fixes)
 
 - Python (ml-service): **87/87 pass** (42 pre-existing + 45 new)
-- Bun (server): **128 pass, 0 fail, 3 todo** (66 pre-existing + 62 new;
-  the 3 todos are F1, F2, D1 above)
+- Bun (server): **132 pass, 0 fail, 0 todo** (66 pre-existing + 66 new;
+  the former F1/F2/D1 todos are real assertions now)
 - Scope D script: **PASS** — 50 concurrent POSTs, 0 fetch errors, 50/50
   stored, exact max-wins convergence, 129 jobs → 2 stored predictions,
   health green; ~420ms total, p50 ≈ 390ms
