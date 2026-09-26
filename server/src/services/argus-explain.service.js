@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { withTimeout } from "../utils/with-timeout.js";
+import { ML_TIMEOUT_MS } from "./ml-contract.service.js";
 import { Incident } from "../models/incident.model.js";
 import { Prediction } from "../models/prediction.model.js";
 import { Machine } from "../models/machine.model.js";
@@ -327,7 +329,15 @@ export const explainIncident = async ({ incidentId }) => {
     let lastError = null;
     for (let attempt = 1; attempt <= 2; attempt += 1) {
       try {
-        const { text, provider, model } = await llmDriver(system, user);
+        // Bounded like every other outbound call: a provider that accepts the
+        // connection and never responds must not stall the concurrency-1
+        // worker lane forever. Same timeout as the ML client; on expiry this
+        // is just another LLM failure — retry, then deterministic fallback.
+        const { text, provider, model } = await withTimeout(
+          llmDriver(system, user),
+          ML_TIMEOUT_MS,
+          "LLM call"
+        );
         const parsed = ExplanationSchema.safeParse(JSON.parse(stripCodeFences(text)));
         if (!parsed.success) {
           lastError = new Error(

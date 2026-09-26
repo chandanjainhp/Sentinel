@@ -76,9 +76,28 @@ afterAll(async () => {
 });
 
 describe("adversarial argus — provider pathologies", () => {
-  it.todo(
-    "FOUND BUG — LLM call that never resolves hangs explainIncident: no timeout guard wraps llmDriver, and the argus worker runs concurrency:1, so one hung provider call stalls ALL future explanations. Tracked in BUGS_FOUND.md; test written once a guard exists (expect fallback, not hang)."
-  );
+  it("LLM call that never resolves → bounded timeout, then deterministic fallback (worker lane not stalled)", async () => {
+    // Driver that hangs forever, as a wedged provider would. The service must
+    // cut it off at the ML timeout, burn its retry attempt, and still end in
+    // a usable fallback state instead of hanging the concurrency-1 lane.
+    _setLLMDriverForTests(
+      () => new Promise(() => {}) // never settles
+    );
+    const t0 = Date.now();
+    const result = await explainIncident({ incidentId: env.incident.incidentId });
+    const elapsed = Date.now() - t0;
+
+    expect(result.source).toBe("fallback");
+    expect(result.status).toBe("ready");
+    // Must return within 2 attempts × timeout + slack, not hang forever.
+    expect(elapsed).toBeLessThan(2 * 5000 + 3000);
+
+    const incident = await Incident.findOne({ incidentId: env.incident.incidentId }).lean();
+    expect(incident.explanation.status).toBe("ready");
+    expect(incident.explanation.source).toBe("fallback");
+    expect(incident.explanation.summary).toContain("CRITICAL");
+    _setLLMDriverForTests(null);
+  }, 30000);
 
   it("schema-valid JSON with implausible urgency ('banana') → Zod rejects → deterministic fallback", async () => {
     _setLLMDriverForTests(async () => ({
