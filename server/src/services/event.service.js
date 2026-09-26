@@ -97,8 +97,22 @@ export const ingestEvent = async ({
   // Record the reading time for computed connectivity status. This must
   // never fail or block ingestion — log and continue on error.
   try {
+    // Monotonic update: only advance lastReadingAt. A plain $set is
+    // last-writer-wins, so under concurrent ingestion an older event that
+    // lands last would drag lastReadingAt backwards (sensor wrongly STALE,
+    // coverage gate spuriously closed). The guard makes the write max-wins
+    // atomically: it applies when the field is unset (Mongo range operators
+    // never match null, so the first reading needs its own arm) or older
+    // than the incoming timestamp.
     await Sensor.updateOne(
-      { _id: sensor._id },
+      {
+        _id: sensor._id,
+        $or: [
+          { lastReadingAt: null },
+          { lastReadingAt: { $exists: false } },
+          { lastReadingAt: { $lt: new Date(timestamp) } },
+        ],
+      },
       { $set: { lastReadingAt: new Date(timestamp) } }
     );
   } catch (err) {

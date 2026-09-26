@@ -19,13 +19,20 @@ import { ApiError } from "../utils/api-error.js";
 import mongoose from "mongoose";
 
 /**
- * How many prediction runs may be waiting/running per machine at once.
+ * How many prediction runs may be running per machine at once.
  * Ingestion of 40+ backfilled events fans out one job per event; without a
  * guard each job fetches its own window and hammers the ML service with
  * identical work. A per-machine in-process counter skips the surplus runs —
  * the most recent event's job still runs and wins.
+ *
+ * Must be 1, not 2: with 2 slots, two jobs for the same machine can both pass
+ * the duplicate-window check in predictForMachine before either stores its
+ * prediction (check-then-act race) and both store — the e2e concurrency check
+ * intermittently produced exactly 2 stored predictions per burst. At 1 the
+ * overlapping run is skipped outright, which the flood-guard semantics
+ * already accept ("the most recent event's job still runs and wins").
  */
-const MAX_CONCURRENT_PREDICTIONS_PER_MACHINE = 2;
+const MAX_CONCURRENT_PREDICTIONS_PER_MACHINE = 1;
 const machineRuns = new Map(); // machineId -> count
 
 const acquireRunSlot = (machineKey) => {

@@ -193,14 +193,27 @@ describe("adversarial events — validation and ownership", () => {
 });
 
 describe("adversarial events — rapid-fire same-sensor race", () => {
-  it("30 concurrent posts to ONE sensor: all stored, lastReadingAt converges, no lost updates", async () => {
+  it("30 concurrent posts to ONE sensor: all stored, lastReadingAt max-wins (no lost updates)", async () => {
     const before = (await (
       await api("GET", `/sensors/machines/${env.machine.machineId}/sensors`, { cookie: env.cookie })
     ).json()).data.find((s) => s.type === "temperature");
 
+    // Clean slate for THIS sensor: an earlier test pins a far-future timestamp
+    // on the shared fixture sensor, and the monotonic max-wins update
+    // (deliberately) refuses to regress lastReadingAt from the future.
+    const raceStart = Date.now();
+    await Sensor.updateOne(
+      { _id: before._id },
+      { $set: { lastReadingAt: new Date(raceStart - 1000) } }
+    );
+
+    // Distinct ordered timestamps: the newest post is unambiguous.
     const results = await Promise.all(
       Array.from({ length: 30 }, (_, i) =>
-        postEvent({ values: { temperature: 60 + i } }, { "Idempotency-Key": `race-${Date.now()}-${i}` })
+        postEvent(
+          { values: { temperature: 60 + i }, timestamp: new Date(raceStart + i).toISOString() },
+          { "Idempotency-Key": `race-${raceStart}-${i}` }
+        )
       )
     );
     const created = results.filter((r) => r.status === 201);
@@ -209,11 +222,13 @@ describe("adversarial events — rapid-fire same-sensor race", () => {
     const count = await Event.countDocuments({ sensorId: before._id });
     expect(count).toBeGreaterThanOrEqual(30);
 
-    // lastReadingAt must converge to the latest posted timestamp (no lost update
-    // from read-modify-write races: updateOne($set) is atomic server-side).
+    // Max-wins convergence: 30 concurrent writes land in arbitrary completion
+    // order, and the final value must be exactly the NEWEST posted timestamp.
+    // Under the previous plain $set this race demonstrably lost updates (an
+    // older value landed last and dragged lastReadingAt backwards — caught by
+    // scripts/concurrency-check.js); the monotonic guard makes the outcome
+    // deterministic.
     const after = await Sensor.findById(before._id).lean();
-    expect(new Date(after.lastReadingAt).getTime()).toBeGreaterThan(
-      new Date(before.lastReadingAt ?? 0).getTime()
-    );
+    expect(new Date(after.lastReadingAt).getTime()).toBe(raceStart + 29);
   }, 30000);
 });
