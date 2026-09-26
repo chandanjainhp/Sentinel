@@ -114,6 +114,17 @@ const eventSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+
+    /**
+     * SHA-256 of the payload bound to idempotencyKey at creation time.
+     * Set by event.service.js for API ingestion. Null for direct/legacy
+     * documents: their payload cannot be verified, so a replay attempt
+     * fails closed with 409 (never a false 200 replay).
+     */
+    payloadHash: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,

@@ -72,12 +72,30 @@ export const ingestEvent = async ({
       values,
     });
 
+  // Hash of the payload bound to this idempotency key. A replay must carry
+  // the SAME payload; a different payload under a reused key is a caller bug
+  // (or a malicious gateway) and is rejected with 409 instead of silently
+  // discarding data behind a 200.
+  const payloadHash = createEventHash({
+    machineId: machine.machineId,
+    sensorId: sensor.sensorId,
+    type: type || "sensor_reading",
+    timestamp: new Date(timestamp).toISOString(),
+    values,
+  });
+
   const existingEvent = await Event.findOne({
     userId,
     idempotencyKey,
   });
 
   if (existingEvent) {
+    if (existingEvent.payloadHash !== payloadHash) {
+      throw new ApiError(
+        409,
+        "Idempotency key reused with a different payload"
+      );
+    }
     return { event: existingEvent, isDuplicate: true };
   }
 
@@ -92,6 +110,7 @@ export const ingestEvent = async ({
     rawData: rawData || {},
     source: source || "api",
     idempotencyKey,
+    payloadHash,
   });
 
   // Record the reading time for computed connectivity status. This must

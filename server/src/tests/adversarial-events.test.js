@@ -100,17 +100,49 @@ const postEvent = (overrides = {}, headers = {}) =>
 
 describe("adversarial events — idempotency", () => {
   it("same key + same payload replays as 200 with the same event id", async () => {
+    // The idempotency contract binds the key to the FULL payload (including
+    // timestamp): a replay must resend a byte-identical body.
     const headers = { "Idempotency-Key": "idem-same-payload" };
-    const first = await postEvent({ values: { temperature: 61 } }, headers);
+    const fixedTs = new Date("2026-01-15T10:00:00Z").toISOString();
+    const first = await postEvent({ values: { temperature: 61 }, timestamp: fixedTs }, headers);
     expect(first.status).toBe(201);
-    const second = await postEvent({ values: { temperature: 61 } }, headers);
+    const second = await postEvent({ values: { temperature: 61 }, timestamp: fixedTs }, headers);
     expect(second.status).toBe(200);
     expect((await second.json()).data.eventId).toBe((await first.json()).data.eventId);
   });
 
-  it.todo(
-    "FLAGGED — same key + DIFFERENT payload: current behavior is 200 + original event (silent first-wins). Awaiting owner decision (a/b/c) before asserting."
-  );
+  it("same key + DIFFERENT payload → 409, sequential (owner decision: reject mismatch, never silent first-wins)", async () => {
+    const headers = { "Idempotency-Key": `idem-mismatch-${Date.now()}` };
+    const fixedTs = new Date("2026-01-15T10:05:00Z").toISOString();
+    const first = await postEvent({ values: { temperature: 62 }, timestamp: fixedTs }, headers);
+    expect(first.status).toBe(201);
+
+    // Same key, different values: must be REJECTED, not replayed as 200 with
+    // the original event (the old silent first-wins silently discarded the
+    // new payload — silent data loss for a buggy/malicious gateway).
+    const mismatch = await postEvent({ values: { temperature: 999 }, timestamp: fixedTs }, headers);
+    expect(mismatch.status).toBe(409);
+    // And the mismatching payload must NOT have been stored under the key:
+    // the original payload still replays as 200 with the original event id.
+    const replay = await postEvent({ values: { temperature: 62 }, timestamp: fixedTs }, headers);
+    expect(replay.status).toBe(200);
+    expect((await replay.json()).data.eventId).toBe((await first.json()).data.eventId);
+  });
+
+  it("same key + DIFFERENT payload → 409, concurrent (consistent with the sequential case)", async () => {
+    const headers = { "Idempotency-Key": `idem-race-${Date.now()}` };
+    // Two DIFFERENT payloads under one key, fired in parallel: both cannot
+    // win. Whether the unique index (E11000→409) or the payload-hash check
+    // answers, the outcome must be 409 for the loser(s) — consistent with
+    // the sequential mismatch behavior.
+    const [a, b] = await Promise.all([
+      postEvent({ values: { temperature: 70 } }, headers),
+      postEvent({ values: { temperature: 71 } }, headers),
+    ]);
+    const statuses = [a.status, b.status].sort();
+    expect(statuses[0]).toBe(201); // exactly one creator
+    expect(statuses[1]).toBe(409); // loser rejected — same as sequential
+  });
 });
 
 describe("adversarial events — validation and ownership", () => {
