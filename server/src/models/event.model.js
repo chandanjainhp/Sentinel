@@ -8,6 +8,8 @@ import crypto from "node:crypto";
 export const EVENT_TAGS = Object.freeze({
   /** Event stored, but ML inference skipped: machine lacked sensor coverage. */
   SKIPPED_INSUFFICIENT_COVERAGE: "SKIPPED_INSUFFICIENT_COVERAGE",
+  /** Event stored, but the prediction job could not be enqueued (queue degraded). */
+  PREDICTION_QUEUING_DEGRADED: "PREDICTION_QUEUING_DEGRADED",
 });
 
 const eventSchema = new mongoose.Schema(

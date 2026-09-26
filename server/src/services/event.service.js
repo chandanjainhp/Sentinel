@@ -1,10 +1,12 @@
 import crypto from "crypto";
-import { Event } from "../models/event.model.js";
+import { Event, EVENT_TAGS } from "../models/event.model.js";
 import { Site } from "../models/site.model.js";
 import { Machine } from "../models/machine.model.js";
 import { Sensor } from "../models/sensor.model.js";
 import { predictionQueue } from "../queues/prediction.queue.js";
 import { ApiError } from "../utils/api-error.js";
+import { withTimeout } from "../utils/with-timeout.js";
+import { ML_TIMEOUT_MS } from "./ml-contract.service.js";
 import mongoose from "mongoose";
 
 const createEventHash = (payload) => {
@@ -141,26 +143,43 @@ export const ingestEvent = async ({
     );
   }
 
-  // Queue BullMQ prediction job asynchronously
+  // Queue BullMQ prediction job. The enqueue is BOUNDED (same timeout as the
+  // ML client): BullMQ's offline queue would otherwise make the producer wait
+  // forever on a dead Redis, hanging POST /events. On timeout the event stays
+  // stored — the historian's primary job — and the skip is made observable
+  // via the PREDICTION_QUEUING_DEGRADED tag instead of an unbounded hang.
   try {
-    await predictionQueue.add(
-      "predict",
-      {
-        eventId: event._id.toString(),
-        machineId: machine._id.toString(),
-        siteId: site._id.toString(),
-        userId: userId.toString(),
-      },
-      {
-        attempts: 3,
-        backoff: {
-          type: "exponential",
-          delay: 1000,
+    await withTimeout(
+      predictionQueue.add(
+        "predict",
+        {
+          eventId: event._id.toString(),
+          machineId: machine._id.toString(),
+          siteId: site._id.toString(),
+          userId: userId.toString(),
         },
-      }
+        {
+          attempts: 3,
+          backoff: {
+            type: "exponential",
+            delay: 1000,
+          },
+        }
+      ),
+      ML_TIMEOUT_MS,
+      "Prediction queue enqueue"
     );
   } catch (err) {
-    console.error("[EventService] Failed to queue prediction job:", err.message);
+    console.error("[EventService] Prediction queuing degraded:", err.message);
+    await Event.updateOne(
+      { _id: event._id },
+      { $addToSet: { tags: EVENT_TAGS.PREDICTION_QUEUING_DEGRADED } }
+    ).catch((tagErr) =>
+      console.error(
+        "[EventService] Failed to tag event with queuing degradation:",
+        tagErr.message
+      )
+    );
   }
 
   return { event, isDuplicate: false };

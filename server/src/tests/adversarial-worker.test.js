@@ -2,12 +2,17 @@ import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import http from "http";
 import mongoose from "mongoose";
 import { Queue, Worker } from "bullmq";
+import Redis from "ioredis";
 import app from "../app.js";
 import { connectDatabases, disconnectDatabases } from "../db/index.js";
 import { startWorker, stopWorker } from "../queues/worker.js";
 import { getRedis } from "../db/redis.js";
+import { withTimeout } from "../utils/with-timeout.js";
+import { ML_TIMEOUT_MS } from "../services/ml-contract.service.js";
 import { Event } from "../models/event.model.js";
 import { Sensor } from "../models/sensor.model.js";
+import { Site } from "../models/site.model.js";
+import { User } from "../models/user.models.js";
 import { Prediction } from "../models/prediction.model.js";
 import { Machine } from "../models/machine.model.js";
 
@@ -259,7 +264,86 @@ describe("adversarial worker — poison jobs on a throwaway queue", () => {
     await queue.close();
   }, 30000);
 
-  it.todo(
-    "FOUND BUG — queue.add against a dead Redis endpoint waits indefinitely (BullMQ default with enableOfflineQueue), and event ingestion awaits predictionQueue.add inside the request path: a Redis outage would hang POST /events responses instead of failing bounded. Tracked in BUGS_FOUND.md; the fix (short offline-queue timeout or fire-and-forget add) is a design decision."
-  );
+  it("Redis outage: bounded enqueue, event still stored, degradation tagged (no hang)", async () => {
+    // ── Unit: the producer's add() against a dead Redis never settles ──
+    // TEST-NET-3 address: SYNs go nowhere, so ioredis stays 'connecting' and
+    // BullMQ's offline queue (the production default) holds the add forever —
+    // exactly what a dead Redis does to producers. withTimeout must cut it.
+    const deadConnection = new Redis("redis://203.0.113.1:6379", {
+      connectTimeout: 30000,
+      retryStrategy: () => 30000, // keep trying forever — status never 'end'
+      maxRetriesPerRequest: null, // let the offline queue hold the request
+      enableOfflineQueue: true, // EXACTLY the production default that hangs
+    });
+    const queueName = `adversarial-dead-redis-${Date.now()}`;
+    const deadQueue = new Queue(queueName, { connection: deadConnection });
+
+    const t0 = Date.now();
+    await expect(
+      withTimeout(
+        deadQueue.add("predict", { eventId: "x" }, { attempts: 3 }),
+        ML_TIMEOUT_MS,
+        "Prediction queue enqueue"
+      )
+    ).rejects.toThrow("timed out");
+    const elapsed = Date.now() - t0;
+    expect(elapsed).toBeLessThan(ML_TIMEOUT_MS + 2000); // bounded, not eternal
+
+    deadConnection.disconnect();
+    await Promise.race([
+      deadQueue.close(),
+      new Promise((r) => setTimeout(r, 500)), // close must not hang either
+    ]).catch(() => {});
+
+    // ── End-to-end: ingestion with a failing enqueue stores AND tags ──
+    // Directly pointing the shared production queue at a dead Redis would
+    // poison every other suite in this single-process test run, so the
+    // ingestion path is driven with an explicit failing-queue seam
+    // (restored in finally), pinning the contract: historian wins, the skip
+    // is observable.
+    const user = await User.create({
+      email: `advwk-dead-${Date.now()}@factory.com`,
+      username: `advwk_dead_${Date.now()}`,
+      password: "Password123!",
+    });
+    const site = await Site.create({ userId: user._id, name: "Dead Redis Site", timezone: "UTC" });
+    const machine = await Machine.create({
+      userId: user._id,
+      siteId: site._id,
+      assetId: "WK-DEAD-1",
+      name: "Dead Redis Motor",
+      machineType: "motor",
+    });
+    const sensor = await Sensor.create({
+      userId: user._id,
+      siteId: site._id,
+      machineId: machine._id,
+      name: "temp dead",
+      type: "temperature",
+    });
+
+    const { ingestEvent } = await import("../services/event.service.js");
+    const { _setPredictionQueueForTests } = await import("../queues/prediction.queue.js");
+    _setPredictionQueueForTests(() => ({
+      add: async () => {
+        throw new Error("Prediction queue enqueue timed out after 1ms");
+      },
+    }));
+    try {
+      const result = await ingestEvent({
+        userId: user._id,
+        siteIdParam: site.siteId,
+        machineIdParam: machine.machineId,
+        sensorIdParam: sensor.sensorId,
+        type: "sensor_reading",
+        timestamp: new Date().toISOString(),
+        values: { temperature: 60 },
+      });
+      expect(result.event).toBeDefined(); // stored — the historian wins
+      const stored = await Event.findById(result.event._id).lean();
+      expect(stored.tags).toContain("PREDICTION_QUEUING_DEGRADED");
+    } finally {
+      _setPredictionQueueForTests(null); // restore the real queue
+    }
+  }, 40000);
 });

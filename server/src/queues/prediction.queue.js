@@ -4,7 +4,18 @@ import { getRedis } from "../db/redis.js";
 let predictionQueueInstance = null;
 let predictionQueueConnection = null;
 
+/**
+ * Test seam (same pattern as argus's _setLLMDriverForTests): bun test runs
+ * all files in one process, so swapping the real queue out for a failing
+ * stub must be explicit and restorable, not a module mock that leaks.
+ */
+let queueFactoryOverride = null;
+export const _setPredictionQueueForTests = (factory) => {
+  queueFactoryOverride = factory;
+};
+
 export const getPredictionQueue = () => {
+  if (queueFactoryOverride) return queueFactoryOverride();
   const connection = getRedis();
   // Rebuild the queue when the Redis client was reconnected — a cached Queue
   // bound to a closed connection silently fails every add() with
