@@ -740,6 +740,24 @@ ML_SERVICE_URL=http://ml-service:9000
 
 The exact environment variables should follow the existing Sentinel `.env` conventions.
 
+### Secrets delivery
+
+Secrets are moving out of on-disk `.env` files and into [Infisical](https://infisical.com),
+which injects them into the process at start. No application code changes: the services keep
+reading `process.env`.
+
+```bash
+brew install infisical/get-cli/infisical   # or: winget install infisical / npm install -g @infisical/cli
+infisical login                            # infisical login -i on WSL, Codespaces, or a headless SSH session
+cd server && infisical init                # links the project; writes .infisical.json (settings only, no secrets)
+cd server && bun run dev                   # == infisical run --env=dev -- bun --watch src/index.js
+```
+
+`.infisical.json` is safe to commit. `.env` and every `.env.*` file stay ignored — never commit
+or paste a real value. The full runbook (importing an existing `.env`, machine identities for
+CI/CD and the Pi stack, verification, and leak scanning) is in
+[docs/infisical.md](docs/infisical.md).
+
 Never commit real secrets.
 
 ---
@@ -752,7 +770,8 @@ Start the core infrastructure using Docker Compose.
 docker compose up
 ```
 
-Run the server independently when needed:
+Run the server independently when needed (the script is wrapped with
+`infisical run`; see [Secrets delivery](#secrets-delivery)):
 
 ```bash
 cd server

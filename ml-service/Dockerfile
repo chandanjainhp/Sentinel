@@ -15,8 +15,10 @@ RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/wh
 
 COPY app ./app
 COPY vendor ./vendor
-# Trained checkpoints + .meta.json. You can also mount your own at /app/models.
-COPY models ./models
+# Checkpoints are NOT baked into the image: mount the host-trained models
+# (generic_motor.pt + generic_motor.meta.json) at /app/models — see the
+# ml-service volume in docker-compose.yml. The service starts even with an
+# empty models dir and reports degraded (503 on /predict) until one is loaded.
 
 RUN useradd --system --no-create-home sentinel
 USER sentinel

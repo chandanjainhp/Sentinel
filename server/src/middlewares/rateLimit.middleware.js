@@ -37,7 +37,12 @@ const wrapLimiter = (name, windowMs, maxRequests, prefix) => (req, res, next) =>
   return getLimiter(name, windowMs, maxRequests, prefix)(req, res, next);
 };
 
-const apiLimiter = wrapLimiter('api', 15 * 60 * 1000, 100, 'api');
+// The dashboard polls several endpoints every 10s (~24 req/min), so one
+// open tab alone needs ~360 requests per window. The old fixed 100/15min
+// limit 429'd real user actions (e.g. Start Investigation) after a few
+// minutes of browsing. Env-overridable for stricter deployments.
+const API_RATE_LIMIT_MAX = Number(process.env.API_RATE_LIMIT_MAX || 1000);
+const apiLimiter = wrapLimiter('api', 15 * 60 * 1000, API_RATE_LIMIT_MAX, 'api');
 const authLimiter = wrapLimiter('auth', 15 * 60 * 1000, 5, 'auth');
 const eventsLimiter = wrapLimiter('events', 60 * 1000, 120, 'events');
 

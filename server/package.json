@@ -5,8 +5,11 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "dev": "bun --watch src/index.js",
-    "start": "bun src/index.js",
+    "dev": "infisical run --env=dev -- bun --watch src/index.js",
+    "start": "infisical run --env=dev -- bun src/index.js",
+    "dev:dotenv": "bun --watch src/index.js",
+    "start:dotenv": "bun src/index.js",
+    "secrets:check": "infisical run --env=dev -- bun src/scripts/secret-source-check.mjs",
     "test": "bun test",
     "test:agentic": "bun test src/tests/agentic-flow.test.js"
   },

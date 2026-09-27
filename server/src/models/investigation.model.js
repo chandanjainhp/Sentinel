@@ -80,7 +80,9 @@ const investigationSchema = new mongoose.Schema(
       severity: {
         type: String,
         enum: ['serious', 'minor', 'harmless', 'uncertain'],
-        required: true,
+        // Required only once status=complete — queued/running docs have no
+        // classification yet, so the worker writes it before completing.
+        default: undefined,
       },
       confidence: {
         type: Number,

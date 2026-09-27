@@ -1,6 +1,7 @@
 import Redis from 'ioredis';
 import { startPredictionWorker, stopPredictionWorker } from './prediction.worker.js';
 import { startArgusExplainWorker, stopArgusExplainWorker } from './argus-explain.worker.js';
+import { startInvestigationWorker, stopInvestigationWorker } from './investigation.worker.js';
 
 /**
  * Background workers for Sentinel.
@@ -19,9 +20,9 @@ import { startArgusExplainWorker, stopArgusExplainWorker } from './argus-explain
  *                       "coming later" stub as of Wave 0)
  *   - webhooks        — handler referenced Site.getSite() which does not exist;
  *                       it would have thrown on every delivery
- *   - investigations  — legacy investigation agent queue (see
- *                       investigation.queue.js): producer still exists, but no
- *                       worker consumes it in this codebase.
+ *   - investigations  — overnight investigation agent (investigation.worker.js):
+ *                       one job per incident, deterministic trace + classify,
+ *                       persisted on the Investigation doc.
  */
 
 let workerRedisConnection = null;
@@ -77,6 +78,9 @@ export const startWorker = async () => {
 
     startArgusExplainWorker(workerRedisConnection);
     console.log('[Worker] ✓ Argus explain worker started (queue: argus-explain)');
+
+    startInvestigationWorker(workerRedisConnection);
+    console.log('[Worker] ✓ Investigation worker started (queue: investigations)');
   } catch (error) {
     console.error('[Worker] Failed to start worker:', error);
     throw error;
@@ -91,6 +95,7 @@ export const stopWorker = async () => {
   try {
     await stopPredictionWorker();
     await stopArgusExplainWorker();
+    await stopInvestigationWorker();
 
     if (workerRedisConnection) {
       await workerRedisConnection.quit();

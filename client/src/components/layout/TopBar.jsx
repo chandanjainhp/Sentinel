@@ -45,18 +45,52 @@ export default function TopBar() {
     <header style={{
       position: "fixed",
       top: 0, left: 0, right: 0,
-      height: "56px",
       background: "var(--bg-surface-1)",
       borderBottom: "1px solid var(--border-default)",
       zIndex: 1000,
-      display: "flex",
-      alignItems: "center",
-      paddingLeft: "20px",
-      paddingRight: "20px",
-      gap: "0",
     }}>
+      {/* Two-row header on phones (≤640px): the row that holds the primary
+          nav drops below the brand row, so nothing overflows off-screen.
+          Desktop keeps the single 56px row. See globals.css breakpoints. */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .topbar-inner {
+          height: 56px;
+          display: flex;
+          align-items: center;
+          padding-left: 20px;
+          padding-right: 20px;
+          gap: 0;
+        }
+        @media (max-width: 640px) {
+          .topbar-inner {
+            height: auto;
+            flex-wrap: wrap;
+            row-gap: 0;
+            padding-left: 12px;
+            padding-right: 12px;
+          }
+          .topbar-brand { margin-right: 12px !important; }
+          .topbar-divider { display: none !important; }
+          .topbar-nav {
+            order: 3;
+            flex-basis: 100%;
+            gap: 18px !important;
+            padding: 6px 0 8px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+          .topbar-user { margin-left: auto !important; gap: 10px !important; }
+          .topbar-user a span { display: none; } /* icon-only user chip */
+          .topbar-user a, .topbar-user button {
+            min-width: 44px;
+            min-height: 44px;
+            justify-content: center;
+          }
+        }
+      ` }} />
+      <div className="topbar-inner">
       {/* Wordmark */}
-      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, marginRight: "20px" }}>
+      <div className="topbar-brand" style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, marginRight: "20px" }}>
         <span style={{
           width: "7px", height: "7px", borderRadius: "50%",
           background: "var(--accent)", flexShrink: 0,
@@ -75,10 +109,10 @@ export default function TopBar() {
       </div>
 
       {/* Divider */}
-      <div style={{ width: "1px", height: "20px", background: "var(--border-default)", flexShrink: 0, marginRight: "20px" }} />
+      <div className="topbar-divider" style={{ width: "1px", height: "20px", background: "var(--border-default)", flexShrink: 0, marginRight: "20px" }} />
 
       {/* Primary Nav */}
-      <nav aria-label="Primary navigation" style={{ display: "flex", alignItems: "center", gap: "20px", flex: 1 }}>
+      <nav aria-label="Primary navigation" className="topbar-nav" style={{ display: "flex", alignItems: "center", gap: "20px", flex: 1 }}>
         <Link href="/overview" style={navLink(is(["/overview", "/dashboard"]))}>
           Overview
         </Link>
@@ -95,7 +129,7 @@ export default function TopBar() {
 
       {/* User Session Info & Logout */}
       {user && (
-        <div style={{ display: "flex", alignItems: "center", gap: "16px", marginLeft: "auto" }}>
+        <div className="topbar-user" style={{ display: "flex", alignItems: "center", gap: "16px", marginLeft: "auto" }}>
           <Link
             href="/profile"
             style={{
@@ -139,6 +173,7 @@ export default function TopBar() {
           </button>
         </div>
       )}
+      </div>
     </header>
   );
 }

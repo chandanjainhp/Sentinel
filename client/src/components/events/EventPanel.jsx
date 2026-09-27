@@ -4,35 +4,37 @@ import { useState } from "react";
 import { useIncidents } from "@/hooks/useIncidents";
 import EventCard from "./EventCard";
 
+// Server severity vocabulary (Incident model enum): critical | warning |
+// minor | unknown — matched 1:1 to the buckets built by useIncidents().
 const PILL_CONFIG = {
-  serious: {
-    label: "Serious",
+  critical: {
+    label: "Critical",
     dot: "var(--sev-serious)",
-    dataKey: "serious",
+    dataKey: "critical",
     bg: "rgba(255, 0, 0, 0.15)",
     border: "var(--sev-serious)",
     color: "var(--sev-serious)",
+  },
+  warning: {
+    label: "Warning",
+    dot: "var(--sev-minor)",
+    dataKey: "warning",
+    bg: "rgba(255, 165, 0, 0.15)",
+    border: "var(--sev-minor)",
+    color: "var(--sev-minor)",
   },
   minor: {
     label: "Minor",
     dot: "var(--sev-minor)",
     dataKey: "minor",
-    bg: "rgba(255, 165, 0, 0.15)",
-    border: "var(--sev-minor)",
-    color: "var(--sev-minor)",
-  },
-  harmless: {
-    label: "Harmless",
-    dot: "var(--sev-harmless)",
-    dataKey: "harmless",
     bg: "rgba(150, 150, 150, 0.15)",
-    border: "var(--sev-harmless)",
+    border: "var(--sev-minor)",
     color: "var(--fg-2)",
   },
-  uncertain: {
-    label: "Uncertain",
+  unknown: {
+    label: "Unknown",
     dot: "var(--sev-unknown)",
-    dataKey: "uncertain",
+    dataKey: "unknown",
     bg: "transparent",
     border: "var(--sev-unknown)",
     color: "var(--fg-3)",
@@ -41,26 +43,23 @@ const PILL_CONFIG = {
 };
 
 const GROUPINGS = [
-  { title: "Serious", key: "serious", dataKey: "serious" },
+  { title: "Critical", key: "critical", dataKey: "critical" },
+  { title: "Warning", key: "warning", dataKey: "warning" },
   { title: "Minor", key: "minor", dataKey: "minor" },
-  { title: "Uncertain", key: "uncertain", dataKey: "uncertain" },
-  { title: "Harmless", key: "harmless", dataKey: "harmless" },
-  { title: "Unknown", key: "unknown", dataKey: "unclassified" },
+  { title: "Unknown", key: "unknown", dataKey: "unknown" },
 ];
 
 const GROUP_DOT_COLOR = {
-  serious: "var(--sev-serious)",
+  critical: "var(--sev-serious)",
+  warning: "var(--sev-minor)",
   minor: "var(--sev-minor)",
-  uncertain: "var(--sev-unknown)",
-  harmless: "var(--sev-harmless)",
   unknown: "var(--fg-4)",
 };
 
 const GROUP_TITLE_COLOR = {
-  serious: "var(--sev-serious)",
+  critical: "var(--sev-serious)",
+  warning: "var(--sev-minor)",
   minor: "var(--sev-minor)",
-  uncertain: "var(--fg-3)",
-  harmless: "var(--sev-harmless)",
   unknown: "var(--fg-4)",
 };
 
@@ -153,10 +152,10 @@ export default function EventPanel({ nightDate: nightDateProp }) {
 
   const { data, isLoading, isError, error } = useIncidents({ nightDate });
   const [activeSeverityFilters, setActiveSeverityFilters] = useState([
-    "serious",
+    "critical",
+    "warning",
     "minor",
-    "harmless",
-    "uncertain",
+    "unknown",
   ]);
   const toggleSeverityFilter = (key) => {
     setActiveSeverityFilters((prev) =>

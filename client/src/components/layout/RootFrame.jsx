@@ -26,7 +26,16 @@ export default function RootFrame({ children }) {
     <>
       {!suppressTopBar && <a href="#main" className="skip-to-content">Skip to content</a>}
       {!suppressTopBar ? <TopBar /> : null}
-      <div id={suppressTopBar ? undefined : "main"} style={{ paddingTop: suppressTopBar ? "0" : "56px" }}>{children}</div>
+      {/* ≤640px the TopBar wraps to two rows (~100px); desktop stays 56px. */}
+      {!suppressTopBar && (
+        <style dangerouslySetInnerHTML={{ __html: `
+          .app-main-offset { padding-top: 56px; }
+          @media (max-width: 640px) {
+            .app-main-offset { padding-top: 100px; }
+          }
+        ` }} />
+      )}
+      <div id={suppressTopBar ? undefined : "main"} className={suppressTopBar ? undefined : "app-main-offset"} style={{ paddingTop: suppressTopBar ? "0" : undefined }}>{children}</div>
     </>
   );
 }

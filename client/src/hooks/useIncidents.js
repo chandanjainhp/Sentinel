@@ -20,13 +20,16 @@ function normalizeList(data) {
 }
 
 function bucket(incidents) {
+  // Server severity vocabulary (Incident model enum):
+  // critical | warning | minor | unknown. The old client-side
+  // serious/minor/harmless/uncertain buckets never matched what the
+  // pipeline emits, which left the Events Timeline empty.
   return {
     incidents,
-    serious: incidents.filter((i) => i.severity === "serious"),
+    critical: incidents.filter((i) => i.severity === "critical"),
+    warning: incidents.filter((i) => i.severity === "warning"),
     minor: incidents.filter((i) => i.severity === "minor"),
-    uncertain: incidents.filter((i) => i.severity === "uncertain"),
-    harmless: incidents.filter((i) => i.severity === "harmless"),
-    unclassified: incidents.filter((i) => !i.severity),
+    unknown: incidents.filter((i) => !i.severity || i.severity === "unknown"),
     pending: incidents.filter(
       (i) => i.status !== "resolved" && i.status !== "complete" && i.status !== "closed",
     ),

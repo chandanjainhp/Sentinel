@@ -12,8 +12,10 @@
  *   - the real API server (bun server/src/index.js) on PORT (default 8010)
  *   - the real ml-service (ml-service/.venv/bin/python -m app) on ML_PORT 9000
  * with Mongo/Redis pointed at the local test containers (28017 / 26379).
- * Set E2E_BASE_URL to attach to an already-running server instead (then the
- * ml-service must already be reachable at E2E_ML_URL, default :9000).
+ * Set E2E_BASE_URL to attach to an already-running server instead (local dev
+ * or a remote deployment). Attach mode never probes an ml-service directly —
+ * predictions flow server-side — unless E2E_ML_URL is also set (e.g. an
+ * SSH-forwarded port), which re-enables the health probe.
  *
  * Exit 0 + summary on success; exit 1 + `[FAIL] <step>: expected X, got Y`
  * on the first failing assertion.
@@ -225,8 +227,13 @@ const run = async () => {
     currentStep = "start-stack";
     console.log("[e2e-smoke] starting own server + ml-service…");
     await startStack();
+  } else if (process.env.E2E_ML_URL) {
+    // Attach mode: probe the ml-service only when explicitly pointed at one
+    // (e.g. SSH-forwarded). A remote deployment target usually has no
+    // reachable ml-service from here — predictions are made server-side, so
+    // the script never needs a direct ML connection.
+    await waitForHttp(`${ML_URL}/health`, 30000, "ml-service (external)");
   }
-  await waitForHttp(`${ML_URL}/health`, 30000, "ml-service (external)");
 
   /* 1. Register → verify-less login session → API key */
   currentStep = "register-and-api-key";

@@ -362,3 +362,37 @@ a:focus-visible,
 .feed-item-enter {
   animation: feed-in 0.2s ease-out forwards;
 }
+
+/* =============================================
+   RESPONSIVE BREAKPOINTS (Night Watch)
+
+   The app is styled with inline style objects, which cannot express
+   media queries; responsive behaviour lives in small <style> blocks
+   per page (see incidents, login, register, profile, landing) plus
+   the shared classes below.
+
+   Canonical breakpoints — use these numbers everywhere, never
+   ad-hoc values:
+     mobile   ≤ 640px
+     tablet   641px – 1024px
+     desktop  > 1024px   (unchanged layout, no queries target it)
+============================================= */
+
+/* Tables scroll inside their own section, never the page.
+   Wrap a <table> in <div className="table-scroll"> — pairs with the
+   overflow-x pattern already used by the sensors table. */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Touch targets: WCAG-ish 44px minimum on phones. Applied only at the
+   mobile breakpoint so desktop metrics stay pixel-identical. */
+@media (max-width: 640px) {
+  .tap-target button,
+  .tap-target a[role="button"],
+  .tap-target input,
+  .tap-target select {
+    min-height: 44px;
+  }
+}
