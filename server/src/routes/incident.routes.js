@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   getIncidents,
   getIncident,
+  getIncidentGraph,
   explainIncident,
   updateIncidentStatus,
 } from "../controllers/incident.controller.js";
@@ -30,6 +31,13 @@ router.get(
   "/:incidentId",
   validate(incidentIdSchema),
   getIncident
+);
+
+// Agent tool evidence chain + final classification for the detail page.
+router.get(
+  "/:incidentId/graph",
+  validate(incidentIdSchema),
+  getIncidentGraph
 );
 
 router.patch(

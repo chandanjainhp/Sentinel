@@ -13,6 +13,13 @@ export const getIncident = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, incident, "Incident fetched successfully"));
 });
 
+export const getIncidentGraph = asyncHandler(async (req, res) => {
+  const { incidentId } = req.params;
+  const incident = await incidentService.getIncidentById(incidentId, req.userFilter);
+  const graph = await incidentService.getIncidentEvidenceGraph(incidentId, req.userFilter);
+  return res.status(200).json(new ApiResponse(200, graph, "Evidence graph fetched successfully"));
+});
+
 export const explainIncident = asyncHandler(async (req, res) => {
   const { incidentId } = req.params;
   const result = await incidentService.requestIncidentExplanation(incidentId, req.userFilter);

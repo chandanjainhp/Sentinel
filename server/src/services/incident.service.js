@@ -1,4 +1,5 @@
 import { Incident } from "../models/incident.model.js";
+import Investigation from "../models/investigation.model.js";
 import { Site } from "../models/site.model.js";
 import { Machine } from "../models/machine.model.js";
 import { ApiError } from "../utils/api-error.js";
@@ -144,6 +145,40 @@ const createIncidentIfEligibleUnsafe = async ({
   return incident;
 };
 
+/**
+ * Latest finished overnight investigation for one incident (lean), or null.
+ * Only status=complete docs are returned: queued/running docs carry no
+ * classification/evidenceChain yet, so surfacing them would render empty.
+ */
+export const getLatestInvestigationForIncident = async (incidentRef) =>
+  Investigation.findOne({ incidentId: incidentRef, status: "complete" })
+    .sort({ updatedAt: -1 })
+    .lean();
+
+/**
+ * Evidence graph for the incident detail page: the tool evidence chain and
+ * final classification from the latest complete investigation. The client
+ * reads `steps` (EvidenceChain) and `classification` (AgentReasoning).
+ */
+export const getIncidentEvidenceGraph = async (incidentIdParam, userFilter = {}) => {
+  const isObjectId = mongoose.Types.ObjectId.isValid(incidentIdParam);
+  const query = isObjectId
+    ? { ...userFilter, $or: [{ incidentId: incidentIdParam }, { _id: incidentIdParam }] }
+    : { ...userFilter, incidentId: incidentIdParam };
+
+  const incident = await Incident.findOne(query).select("_id").lean();
+  if (!incident) {
+    throw new ApiError(404, "Incident not found");
+  }
+
+  const investigation = await getLatestInvestigationForIncident(incident._id);
+
+  return {
+    steps: investigation?.evidenceChain ?? [],
+    classification: investigation?.classification ?? null,
+  };
+};
+
 export const getIncidents = async (filters = {}, userFilter = {}) => {
   const { siteId, machineId, status, severity, from, to, limit = 100 } = filters;
 
@@ -194,10 +229,18 @@ export const getIncidentById = async (incidentIdParam, userFilter = {}) => {
     ? { ...userFilter, $or: [{ incidentId: incidentIdParam }, { _id: incidentIdParam }] }
     : { ...userFilter, incidentId: incidentIdParam };
 
-  const incident = await Incident.findOne(query);
+  // Lean: the response is JSON-only and we attach the latest investigation as
+  // a plain property — a mongoose Document would drop it on toJSON().
+  const incident = await Incident.findOne(query).lean();
   if (!incident) {
     throw new ApiError(404, "Incident not found");
   }
+  // incident.investigationId is not a stored field — the investigation worker
+  // never wrote back to the incident. Surface the latest finished investigation
+  // under that key so the client's detail page resolves the agent's
+  // classification/reasoning instead of its "no reasoning" fallback.
+  const investigation = await getLatestInvestigationForIncident(incident._id);
+  if (investigation) incident.investigationId = investigation;
   return incident;
 };
 
