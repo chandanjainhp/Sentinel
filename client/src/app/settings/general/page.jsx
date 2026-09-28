@@ -168,7 +168,12 @@ export default function GeneralSettingsPage() {
             <Globe size={13} style={{ color: 'var(--fg-3)' }} />
             <h2 style={SECTION_TITLE_STYLE}>Site</h2>
           </div>
-          <div style={{ padding: '20px', display: 'grid', gap: '16px', gridTemplateColumns: '1fr 1fr' }}>
+          <div className="settings-form-grid" style={{ padding: '20px', display: 'grid', gap: '16px', gridTemplateColumns: '1fr 1fr' }}>
+            <style dangerouslySetInnerHTML={{ __html: `
+              @media (max-width: 640px) {
+                .settings-form-grid { grid-template-columns: 1fr !important; }
+              }
+            ` }} />
             <div style={{ gridColumn: '1 / -1' }}>
               <label htmlFor="siteName" style={{ ...LABEL_STYLE, display: 'block', marginBottom: '6px' }}>Name</label>
               <input id="siteName" style={INPUT_BASE_STYLE} value={name} disabled={!canEdit}

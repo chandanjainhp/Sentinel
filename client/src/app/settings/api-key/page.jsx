@@ -227,7 +227,14 @@ export default function ApiKeyPage() {
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+    <div className="api-key-page" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        /* Phones: long keys/commands must scroll inside their boxes instead
+           of stretching the page. */
+        @media (max-width: 640px) {
+          .api-key-page code { display: inline-block; max-width: 100%; overflow-x: auto; vertical-align: bottom; }
+        }
+      ` }} />
       <div>
         <h1 style={{
           display: 'flex', alignItems: 'center', gap: '8px',

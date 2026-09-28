@@ -19,9 +19,52 @@ export default function SettingsLayout({ children }) {
   const user = useAuthStore((s) => s.user);
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)' }}>
+    <div className="settings-shell" style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)' }}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        /* Phones/tablets: the 220px sticky sidebar becomes a horizontal tab
+           strip so settings content keeps full width. */
+        @media (max-width: 768px) {
+          .settings-shell { flex-direction: column !important; }
+          .settings-sidebar {
+            width: 100% !important;
+            position: static !important;
+            height: auto !important;
+            flex-direction: row !important;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            border-right: none !important;
+            border-bottom: 1px solid var(--border-default);
+          }
+          .settings-sidebar-header {
+            padding: 0 !important;
+            border-bottom: none !important;
+            flex-shrink: 0;
+          }
+          .settings-sidebar-nav {
+            display: flex !important;
+            flex-direction: row !important;
+            gap: 4px;
+            padding: 0 !important;
+          }
+          .settings-sidebar-link {
+            margin-bottom: 0 !important;
+            white-space: nowrap;
+            border-left: none !important;
+            border-bottom: 2px solid transparent;
+            padding: 12px 10px !important;
+          }
+          .settings-sidebar-link.active {
+            border-bottom-color: var(--accent);
+          }
+          .settings-sidebar-footer { display: none; }
+          .settings-content { padding: 20px 16px !important; }
+        }
+      ` }} />
       {/* Sidebar */}
-      <div style={{
+      <div className="settings-sidebar" style={{
         width: '220px',
         flexShrink: 0,
         background: 'var(--bg-surface-1)',
@@ -34,7 +77,7 @@ export default function SettingsLayout({ children }) {
         overflowY: 'auto',
       }}>
         {/* Header */}
-        <div style={{
+        <div className="settings-sidebar-header" style={{
           padding: '16px',
           borderBottom: '1px solid var(--border-hairline)',
         }}>
@@ -51,7 +94,7 @@ export default function SettingsLayout({ children }) {
         </div>
 
         {/* Nav */}
-        <nav style={{ flex: 1, padding: '8px' }}>
+        <nav className="settings-sidebar-nav" style={{ flex: 1, padding: '8px' }}>
           {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.path || pathname.startsWith(item.path + '/');
             const Icon = item.icon;
@@ -59,6 +102,7 @@ export default function SettingsLayout({ children }) {
               <Link
                 key={item.name}
                 href={item.path}
+                className={`settings-sidebar-link${isActive ? ' active' : ''}`}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -96,7 +140,7 @@ export default function SettingsLayout({ children }) {
         </nav>
 
         {/* Bottom: back link + account info */}
-        <div style={{
+        <div className="settings-sidebar-footer" style={{
           padding: '12px',
           borderTop: '1px solid var(--border-hairline)',
         }}>
@@ -145,7 +189,7 @@ export default function SettingsLayout({ children }) {
       </div>
 
       {/* Content */}
-      <div style={{
+      <div className="settings-content" style={{
         flex: 1,
         minWidth: 0,
         overflowY: 'auto',

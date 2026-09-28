@@ -854,7 +854,19 @@ export default function WebhooksSettingsPage() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', padding: '24px 0' }}>
+    <div className="webhooks-page" style={{ display: 'flex', flexDirection: 'column', gap: '32px', padding: '24px 0' }}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        /* Phones: the fixed-width secret input, selects, and buttons get
+           full-width rows; pre/code blocks scroll within the card. */
+        @media (max-width: 640px) {
+          .webhooks-page .wh-secret-input { width: 100% !important; }
+          .webhooks-page pre {
+            max-width: 100%;
+          }
+          .webhooks-page select { max-width: 100%; }
+          .webhooks-page .wh-actions { flex-wrap: wrap; }
+        }
+      ` }} />
       {/* Header */}
       <div>
         <h1 style={{
@@ -1040,6 +1052,7 @@ export default function WebhooksSettingsPage() {
             <input
               type={showSecret ? 'text' : 'password'}
               readOnly
+              className="wh-secret-input"
               value={showSecret ? secret : '•'.repeat(32)}
               style={{
                 padding: '8px 12px',
@@ -1131,7 +1144,7 @@ export default function WebhooksSettingsPage() {
       {/* Delivery Log */}
       <SectionCard title="Delivery Log" icon={Clock}>
         {/* Filters */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+        <div className="wh-actions" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <label style={LABEL_STYLE}>Status</label>
             <select
