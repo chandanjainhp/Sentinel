@@ -73,7 +73,7 @@ export default function TopBar() {
           .topbar-divider { display: none !important; }
           .topbar-nav {
             order: 3;
-            flex-basis: 100%;
+            flex: 0 0 100% !important; /* beat inline flex:1 so nav drops to row 2 */
             gap: 18px !important;
             padding: 6px 0 8px;
             overflow-x: auto;
