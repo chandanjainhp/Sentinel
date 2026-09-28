@@ -13,25 +13,36 @@ import { getSeverity } from "@/lib/severity";
 
 function LoadingSkeleton() {
   const block = (h, w = "100%", mt = 0) => ({
-    height: h, width: w,
+    height: h, width: w, maxWidth: "100%",
     background: "var(--bg-surface-3)",
     marginTop: mt,
     borderRadius: "2px",
   });
 
   return (
-    <div style={{
-      position: "fixed", top: "56px", left: 0, right: 0, bottom: 0,
+    <div className="incident-detail" style={{
+      minHeight: "100vh",
       display: "flex", flexDirection: "row",
       background: "var(--bg-base)",
     }}>
-      <div style={{ flex: 1, padding: "32px", display: "flex", flexDirection: "column", gap: "16px" }}>
+      <style dangerouslySetInnerHTML={{ __html: `        @media (max-width: 768px) {
+          .incident-detail { flex-direction: column !important; }
+          .incident-detail-sidebar {
+            width: 100% !important;
+            border-left: none !important;
+            border-top: 1px solid var(--border-default);
+            overflow-y: visible;
+          }
+          .incident-detail-main { overflow-y: visible; padding: 20px 16px; }
+        }
+      ` }} />
+      <div className="incident-detail-main" style={{ flex: 1, padding: "32px", display: "flex", flexDirection: "column", gap: "16px", minWidth: 0 }}>
         <div style={block("12px", "128px")} />
         <div style={block("32px", "380px", 16)} />
         <div style={block("20px", "200px")} />
         <div style={{ ...block("100%"), marginTop: 32, flex: 1 }} />
       </div>
-      <div style={{
+      <div className="incident-detail-sidebar" style={{
         width: "380px", flexShrink: 0,
         borderLeft: "1px solid var(--border-default)",
         background: "var(--bg-surface-2)",
@@ -46,6 +57,12 @@ function LoadingSkeleton() {
 
 export default function IncidentDetailView({ params }) {
   const { id } = use(params);
+
+  // Layout note: both this page's shell and its loading skeleton were
+  // position:fixed flex rows — fine on desktop, but at ≤768px the fixed 380px
+  // sidebar sits off-screen and the fixed page can't grow with the viewport.
+  // The shell is a normal document-flow row that stacks below 768px instead
+  // (see the .incident-detail-* rules at the end of this file).
 
   const { data: incidentResponse, isLoading: isLoadingIncident } = useIncidentById(id);
   const { data: evidenceGraphResponse, isLoading: isLoadingGraph } = useIncidentEvidenceGraph(id);
@@ -92,16 +109,17 @@ export default function IncidentDetailView({ params }) {
   const confidencePercent = Math.round((confidence || 0) * 100);
 
   return (
-    <div style={{
-      position: "fixed", top: "56px", left: 0, right: 0, bottom: 0,
+    <div className="incident-detail" style={{
+      minHeight: "100vh",
       display: "flex", flexDirection: "row",
       background: "var(--bg-base)",
     }}>
 
       {/* ── Left: main content ──────────────────────────── */}
-      <div style={{
+      <div className="incident-detail-main" style={{
         flex: 1, overflowY: "auto",
         padding: "32px", display: "flex", flexDirection: "column",
+        minWidth: 0,
       }}>
 
         {/* Breadcrumb header */}
@@ -237,7 +255,7 @@ export default function IncidentDetailView({ params }) {
       </div>
 
       {/* ── Right: sidebar ──────────────────────────────── */}
-      <aside aria-label="Investigation detail" style={{
+      <div className="incident-detail-sidebar" style={{
         width: "380px", flexShrink: 0,
         borderLeft: "1px solid var(--border-default)",
         background: "var(--bg-surface-2)",
@@ -318,7 +336,23 @@ export default function IncidentDetailView({ params }) {
             </span>
           )}
         </div>
-      </aside>
+      </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (max-width: 768px) {
+          .incident-detail { flex-direction: column !important; }
+          .incident-detail-sidebar {
+            width: 100% !important;
+            border-left: none !important;
+            border-top: 1px solid var(--border-default);
+            overflow-y: visible;
+          }
+          .incident-detail-main {
+            overflow-y: visible;
+            padding: 20px 16px;
+          }
+        }
+      ` }} />
     </div>
   );
 }

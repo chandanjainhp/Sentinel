@@ -161,7 +161,7 @@ function IncidentsWorkspace({ nightDate }) {
   }, [filteredIncidents, selectedIncidentId]);
 
   return (
-    <div style={{
+    <div className="incidents-page" style={{
       minHeight: "100vh",
       background: "var(--bg-base)",
       padding: "24px",
@@ -186,6 +186,12 @@ function IncidentsWorkspace({ nightDate }) {
             max-height: none !important;
           }
         }
+        /* Phones: horizontal scroll container for the incidents table so the
+           UUID/title columns keep readable widths instead of crushing. */
+        @media (max-width: 640px) {
+          .incidents-page { padding: 16px 12px; }
+          .incidents-table { min-width: 640px; }
+        }
       ` }} />
 
       {/* Header section */}
@@ -205,6 +211,7 @@ function IncidentsWorkspace({ nightDate }) {
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             <label style={{ fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Priority</label>
             <select
+              className="tap-target"
               value={priorityFilter || "all"}
               onChange={(e) => setFilter("priority", e.target.value)}
               style={{
@@ -231,6 +238,7 @@ function IncidentsWorkspace({ nightDate }) {
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             <label style={{ fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Severity</label>
             <select
+              className="tap-target"
               value={severityFilter || "all"}
               onChange={(e) => setFilter("severity", e.target.value)}
               style={{
@@ -263,7 +271,8 @@ function IncidentsWorkspace({ nightDate }) {
           borderRadius: "4px",
           overflow: "hidden"
         }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+          <div className="table-scroll">
+          <table className="incidents-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
             <thead>
               <tr style={{ background: "var(--bg-surface-2)", borderBottom: "1px solid var(--border-default)" }}>
                 <th style={{ padding: "12px 16px", fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)", textTransform: "uppercase" }}>ID</th>
@@ -301,6 +310,7 @@ function IncidentsWorkspace({ nightDate }) {
               )}
             </tbody>
           </table>
+          </div>
         </div>
 
         {/* Right Side: Panel */}
