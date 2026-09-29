@@ -5,14 +5,16 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
 import { loginUser } from '@/lib/api';
+import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
+import { SentinelLockup } from '@/components/brand/SentinelMark';
 import { initTheme } from '@/lib/theme';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const SYSTEM_FEATURES = [
-  { color: 'var(--sev-serious)', label: 'Drone Patrol', desc: 'Sensors capture motion, badge swipes, vehicle movement, and environmental readings overnight.' },
-  { color: 'var(--accent)', label: 'AI Investigation', desc: 'Claude correlates events, investigates anomalies, and classifies each incident before morning.' },
-  { color: 'var(--sev-harmless)', label: 'Morning Briefing', desc: 'Project Managers review structured findings, approve the briefing, and distribute to stakeholders.' },
+  { color: 'var(--dim)', label: 'Drone Patrol', desc: 'Sensors capture motion, badge swipes, vehicle movement, and environmental readings overnight.' },
+  { color: 'var(--dim)', label: 'AI Investigation', desc: 'Argus correlates events, investigates anomalies, and classifies each incident before morning.' },
+  { color: 'var(--dim)', label: 'Morning Briefing', desc: 'Project Managers review structured findings, approve the briefing, and distribute to stakeholders.' },
 ];
 
 function LoginPageInner() {
@@ -115,17 +117,7 @@ function LoginPageInner() {
 
           {/* Logo */}
           <div style={{ marginBottom: '40px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-              <span style={{
-                width: '7px', height: '7px', borderRadius: '50%',
-                background: 'var(--sev-serious)', boxShadow: 'var(--glow-serious)',
-                animation: 'status-pulse 2s ease-in-out infinite', flexShrink: 0,
-              }} />
-              <span style={{
-                fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 600,
-                letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-1)',
-              }}>Sentinel</span>
-            </div>
+            <SentinelLockup markSize={22} fontSize={13} />
           </div>
 
           <div style={{ height: '1px', background: 'var(--border-default)', marginBottom: '28px', marginTop: '28px' }} />
@@ -357,6 +349,21 @@ function LoginPageInner() {
               ) : 'Sign In →'}
             </button>
           </form>
+
+          {/* Divider + Google Identity Services sign-in */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '12px',
+            margin: '22px 0 16px',
+          }}>
+            <div style={{ flex: 1, height: '1px', background: 'var(--border-hairline)' }} />
+            <span style={{
+              fontFamily: 'var(--font-mono)', fontSize: '9px', fontWeight: 600,
+              letterSpacing: '0.14em', textTransform: 'uppercase',
+              color: 'var(--fg-4)',
+            }}>or</span>
+            <div style={{ flex: 1, height: '1px', background: 'var(--border-hairline)' }} />
+          </div>
+          <GoogleSignInButton />
 
           {/* Footer links */}
           <div style={{

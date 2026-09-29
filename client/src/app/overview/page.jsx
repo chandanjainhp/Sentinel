@@ -1,17 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
-import { getSites } from "@/lib/api";
-import { useIncidents } from "@/hooks/useIncidents";
-import { uniqueAssets } from "@/lib/projectContext";
-import SeverityBadge from "@/components/events/SeverityBadge";
+import { getDashboardSummary } from "@/lib/api";
+import HealthDot from "@/components/brand/HealthDot";
+import { healthMeta } from "@/lib/health";
 
 const MONO = "var(--font-mono)";
-const SANS = "var(--font-sans)";
+const DISPLAY = "var(--font-display)";
 
 function useNightDate() {
   return useMemo(() => {
@@ -22,118 +21,126 @@ function useNightDate() {
   }, []);
 }
 
-function StatCard({ label, value, sub, accent, onClick }) {
-  const [hovered, setHovered] = useState(false);
+/* ── Stat tile: mono uppercase label, huge Archivo value, state dot ── */
+function StatTile({ label, value, dot, dotColor, href }) {
+  const router = useRouter();
+  const clickable = Boolean(href);
   return (
     <div
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onClick={clickable ? () => router.push(href) : undefined}
       style={{
-        flex: 1,
-        minWidth: "160px",
-        background: hovered && onClick ? "var(--bg-surface-3)" : "var(--bg-surface-1)",
-        border: "1px solid var(--border-default)",
-        borderRadius: "2px",
-        padding: "16px",
-        cursor: onClick ? "pointer" : "default",
-        transition: `background var(--dur-fast)`,
-      }}>
-      <div style={{
-        fontFamily: MONO,
-        fontSize: "10px",
-        fontWeight: 600,
-        textTransform: "uppercase",
-        letterSpacing: "0.12em",
-        color: "var(--fg-3)",
-        marginBottom: "8px",
-      }}>
-        {label}
+        background: "var(--graphite)",
+        border: "1px solid var(--line)",
+        padding: "16px 18px",
+        cursor: clickable ? "pointer" : "default",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        {dot && <span className={`hw-dot ${dot}`} />}
+        <span
+          style={{
+            fontFamily: MONO,
+            fontSize: "10px",
+            fontWeight: 500,
+            textTransform: "uppercase",
+            letterSpacing: "0.18em",
+            color: "var(--dim)",
+          }}
+        >
+          {label}
+        </span>
       </div>
-      <div style={{
-        fontFamily: MONO,
-        fontSize: "28px",
-        fontWeight: 700,
-        color: accent || "var(--fg-1)",
-        lineHeight: 1,
-        marginBottom: "4px",
-      }}>
+      <div
+        style={{
+          fontFamily: DISPLAY,
+          fontVariationSettings: "'wdth' 120",
+          fontWeight: 800,
+          fontSize: "40px",
+          lineHeight: 0.95,
+          color: dotColor || "var(--bone)",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
         {value}
       </div>
-      {sub && (
-        <div style={{
-          fontFamily: SANS,
-          fontSize: "12px",
-          color: "var(--fg-4)",
-          marginTop: "6px",
-        }}>
-          {sub}
-        </div>
-      )}
     </div>
   );
 }
 
-
-function GhostBtn({ children, href }) {
+/* ── Section header: amber index + uppercase title + hairline rule ── */
+function SecHead({ index, title, note, action }) {
   return (
-    <Link href={href} style={{
-      background: "transparent",
-      color: "var(--fg-3)",
-      border: "1px solid var(--border-default)",
-      borderRadius: "2px",
-      padding: "7px 16px",
-      fontSize: "13px",
-      fontFamily: SANS,
-      cursor: "pointer",
-      textDecoration: "none",
-      display: "inline-block",
-    }}>
-      {children}
-    </Link>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "baseline",
+        gap: 16,
+        borderBottom: "1px solid var(--line)",
+        paddingBottom: 12,
+        marginBottom: 16,
+      }}
+    >
+      <span
+        style={{
+          fontFamily: MONO,
+          fontSize: "11px",
+          fontWeight: 600,
+          color: "var(--amber)",
+          letterSpacing: "0.1em",
+        }}
+      >
+        {index}
+      </span>
+      <h2
+        style={{
+          fontFamily: DISPLAY,
+          fontVariationSettings: "'wdth' 120",
+          fontWeight: 800,
+          textTransform: "uppercase",
+          fontSize: "18px",
+          letterSpacing: "0.01em",
+          color: "var(--bone)",
+          margin: 0,
+        }}
+      >
+        {title}
+      </h2>
+      {note && (
+        <span
+          style={{
+            fontFamily: MONO,
+            fontSize: "9.5px",
+            letterSpacing: "0.18em",
+            color: "var(--dim)",
+            marginLeft: "auto",
+          }}
+        >
+          {note}
+        </span>
+      )}
+      {action}
+    </div>
   );
 }
 
-function formatTime(iso) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
+const rollupLabel = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 export default function OverviewPage() {
   const { user } = useAuthStore();
-  const router = useRouter();
   const nightDate = useNightDate();
 
-  const { data: sites, isLoading: sitesLoading } = useQuery({
-    queryKey: ["sites"],
-    queryFn: getSites,
-    staleTime: 60 * 1000,
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: getDashboardSummary,
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
   });
 
-  const { data: incidentsData, isLoading: incidentsLoading } = useIncidents(
-    { nightDate },
-    { staleTime: 60 * 1000, retry: false },
-  );
+  const totals = data?.totals;
+  const fleet = data?.fleet ?? [];
+  const incidents = data?.incidents ?? [];
+  const risk = data?.predictedRisk;
 
-  const incidents = incidentsData?.incidents ?? [];
-
-  const totalIncidents = incidents.length;
-  const criticalCount = incidentsData?.critical?.length ?? 0;
-  const warningCount = incidentsData?.warning?.length ?? 0;
-  const assetsImpacted = uniqueAssets(incidents);
-
-  const isLoading = incidentsLoading || sitesLoading;
-
-  const firstSite = sites?.[0];
-  // Prefer the user's first real Site record; fall back to a label derived
-  // from the account name. (Previously `firstSite?.name || user?.username ?
-  // ...` bound the wrong way: ANY username produced "<username>'s site",
-  // ignoring the real site name entirely.)
-  const siteName = firstSite?.name
-    ? firstSite.name
-    : user?.username
-      ? `${user.username}'s site`
-      : "Your site";
   const greeting = (() => {
     const h = new Date().getHours();
     if (h < 12) return "Good morning";
@@ -141,274 +148,321 @@ export default function OverviewPage() {
     return "Good evening";
   })();
 
+  const dash = "—";
+
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "var(--bg-base)",
-      padding: "32px 24px",
-      maxWidth: "900px",
-      margin: "0 auto",
-    }}>
-      {/* Morning status card */}
-      <section style={{
-        background: "var(--bg-surface-1)",
-        border: "1px solid var(--border-default)",
-        borderRadius: "2px",
-        padding: "24px",
-        marginBottom: "24px",
-      }}>
-        <div style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: "16px",
-          flexWrap: "wrap",
-        }}>
-          <div>
-            <div style={{
-              fontFamily: MONO,
-              fontSize: "10px",
-              textTransform: "uppercase",
-              letterSpacing: "0.12em",
-              color: "var(--fg-4)",
-              marginBottom: "8px",
-            }}>
-              {greeting} — {nightDate}
-              <Link
-                href="/docs#how-it-works"
-                style={{
-                  marginLeft: "12px",
-                  color: "var(--accent)",
-                  textDecoration: "none",
-                  fontSize: "10px",
-                  letterSpacing: "0.1em",
-                }}
-              >
-                ? Learn more
-              </Link>
-            </div>
-            <h1 style={{
-              fontFamily: SANS,
-              fontSize: "24px",
-              fontWeight: 500,
-              color: "var(--fg-1)",
-              margin: "0 0 6px",
-            }}>
-              {siteName}
-            </h1>
-
-            {isLoading ? (
-              <div style={{ fontFamily: SANS, fontSize: "13px", color: "var(--fg-4)" }}>
-                Loading overnight data…
-              </div>
-            ) : totalIncidents > 0 ? (
-              <div style={{ fontFamily: SANS, fontSize: "14px", color: "var(--fg-2)" }}>
-                {totalIncidents} incident{totalIncidents !== 1 ? "s" : ""} recorded overnight
-                {criticalCount > 0 ? ` — ${criticalCount} critical` : warningCount > 0 ? ` — ${warningCount} warning` : ""}.
-              </div>
-            ) : (
-              <div style={{ fontFamily: SANS, fontSize: "14px", color: "var(--fg-3)" }}>
-                No overnight incidents for {nightDate} yet. Telemetry recorded tonight will appear here tomorrow morning.
-              </div>
-            )}
-          </div>
-
-          {/* CTA */}
-          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexShrink: 0 }}>
-            <GhostBtn href="/incidents">View incidents</GhostBtn>
-          </div>
-        </div>
-      </section>
-
-      {incidents.length === 0 && isLoading ? (
-        <section style={{
-          background: "var(--bg-surface-1)",
-          border: "1px solid var(--border-default)",
-          borderRadius: "2px",
-          padding: "48px 24px",
-          textAlign: "center",
-        }}>
-          <div style={{
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "var(--night)",
+        padding: "32px 24px 64px",
+        maxWidth: "1080px",
+        margin: "0 auto",
+      }}
+    >
+      {/* ── Header ── */}
+      <div style={{ marginBottom: 28 }}>
+        <div
+          style={{
             fontFamily: MONO,
             fontSize: "10px",
             textTransform: "uppercase",
-            letterSpacing: "0.12em",
-            color: "var(--fg-4)",
-            marginBottom: "8px",
-          }}>
-            Overnight
-          </div>
-          <div style={{
-            fontFamily: SANS,
-            fontSize: "14px",
-            color: "var(--fg-4)",
-          }}>
-            Loading overnight data…
-          </div>
-        </section>
-      ) : (
-        <>
-          {/* Stat cards — only features with real backing in this build. */}
-          <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-        gap: "12px",
-        marginBottom: "24px",
-      }}>
-        <StatCard
-          label="Incidents"
-          value={incidentsLoading ? "—" : totalIncidents}
-          sub={
-            criticalCount > 0 && warningCount > 0 ? `${criticalCount} critical · ${warningCount} warning` :
-            criticalCount > 0 ? `${criticalCount} critical` :
-            warningCount > 0 ? `${warningCount} warning` :
-            "None flagged"
-          }
-          accent={criticalCount > 0 ? "var(--sev-serious)" : "var(--fg-1)"}
-          onClick={() => router.push("/incidents")}
-        />
-        <StatCard
-          label="Assets Impacted"
-          value={incidentsLoading ? "—" : assetsImpacted}
-          sub={assetsImpacted === 1 ? "1 machine involved" : "Distinct machines in overnight incidents"}
-          accent={assetsImpacted > 0 ? "var(--sev-minor)" : "var(--fg-4)"}
-          onClick={() => router.push("/incidents")}
-        />
-        <StatCard
-          label="Night"
-          value={nightDate}
-        />
+            letterSpacing: "0.18em",
+            color: "var(--dim)",
+            marginBottom: 8,
+          }}
+        >
+          {greeting} — NIGHT OF {nightDate}
+          {data?.generatedAt && (
+            <span style={{ marginLeft: 12, color: "var(--dim)" }}>
+              UPDATED {new Date(data.generatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
+        </div>
+        <h1
+          style={{
+            fontFamily: DISPLAY,
+            fontVariationSettings: "'wdth' 124",
+            fontWeight: 800,
+            fontSize: "34px",
+            lineHeight: 0.95,
+            textTransform: "uppercase",
+            letterSpacing: "-0.01em",
+            color: "var(--bone)",
+            margin: 0,
+          }}
+        >
+          {user?.username ? `${user.username}'s fleet` : "Fleet"}
+        </h1>
       </div>
 
-      {/* Recent incidents */}
-      {totalIncidents > 0 && (
-        <section style={{
-          background: "var(--bg-surface-1)",
-          border: "1px solid var(--border-default)",
-          borderRadius: "2px",
-          overflow: "hidden",
-          marginBottom: "24px",
-        }}>
-          <div style={{
-            padding: "10px 16px",
-            borderBottom: "1px solid var(--border-hairline)",
-            background: "var(--bg-surface-2)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}>
-            <span style={{
-              fontFamily: MONO,
-              fontSize: "10px",
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: "0.12em",
-              color: "var(--fg-3)",
-            }}>
-              Recent incidents
-            </span>
-            <Link href="/incidents" style={{
-              fontFamily: MONO,
-              fontSize: "10px",
-              color: "var(--accent)",
-              textDecoration: "none",
-              letterSpacing: "0.08em",
-            }}>
-              View all →
-            </Link>
+      {isError ? (
+        <div className="empty-state">DASHBOARD UNAVAILABLE — RETRY SHORTLY</div>
+      ) : (
+        <>
+          {/* ══ 01 · STATS BAND — six tiles, all server-computed ══ */}
+          <SecHead index="01" title="Overview" note={isLoading ? "LOADING…" : undefined} />
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+              gap: 10,
+              marginBottom: 40,
+            }}
+          >
+            <StatTile label="Total Machines" value={isLoading ? dash : totals?.machines ?? 0} />
+            <StatTile
+              label="Healthy"
+              value={isLoading ? dash : totals?.healthy ?? 0}
+              dot={(isLoading || (totals?.healthy ?? 0) === 0) ? null : "hw-dot--healthy"}
+              dotColor={(isLoading || (totals?.healthy ?? 0) === 0) ? null : "var(--health-healthy)"}
+            />
+            <StatTile
+              label="Warning"
+              value={isLoading ? dash : totals?.warning ?? 0}
+              dot={(isLoading || (totals?.warning ?? 0) === 0) ? null : "hw-dot--warning"}
+              dotColor={(isLoading || (totals?.warning ?? 0) === 0) ? null : "var(--health-warning)"}
+              href={totals?.warning > 0 ? "/incidents" : undefined}
+            />
+            <StatTile
+              label="Critical"
+              value={isLoading ? dash : totals?.critical ?? 0}
+              dot={(isLoading || (totals?.critical ?? 0) === 0) ? null : "hw-dot--critical"}
+              dotColor={(isLoading || (totals?.critical ?? 0) === 0) ? null : "var(--health-critical)"}
+              href={totals?.critical > 0 ? "/incidents" : undefined}
+            />
+            <StatTile
+              label="Active Incidents"
+              value={isLoading ? dash : totals?.activeIncidents ?? 0}
+              href="/incidents"
+            />
+            <StatTile
+              label="Predicted Risk"
+              value={isLoading ? dash : risk ? risk.anomalyScore.toFixed(2) : "0.00"}
+              dot={risk && risk.level !== "healthy" ? "hw-dot--warning" : null}
+              dotColor={risk && risk.level !== "healthy" ? "var(--health-warning)" : null}
+            />
           </div>
-          {incidents.slice(0, 5).map((incident) => {
-            const incidentId = incident.id || incident._id;
-            return (
-            <Link
-              key={incidentId}
-              href={`/incident/${incidentId}`}
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: "var(--space-3)",
-                padding: "var(--space-3) var(--space-4)",
-                borderBottom: "1px solid var(--border-hairline)",
-                textDecoration: "none",
-                transition: "background 120ms",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-2)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-            >
-              <div style={{ flexShrink: 0, paddingTop: "var(--space-1)" }}>
-                <SeverityBadge severity={incident.severity || 'uncertain'} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontFamily: SANS,
-                  fontSize: "13px",
-                  color: "var(--fg-1)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}>
-                  {incident.title || incident.description || "Unnamed incident"}
-                </div>
-                <div style={{
-                  fontFamily: MONO,
-                  fontSize: "11px",
-                  color: "var(--fg-4)",
-                  marginTop: "var(--space-1)",
-                }}>
-                  {incident.machine?.name || incident.machineId || "—"}
-                </div>
-              </div>
-              <div style={{
-                fontFamily: MONO,
-                fontSize: "10px",
-                color: "var(--fg-4)",
-                flexShrink: 0,
-                paddingTop: "var(--space-1)",
-              }}>
-                {incident.createdAt ? formatTime(incident.createdAt) : "—"}
-              </div>
-            </Link>
-          );
-          })}
-        </section>
-      )}
 
-          {/* Empty state — real pipeline-backed: reflects actual incident queries for the period */}
-      {!isLoading && totalIncidents === 0 && (
-        <section style={{
-          background: "var(--bg-surface-1)",
-          border: "1px solid var(--border-default)",
-          borderRadius: "2px",
-          padding: "48px 24px",
-          textAlign: "center",
-        }}>
-          <div style={{
-            fontFamily: MONO,
-            fontSize: "10px",
-            textTransform: "uppercase",
-            letterSpacing: "0.12em",
-            color: "var(--fg-4)",
-            marginBottom: "8px",
-          }}>
-            Overnight
-          </div>
-          <div style={{
-            fontFamily: SANS,
-            fontSize: "16px",
-            color: "var(--fg-3)",
-            marginBottom: "4px",
-          }}>
-            No incidents recorded for {nightDate}
-          </div>
-          <div style={{
-            fontFamily: SANS,
-            fontSize: "13px",
-            color: "var(--fg-4)",
-          }}>
-            Telemetry recorded tonight will be scored overnight; any resulting incidents will appear here tomorrow morning.
-          </div>
-        </section>
-      )}
+          {/* ══ 02 · FLEET — sites with health rollups ══ */}
+          <SecHead
+            index="02"
+            title="Fleet"
+            note={fleet.length ? `${fleet.length} SITE${fleet.length === 1 ? "" : "S"}` : undefined}
+          />
+          {isLoading ? (
+            <div className="empty-state">LOADING FLEET…</div>
+          ) : fleet.length === 0 ? (
+            <div className="empty-state" style={{ marginBottom: 40 }}>
+              NO SITES REGISTERED — ADD A SITE TO BEGIN
+            </div>
+          ) : (
+            <div className="table-scroll" style={{ marginBottom: 40 }}>
+              {/* header row */}
+              <div
+                className="fleet-row fleet-head"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "minmax(140px, 2fr) 1fr 1fr 1fr 1fr 1fr",
+                  gap: 12,
+                  padding: "8px 14px",
+                  minWidth: 560,
+                  borderBottom: "1px solid var(--line2)",
+                  fontFamily: MONO,
+                  fontSize: "9.5px",
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: "var(--dim)",
+                }}
+              >
+                <span>Site</span>
+                <span style={{ textAlign: "right" }}>Machines</span>
+                <span style={{ textAlign: "right" }}>OK</span>
+                <span style={{ textAlign: "right" }}>Warn</span>
+                <span style={{ textAlign: "right" }}>Crit</span>
+                <span style={{ textAlign: "right" }}>Status</span>
+              </div>
+              {fleet.map((site) => {
+                const meta = healthMeta(site.status === "healthy" ? "healthy" : site.status);
+                return (
+                  <Link
+                    key={site._id}
+                    href={`/sensors`}
+                    className="fleet-row"
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "minmax(140px, 2fr) 1fr 1fr 1fr 1fr 1fr",
+                      gap: 12,
+                      padding: "12px 14px",
+                      minWidth: 560,
+                      borderBottom: "1px solid var(--line)",
+                      textDecoration: "none",
+                      alignItems: "center",
+                      transition: "background var(--dur-fast)",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-surface-2)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <span
+                      style={{
+                        fontFamily: MONO,
+                        fontSize: "12px",
+                        color: "var(--bone)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {site.name}
+                    </span>
+                    <span className="num" style={{ fontFamily: MONO, fontSize: "12px", color: "var(--fg-2)", textAlign: "right" }}>
+                      {site.machines}
+                    </span>
+                    <span className="num" style={{ fontFamily: MONO, fontSize: "12px", color: "var(--fg-2)", textAlign: "right" }}>
+                      {site.healthy}
+                    </span>
+                    <span
+                      className="num"
+                      style={{
+                        fontFamily: MONO,
+                        fontSize: "12px",
+                        textAlign: "right",
+                        color: site.warning > 0 ? "var(--health-warning)" : "var(--fg-3)",
+                      }}
+                    >
+                      {site.warning}
+                    </span>
+                    <span
+                      className="num"
+                      style={{
+                        fontFamily: MONO,
+                        fontSize: "12px",
+                        textAlign: "right",
+                        color: site.critical > 0 ? "var(--health-critical)" : "var(--fg-3)",
+                      }}
+                    >
+                      {site.critical}
+                    </span>
+                    <span style={{ display: "flex", justifyContent: "flex-end" }}>
+                      <HealthDot status={site.status} />
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ══ 03 · OPEN INCIDENTS — severity dot + machine + reason + age ══ */}
+          <SecHead
+            index="03"
+            title="Open Incidents"
+            note={incidents.length ? `${incidents.length} SHOWN` : undefined}
+            action={
+              <Link
+                href="/incidents"
+                style={{
+                  fontFamily: MONO,
+                  fontSize: "10px",
+                  letterSpacing: "0.14em",
+                  color: "var(--amber)",
+                  textDecoration: "none",
+                  marginLeft: "auto",
+                }}
+              >
+                VIEW ALL →
+              </Link>
+            }
+          />
+          {isLoading ? (
+            <div className="empty-state">LOADING INCIDENTS…</div>
+          ) : incidents.length === 0 ? (
+            <div className="empty-state">
+              NO OPEN INCIDENTS — FLEET NOMINAL FOR {nightDate}
+            </div>
+          ) : (
+            <div>
+              {incidents.map((incident) => {
+                const meta = healthMeta(incident.severity);
+                return (
+                  <Link
+                    key={incident.incidentId}                      href={`/incidents/${incident.incidentId}`}
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 12,
+                      padding: "12px 14px",
+                      borderBottom: "1px solid var(--line)",
+                      textDecoration: "none",
+                      transition: "background var(--dur-fast)",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-surface-2)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <span style={{ flexShrink: 0, paddingTop: 5 }}>
+                      <span className={`hw-dot ${meta.cssClass}`} />
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span
+                        style={{
+                          display: "block",
+                          fontFamily: MONO,
+                          fontSize: "12px",
+                          color: "var(--bone)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {incident.machine?.name || "—"}
+                        {incident.machine?.assetId ? (
+                          <span style={{ color: "var(--dim)" }}> · {incident.machine.assetId}</span>
+                        ) : null}
+                      </span>
+                      <span
+                        style={{
+                          display: "block",
+                          fontSize: "13px",
+                          color: "var(--muted)",
+                          marginTop: 3,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {incident.title}
+                      </span>
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: MONO,
+                        fontSize: "10px",
+                        letterSpacing: "0.1em",
+                        textTransform: "uppercase",
+                        color: meta.token,
+                        flexShrink: 0,
+                        paddingTop: 5,
+                      }}
+                    >
+                      {meta.label}
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: MONO,
+                        fontSize: "10px",
+                        color: "var(--dim)",
+                        flexShrink: 0,
+                        paddingTop: 5,
+                        minWidth: 64,
+                        textAlign: "right",
+                      }}
+                    >
+                      {incident.age}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </>
       )}
     </div>

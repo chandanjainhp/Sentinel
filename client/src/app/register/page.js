@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
 import { registerUser } from '@/lib/api';
+import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
+import { SentinelLockup } from '@/components/brand/SentinelMark';
 import { initTheme } from '@/lib/theme';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -135,21 +137,11 @@ export default function RegisterPage() {
 
           {/* Logo */}
           <div style={{ marginBottom: '40px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-              <span style={{
-                width: '7px', height: '7px', borderRadius: '50%',
-                background: 'var(--sev-serious)', boxShadow: 'var(--glow-serious)',
-                animation: 'status-pulse 2s ease-in-out infinite', flexShrink: 0,
-              }} />
-              <span style={{
-                fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 600,
-                letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--fg-1)',
-              }}>Sentinel</span>
-            </div>
+            <SentinelLockup markSize={22} fontSize={13} />
             <div style={{
               fontFamily: 'var(--font-mono)', fontSize: '10px',
               color: 'var(--fg-4)', letterSpacing: '0.1em',
-              textTransform: 'uppercase', paddingLeft: '15px',
+              textTransform: 'uppercase', paddingLeft: '2px', marginTop: '8px',
             }}>6:10 Assistant</div>
           </div>
 
@@ -410,6 +402,22 @@ export default function RegisterPage() {
               ) : 'Create Account →'}
             </button>
           </form>
+
+          {/* Divider + Google Identity Services sign-up/sign-in. Google accounts
+              are auto-provisioned on first sign-in, so this doubles as registration. */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '12px',
+            margin: '22px 0 16px',
+          }}>
+            <div style={{ flex: 1, height: '1px', background: 'var(--border-hairline)' }} />
+            <span style={{
+              fontFamily: 'var(--font-mono)', fontSize: '9px', fontWeight: 600,
+              letterSpacing: '0.14em', textTransform: 'uppercase',
+              color: 'var(--fg-4)',
+            }}>or</span>
+            <div style={{ flex: 1, height: '1px', background: 'var(--border-hairline)' }} />
+          </div>
+          <GoogleSignInButton />
 
           {/* Footer links */}
           <div style={{

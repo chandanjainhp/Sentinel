@@ -6,6 +6,9 @@ import {
   explainIncident,
   updateIncidentStatus,
 } from "../controllers/incident.controller.js";
+import {
+  getIncidentDetailController,
+} from "../controllers/incident-detail.controller.js";
 import { verifyJWT, scopeToUser } from "../middlewares/auth.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { getLimiter } from "../middlewares/rateLimit.middleware.js";
@@ -38,6 +41,14 @@ router.get(
   "/:incidentId/graph",
   validate(incidentIdSchema),
   getIncidentGraph
+);
+
+// Aggregation for the incident detail page — same scope/validation as the
+// plain incident read, so another user's incident 404s exactly the same way.
+router.get(
+  "/:incidentId/detail",
+  validate(incidentIdSchema),
+  getIncidentDetailController
 );
 
 router.patch(

@@ -10,7 +10,7 @@ const SANS = 'var(--font-sans)';
 
 const NAV_ITEMS = [
   { name: 'General',  path: '/settings/general',  icon: Settings, helpAnchor: null },
-  { name: 'API Key',  path: '/settings/api-key',  icon: Key,      helpAnchor: '#ingest' },
+  { name: 'API Keys', path: '/settings/api-keys', icon: Key,      helpAnchor: '#ingest' },
   { name: 'Webhooks', path: '/settings/webhooks', icon: Webhook,  helpAnchor: '#webhooks' },
 ];
 

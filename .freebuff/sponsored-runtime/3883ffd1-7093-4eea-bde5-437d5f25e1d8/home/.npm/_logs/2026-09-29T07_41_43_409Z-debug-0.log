@@ -1,0 +1,18 @@
+0 verbose cli /usr/bin/node /usr/bin/npm
+1 info using npm@12.1.0
+2 info using node@v26.10.0
+3 silly config load:file:/usr/lib/node_modules/npm/npmrc
+4 silly config load:file:/home/chandanjainhp/coding/javascript/Project/Sentinel/.npmrc
+5 silly config load:file:/home/chandanjainhp/coding/javascript/Project/Sentinel/.freebuff/sponsored-runtime/***/home/.npmrc
+6 silly config load:file:/etc/npmrc
+7 verbose title npm config get prefix
+8 verbose argv "config" "get" "prefix"
+9 verbose logfile logs-max:10 dir:/home/chandanjainhp/coding/javascript/Project/Sentinel/.freebuff/sponsored-runtime/***/home/.npm/_logs/2026-09-29T07_41_43_409Z-
+10 verbose logfile /home/chandanjainhp/coding/javascript/Project/Sentinel/.freebuff/sponsored-runtime/***/home/.npm/_logs/2026-09-29T07_41_43_409Z-debug-0.log
+11 silly logfile done cleaning log files
+12 verbose cwd /home/chandanjainhp/coding/javascript/Project/Sentinel
+13 verbose os Linux 6.18.54-1-lts
+14 verbose node v26.10.0
+15 verbose npm  v12.1.0
+16 verbose exit 0
+17 info ok

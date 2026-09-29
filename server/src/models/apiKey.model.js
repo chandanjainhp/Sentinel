@@ -20,11 +20,18 @@ export function apiKeyPrefixFromSecret(raw) {
 }
 
 /**
- * ONE API key per user. The unique index on userId enforces the single-key rule;
- * generating a new key replaces the previous one.
+ * API keys. A user may hold several named keys (e.g. one per gateway);
+ * revocation deletes the document, which immediately invalidates the secret.
  */
 const apiKeySchema = new mongoose.Schema(
   {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: 1,
+      maxlength: 64,
+    },
     keyId: {
       type: String,
       required: true,
@@ -36,7 +43,6 @@ const apiKeySchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      unique: true,
       index: true,
     },
     keyPrefix: {
@@ -63,6 +69,7 @@ apiKeySchema.methods.toPublicJSON = function toPublicJSON() {
     keyId: this.keyId,
     id: this._id.toString(),
     userId: this.userId,
+    name: this.name,
     keyPrefix: this.keyPrefix,
     createdAt: this.createdAt,
     lastUsedAt: this.lastUsedAt,

@@ -1,105 +1,136 @@
 /* =========================================================================
-   Sentinel — Night Watch Design Tokens
+   Sentinel — Night Watch Design Tokens (V1)
    Operational. Honest. Calm.
+   ONE accent: Signal Amber — spent only on attention (WARNING, active
+   flags, CTAs). Never decorative.
+
+   Canonical Night Watch names are defined in :root below. The legacy
+   names the app already uses (--bg-surface-1, --sev-serious, --fg-1, …)
+   are kept as aliases so existing pages continue to work unchanged.
+   Reference artifact: client/log.html
    ========================================================================= */
 
-/* ---------- Webfonts ---------- */
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Serif:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
+/* ---------- Webfonts ----------
+   Archivo (variable, wdth axis for the stretched display caps) + IBM Plex
+   Mono for data/labels + IBM Plex Serif for the briefing document. */
+@import url('https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:wght@400;500;600&display=swap');
 
 :root {
   /* ============ COLOR — SURFACES ============
-     The room is dark. Surfaces are layered by elevation, not by
-     shadow — a tenth of a step lighter at each level. */
-  --bg-base:       #07090c;   /* Page background — below-everything black */
-  --bg-canvas:     #0b0e13;   /* Map, primary canvas */
-  --bg-surface-1:  #11151c;   /* Default panel */
-  --bg-surface-2:  #161b24;   /* Raised panel, inputs */
-  --bg-surface-3:  #1c222d;   /* Hover, selected row */
-  --bg-terminal:   #080a10;   /* Terminal background — darker than panels */
-  --bg-briefing:   #f4f1ea;   /* Briefing document — paper, intentional */
-  --bg-briefing-ink: #1a1814; /* Briefing document text */
+     The room is dark. Surfaces are layered by elevation, not by shadow. */
+  --night:      #07090D;   /* Page background */
+  --graphite2:  #0D1218;   /* Surface-low: canvas, terminal, JSON blocks */
+  --graphite:   #141B24;   /* Surface: cards, panels */
 
-  /* ============ COLOR — BORDERS / DIVIDERS ============ */
-  --border-hairline: #1a2029; /* Divider inside a panel */
-  --border-default:  #232b38; /* Panel edge */
-  --border-strong:   #334055; /* Input, interactive outline */
-  --border-focus:    #4cc2ff; /* Focus ring — bright cyan, distinct from accent */
+  --bg-base:       var(--night);      /* legacy alias */
+  --bg-canvas:     var(--graphite2);  /* legacy alias */
+  --bg-surface-1:  var(--graphite);   /* legacy alias — default panel */
+  --bg-surface-2:  #1A222D;           /* legacy alias — raised panel, inputs */
+  --bg-surface-3:  #212B38;           /* legacy alias — hover, selected row */
+  --bg-terminal:   #080A10;           /* legacy alias — darker than panels */
+  --bg-briefing:   #f4f1ea;           /* Briefing document — paper, intentional */
+  --bg-briefing-ink: #1a1814;
+
+  /* ============ COLOR — BORDERS / DIVIDERS ============
+     Hairlines, not shadows. Emphasized only where interaction lives. */
+  --line:  rgba(233, 237, 242, 0.08);   /* hairline */
+  --line2: rgba(233, 237, 242, 0.18);   /* emphasized */
+
+  --border-hairline: var(--line);                 /* legacy alias */
+  --border-default:  rgba(233, 237, 242, 0.12);   /* legacy alias — panel edge */
+  --border-strong:   var(--line2);                /* legacy alias — inputs */
+  --border-focus:    #FFB224;                     /* legacy alias — focus ring */
 
   /* ============ COLOR — TEXT ============
-     Four ranks of foreground. Nothing below rank 4 is ever legible —
-     it's texture, timestamps, ticks. */
-  --fg-1: #e6ecf3;   /* Headings, primary readout */
-  --fg-2: #aab4c2;   /* Body */
-  --fg-3: #8190a0;   /* Metadata, labels — 5.5:1 on bg-surface-1 (WCAG AA) */
-  --fg-4: #434d5c;   /* Scale ticks, disabled — non-text only, do not use for readable body text */
+     Bone primary, muted secondary, dim tertiary. --dim is texture —
+     timestamps, ticks, labels — never readable body copy at length. */
+  --bone:  #E9EDF2;
+  --muted: #8B97A5;
+  --dim:   #5A6672;
 
-  /* ============ COLOR — SEVERITY ============
-     The only saturated colors in the system. They mean what they look
-     like and nothing else uses them. */
-  --sev-serious:     #ff3838;   /* Red — only truly saturated color on the map */
-  --sev-serious-bg:  #2d0d12;
-  --sev-serious-dim: #8a1d25;
-  --sev-minor:       #e89a2b;   /* Amber — needs attention */
-  --sev-minor-bg:    #2a1c0a;
-  --sev-minor-dim:   #8a5a18;
-  --sev-harmless:    #5a6470;   /* Cool neutral — recedes against dark surfaces */
-  --sev-harmless-bg: #141820;
-  --sev-harmless-dim:#2d3540;
-  --sev-unknown:     #6b7686;   /* Gray — unclassified */
-  --sev-unknown-bg:  #171c24;
+  --fg-1: var(--bone);    /* legacy alias — headings, primary readout */
+  --fg-2: #AAB4C0;        /* legacy alias — body */
+  --fg-3: var(--muted);   /* legacy alias — metadata, labels */
+  --fg-4: var(--dim);     /* legacy alias — ticks, disabled */
+
+  /* ============ COLOR — HEALTH ============
+     Deterministic machine health. Never AI-narrated. */
+  --health-healthy:     #3ECF8E;  /* --guard */
+  --health-warning:     #FFB224;  /* --amber — also the accent */
+  --health-critical:    #F0544F;  /* --alarm */
+  --health-offline:     #55606C;  /* --offline */
+  --health-maintenance: #6EA8FE;  /* --maint */
+  --health-unknown:     #8B97A5;  /* --muted */
+
+  --guard:      var(--health-healthy);
+  --alarm:      var(--health-critical);
+  --offline-c:  var(--health-offline);
+  --maint:      var(--health-maintenance);
 
   /* ============ COLOR — ACCENT ============
-     Radar blue. A cold near-white blue used for the live time, focus
-     rings, scrubber handle, agent pulse. Reads as instrumentation,
-     not brand. Nothing decorative. */
-  --accent:          #5ec8e0;  /* Instrumentation cyan — distinct from fg-1 */
-  --accent-dim:      #3a8fa8;
-  --accent-deep:     #0e2530;
+     Signal Amber. The only saturated brand color. It means ATTENTION
+     and nothing else: warning states, active flags, primary CTAs. */
+  --amber: #FFB224;
 
-  /* ============ COLOR — TERMINAL ============
-     Agent feed uses distinct hues per message type so Maya can scan
-     for anomalies the way a pilot reads instruments. */
-  --term-fg:         #c8d3e0;  /* Default terminal text */
-  --term-dim:        #5a6575;  /* Prompts, punctuation */
-  --term-tool:       #9db6ca;  /* Tool calls — cool blue-gray */
-  --term-result:     #a8b8a8;  /* Results — subdued sage */
-  --term-classify:   #e8eef6;  /* Classifications — white, prominent */
-  --term-uncertain:  #E89A2B;  /* Uncertainties — amber warning */
-  --term-error:      #FF3838;
+  --accent:      var(--amber);          /* legacy alias */
+  --accent-dim:  #C07F00;               /* legacy alias — print amber */
+  --accent-deep: #2A1C0A;               /* legacy alias — amber wash bg */
+
+  /* ============ COLOR — SEVERITY (legacy aliases) ============
+     Mapped onto the health palette. */
+  --sev-serious:     var(--health-critical);   /* #F0544F */
+  --sev-serious-bg:  #2A100E;
+  --sev-serious-dim: #8A332F;
+  --sev-minor:       var(--health-warning);    /* #FFB224 */
+  --sev-minor-bg:    #2A1C0A;
+  --sev-minor-dim:   #8A5A18;
+  --sev-harmless:    #55606C;
+  --sev-harmless-bg: #141A21;
+  --sev-harmless-dim:#2D3540;
+  --sev-unknown:     var(--health-unknown);
+  --sev-unknown-bg:  #171C24;
+
+  /* ============ COLOR — TERMINAL (legacy) ============ */
+  --term-fg:        #C8D3E0;
+  --term-dim:       #5A6575;
+  --term-tool:      #9DB6CA;
+  --term-result:    #A8B8A8;
+  --term-classify:  #E8EEF6;
+  --term-uncertain: var(--health-warning);
+  --term-error:     var(--health-critical);
 
   /* ============ TYPE — FAMILIES ============ */
-  --font-sans:    'IBM Plex Sans', -apple-system, 'Segoe UI', Arial, sans-serif;
+  --font-display: 'Archivo', 'Archivo Variable', ui-sans-serif, sans-serif;
+  --font-sans:    'Archivo', ui-sans-serif, -apple-system, 'Segoe UI', sans-serif; /* legacy alias — body */
   --font-serif:   'IBM Plex Serif', Georgia, 'Times New Roman', serif;
-  --font-mono:    'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  --font-mono:    'IBM Plex Mono', 'SF Mono', Menlo, Consolas, monospace; /* legacy alias — data */
 
-  /* ============ TYPE — SCALE ============
-     Operational. Nothing giant. Headings are quiet; the data is loud. */
-  --text-micro:   10px;   /* UPPERCASE labels, badges */
-  --text-xs:      11px;
-  --text-sm:      12px;   /* Terminal lines, metadata */
-  --text-base:    13px;   /* Panel body */
-  --text-md:      14px;
-  --text-lg:      16px;
-  --text-xl:      20px;   /* Panel title */
-  --text-2xl:     28px;   /* Incident name */
-  --text-3xl:     40px;   /* Live time on landing */
-  --text-4xl:     64px;   /* Countdown */
+  /* ============ TYPE — SCALE (legacy) ============ */
+  --text-micro: 10px;
+  --text-xs:    11px;
+  --text-sm:    12px;
+  --text-base:  13px;
+  --text-md:    14px;
+  --text-lg:    16px;
+  --text-xl:    20px;
+  --text-2xl:   28px;
+  --text-3xl:   40px;
+  --text-4xl:   64px;
+  --text-stat:  44px;   /* Stat card huge number */
 
-  --lh-tight: 1.15;
-  --lh-snug:  1.3;
-  --lh-normal: 1.5;
+  --lh-tight:  0.95;   /* display caps */
+  --lh-snug:   1.3;
+  --lh-normal: 1.6;    /* body 15px/1.6 */
   --lh-loose:  1.65;
 
-  /* ============ TYPE — LETTERSPACING ============
-     Labels and status indicators spread slightly; body is neutral. */
-  --tracking-tight:  -0.01em;
+  /* ============ TYPE — LETTERSPACING (legacy) ============ */
+  --tracking-tight:  -0.012em;
   --tracking-normal: 0;
   --tracking-wide:   0.06em;
-  --tracking-wider:  0.12em;   /* UPPERCASE labels */
-  --tracking-mono:   0;
+  --tracking-wider:  0.15em;   /* uppercase labels */
+  --tracking-mono:   0.18em;   /* mono micro-labels */
 
-  /* ============ SPACING ============
-     4px base. Operational grid is tight. */
+  /* ============ SPACING (legacy) ============ */
   --space-1:  4px;
   --space-2:  8px;
   --space-3:  12px;
@@ -111,80 +142,76 @@
   --space-12: 48px;
   --space-16: 64px;
 
-  /* ============ RADII ============
-     Restrained. 2px is the default — just enough to not look broken.
-     Cards and inputs share the same radius. */
+  /* ============ RADII (legacy) ============ */
   --radius-none:  0;
-  --radius-xs:    2px;  /* Default — inputs, badges */
-  --radius-sm:    4px;  /* Panels, cards */
-  --radius-md:    6px;  /* Modals */
-  --radius-pill:  999px;/* Status pills, filter chips */
+  --radius-xs:    2px;
+  --radius-sm:    4px;
+  --radius-md:    6px;
+  --radius-pill:  999px;
 
   /* ============ ELEVATION ============
-     Minimal. Ops rooms don't have drop shadows. Elevation = +1 surface
-     step + a 1px inner highlight. For modals only, a real shadow. */
-  --inner-highlight: inset 0 1px 0 rgba(255,255,255,0.03);
-  --shadow-modal:    0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px var(--border-default);
-  --glow-accent:     0 0 0 1px var(--accent), 0 0 18px rgba(94,200,224,0.22);
-  --glow-serious:    0 0 14px rgba(255,56,56,0.55);
-  --glow-minor:      0 0 10px rgba(232,154,43,0.35);
-  --glow-harmless:   0 0 6px rgba(125,138,106,0.2);
+     Ops rooms don't have drop shadows or glows. Hairlines only. */
+  --inner-highlight: none;
+  --shadow-modal:    0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--line2);
+  /* Legacy glow hooks neutralized — Night Watch forbids glows. */
+  --glow-accent:   none;
+  --glow-serious:  none;
+  --glow-minor:    none;
+  --glow-harmless: none;
 
   /* ============ MOTION ============
-     Quick, deliberate, no bounce. Instruments don't bounce. */
-  --ease-out:   cubic-bezier(0.2, 0.7, 0.3, 1);
+     150–250ms ease for interaction; reveal is a quiet 16px up. */
+  --ease-out:   cubic-bezier(0.2, 0.7, 0.2, 1);
   --ease-in:    cubic-bezier(0.6, 0, 0.8, 0.3);
   --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
-  --dur-fast:   120ms;
+  --dur-fast:   150ms;
   --dur-med:    220ms;
-  --dur-slow:   400ms;
+  --dur-slow:   250ms;
+  --dur-reveal: 700ms;
 }
 
 /* =========================================================================
-   SEMANTIC ROLES
+   SEMANTIC ROLES (legacy classes — unchanged contract)
    ========================================================================= */
 
 html, body {
-  background: var(--bg-base);
+  background: var(--night);
   color: var(--fg-2);
   font-family: var(--font-sans);
-  font-size: var(--text-base);
+  font-size: 15px;
   line-height: var(--lh-normal);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'ss01', 'cv11'; /* tabular disambiguated digits feel */
 }
 
-h1, .h1 {
-  font-family: var(--font-sans);
-  font-size: var(--text-2xl);
-  font-weight: 500;
-  line-height: var(--lh-tight);
-  letter-spacing: var(--tracking-tight);
+/* Display headings — Archivo 800, stretched, UPPERCASE, tight leading */
+h1, .h1, h2, .h2 {
+  font-family: var(--font-display);
+  font-variation-settings: 'wdth' 120;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--fg-1);
   margin: 0;
 }
-h2, .h2 {
-  font-family: var(--font-sans);
-  font-size: var(--text-xl);
-  font-weight: 500;
-  line-height: var(--lh-tight);
-  letter-spacing: var(--tracking-tight);
-  color: var(--fg-1);
-  margin: 0;
-}
+h1, .h1 { font-size: var(--text-2xl); line-height: var(--lh-tight); }
+h2, .h2 { font-size: var(--text-xl);  line-height: var(--lh-tight); }
 h3, .h3 {
-  font-family: var(--font-sans);
-  font-size: var(--text-lg);
-  font-weight: 500;
+  font-family: var(--font-display);
+  font-variation-settings: 'wdth' 120;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: var(--text-md);
   line-height: var(--lh-snug);
   color: var(--fg-1);
   margin: 0;
 }
 h4, .h4 {
-  font-family: var(--font-sans);
-  font-size: var(--text-md);
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-variation-settings: 'wdth' 120;
+  font-weight: 700;
+  font-size: var(--text-base);
   line-height: var(--lh-snug);
   color: var(--fg-1);
   margin: 0;
@@ -192,43 +219,84 @@ h4, .h4 {
 
 p { margin: 0; }
 
-/* The operational label — used everywhere for section headers, column
-   titles, badge text. Uppercase, tracked, rank-3 or rank-1 depending
-   on importance. */
-.label {
-  font-family: var(--font-sans);
-  font-size: var(--text-micro);
+/* Section header pattern: amber index + uppercase title + hairline rule.
+   e.g. <div class="sec-head"><span class="sec-idx">01</span><h2>Anatomy</h2></div> */
+.sec-head {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 14px;
+  margin-bottom: 24px;
+}
+.sec-idx {
+  font-family: var(--font-mono);
+  font-size: 11px;
   font-weight: 600;
+  color: var(--amber);
+  letter-spacing: 0.1em;
+}
+
+/* The operational label — mono uppercase, tracked */
+.label {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
-  color: var(--fg-3);
+  letter-spacing: var(--tracking-mono);
+  color: var(--dim);
 }
 
 .label-strong {
-  font-family: var(--font-sans);
+  font-family: var(--font-mono);
   font-size: var(--text-micro);
-  font-weight: 600;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
+  letter-spacing: var(--tracking-mono);
   color: var(--fg-1);
 }
 
-/* Mono — used for timestamps, IDs, terminal, numerics that must align */
+/* Mono — timestamps, IDs, scores, JSON */
 .mono {
   font-family: var(--font-mono);
-  font-feature-settings: 'zero' 1, 'ss02' 1;
   font-variant-numeric: tabular-nums;
 }
 
-/* Briefing document type — serif, on paper-ish background */
+/* Briefing document type — serif, on paper background */
 .doc {
   font-family: var(--font-serif);
   color: var(--bg-briefing-ink);
   line-height: var(--lh-loose);
 }
 
-/* Tabular-nums for any number-heavy UI */
+/* Tabular-nums for number-heavy UI */
 .num {
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
+}
+
+/* JSON evidence block — raw payloads on the lowest surface, copyable feel */
+.json-block {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  background: var(--graphite2);
+  border: 1px solid var(--line);
+  color: var(--term-fg);
+  padding: 14px 16px;
+  overflow-x: auto;
+  white-space: pre;
+  user-select: all;
+}
+
+/* Empty state — hairline frame, dim mono message */
+.empty-state {
+  border: 1px solid var(--line);
+  padding: 40px 24px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: var(--tracking-mono);
+  text-transform: uppercase;
+  color: var(--dim);
 }

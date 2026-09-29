@@ -794,6 +794,84 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 9000
 
 ---
 
+## Google Login Setup
+
+Sentinel supports signing in with Google via **Google Identity Services (GIS)**. The
+Google ID token is verified entirely on the backend (signature, issuer, audience and
+expiry) and the session is identical to email/password login — same JWT, same
+httpOnly cookies, same refresh rotation. No Google client secret is used or needed.
+
+### Google Cloud configuration
+
+1. Create or pick a project at [console.cloud.google.com](https://console.cloud.google.com).
+2. **APIs & Services → OAuth consent screen** → *External* → fill the app name and
+   support email. For local dev, add your testers; for production, publish the app.
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID**:
+   - Application type: **Web application**
+   - **Authorized JavaScript origins** (no paths, no trailing slash):
+     - `http://localhost:3000` — local development (Next.js dev server)
+     - `https://your-production-domain.example` — your production origin
+   - Authorized redirect URIs are **not** required — the GIS button flow posts the
+     ID token from the same page.
+4. Copy the **Client ID** (ends in `.apps.googleusercontent.com`). The client secret
+   is not used by this flow — leave it out of every environment file.
+
+### Environment variables
+
+```bash
+# server/.env (or your Infisical secrets)
+GOOGLE_CLIENT_ID=1234567890-xxxx.apps.googleusercontent.com
+
+# client/.env
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=1234567890-xxxx.apps.googleusercontent.com
+```
+
+Both values are the same Client ID: the client one is public by design (it appears
+in the browser anyway), the server one binds the token audience check. Copy
+`server/.env.example` and `client/.env.example` for placeholders.
+
+### Local development
+
+```bash
+# 1. Put GOOGLE_CLIENT_ID in server/.env and NEXT_PUBLIC_GOOGLE_CLIENT_ID in client/.env
+# 2. Restart both processes so env vars are picked up
+cd server && bun run dev
+cd client && npm run dev   # http://localhost:3000
+```
+
+Visit `/login` — the "Continue with Google" button renders under the password form.
+It is hidden/inert when `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is unset, and the backend
+returns `503 Google sign-in is not configured` when `GOOGLE_CLIENT_ID` is unset.
+
+### Production configuration
+
+- Add your public **https** origin to the OAuth client's *Authorized JavaScript
+  origins* (localhost origins do not need removing; Google allows both).
+- Set `GOOGLE_CLIENT_ID` on the server (Infisical / compose env) and
+  `NEXT_PUBLIC_GOOGLE_CLIENT_ID` at the client's **build time** — Next.js inlines
+  `NEXT_PUBLIC_*` values into the bundle during `next build`.
+- Cookies are issued `secure` automatically when `NODE_ENV=production`.
+
+### Troubleshooting
+
+| Symptom | Fix |
+| --- | --- |
+| `origin_mismatch` popup error | The page origin is missing from *Authorized JavaScript origins* (scheme + host + port, exact match). |
+| `idpiframe_initialization_failed` | Third-party cookies blocked, or the consent screen is unlisted while your Google account is not a test user. |
+| 401 `Google token audience mismatch` | The ID token's `aud` does not equal the server's `GOOGLE_CLIENT_ID` — the env vars point at different OAuth clients. |
+| 401 `issuer mismatch` / expired | Token replayed or clocks skewed; tokens are single-use, short-lived JWTs — sign in again. |
+| 401 `email is not verified` | The Google account has no verified email; the backend refuses to link or provision unverified emails. |
+| 409 `already linked to a different Google account` | The email belongs to another Google identity — sign in with the original account or contact an admin. |
+| 503 on `POST /api/v1/auth/google` | Server-side `GOOGLE_CLIENT_ID` missing. |
+| Button does not render | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` unset at build/dev start, or the GIS script is blocked by an ad-blocker / CSP. |
+
+Account linking policy: an existing **email/password** account is linked on first
+Google sign-in only when Google's `email_verified` claim is true; the existing
+password hash and credentials are never modified. Google-only accounts are created
+without any password. See `server/src/services/google-auth.service.js`.
+
+---
+
 ## V1 Docker Services
 
 The target V1 stack is:

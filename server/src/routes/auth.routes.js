@@ -3,6 +3,7 @@ import {
   changeCurrentPassword,
   forgotPasswordRequest,
   getCurrentUser,
+  googleAuth,
   login,
   logoutUser,
   refreshAccessToken,
@@ -19,6 +20,9 @@ const router = Router();
 // Unsecured routes
 router.post("/register", registerUser);
 router.post("/login", authLimiter, login);
+// Google Identity Services: the GIS client posts the ID token here; the
+// backend verifies it against GOOGLE_CLIENT_ID before issuing session cookies.
+router.post("/google", authLimiter, googleAuth);
 router.post("/verify-email", verifyEmail);
 router.post("/refresh-token", refreshAccessToken);
 router.post("/forgot-password", forgotPasswordRequest);

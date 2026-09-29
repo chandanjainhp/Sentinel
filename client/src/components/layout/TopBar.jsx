@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import { useAuth } from "@/hooks/useAuth";
+import { SentinelLockup } from "@/components/brand/SentinelMark";
 import { LogOut, User } from "lucide-react";
 
 const MONO = "var(--font-mono)";
@@ -89,22 +90,10 @@ export default function TopBar() {
         }
       ` }} />
       <div className="topbar-inner">
-      {/* Wordmark */}
-      <div className="topbar-brand" style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, marginRight: "20px" }}>
-        <span style={{
-          width: "7px", height: "7px", borderRadius: "50%",
-          background: "var(--accent)", flexShrink: 0,
-        }} />
-        <Link href="/overview" style={{
-          fontFamily: MONO,
-          fontSize: "12px",
-          fontWeight: 700,
-          color: "var(--fg-1)",
-          letterSpacing: "0.12em",
-          textTransform: "uppercase",
-          textDecoration: "none",
-        }}>
-          Sentinel
+      {/* Brand lockup — Night Watch mark + stretched wordmark */}
+      <div className="topbar-brand" style={{ flexShrink: 0, marginRight: "20px" }}>
+        <Link href="/overview" aria-label="Sentinel home" style={{ textDecoration: "none" }}>
+          <SentinelLockup markSize={22} fontSize={13} />
         </Link>
       </div>
 
@@ -121,9 +110,6 @@ export default function TopBar() {
         </Link>
         <Link href="/sensors" style={navLink(is("/sensors"))}>
           Sensors
-        </Link>
-        <Link href="/docs" style={navLink(is("/docs"))}>
-          Docs
         </Link>
       </nav>
 

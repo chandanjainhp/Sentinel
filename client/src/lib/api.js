@@ -247,6 +247,13 @@ api.interceptors.response.use(
 export const loginUser = async (email, password) =>
   api.post("/auth/login", { email, password });
 
+// Google Identity Services: the GIS callback hands us an ID token (credential);
+// the backend verifies it server-side and sets the same httpOnly cookie
+// session as normal login. The credential is the only thing sent — no Google
+// secrets ever touch the client.
+export const googleSignIn = async (credential) =>
+  api.post("/auth/google", { credential });
+
 export const getCurrentUser = async () => api.get("/auth/current-user");
 
 export const changePassword = async ({ currentPassword, oldPassword, newPassword }) =>
@@ -277,6 +284,17 @@ export const logoutUser = async () => {
 export const refreshAccessToken = async () =>
   api.post("/auth/refresh-token", {});
 
+// Dashboard — all /overview numbers come from this single server-side
+// aggregation (fleet health counts, open incidents, predicted risk). The
+// client never computes or mocks these values.
+export const getDashboardSummary = async () => api.get("/dashboard");
+
+// Machine detail — one aggregation for the machine signature page:
+// machine + site breadcrumb, latest prediction, per-sensor trend series,
+// prediction history and open incidents. All values server-computed.
+export const getMachineDetail = (machineId) =>
+  api.get(`/machines/${machineId}/detail`);
+
 // Investigations
 export const startInvestigation = async (nightDate) =>
   api.post("/investigations/start", { nightDate });
@@ -297,6 +315,15 @@ export const getIncidents = async ({
     params: { status, severity, from, to },
   });
 export const getIncidentById = async (id) => api.get(`/incidents/${id}`);
+
+// Incident detail — one aggregation for the incident signature page:
+// incident + machine link + site, triggering sensor event JSON and the
+// prediction JSON that caused it, plus one deterministic next action.
+export const getIncidentDetail = (incidentId) =>
+  api.get(`/incidents/${incidentId}/detail`);
+
+export const updateIncidentStatus = (incidentId, status) =>
+  api.patch(`/incidents/${incidentId}/status`, { status });
 export const getIncidentEvidenceGraph = async (id) => api.get(`/incidents/${id}/graph`);
 export const explainIncident = async (id) => api.post(`/incidents/${id}/explain`);
 
@@ -306,7 +333,13 @@ export const updateBriefingSection = async (briefingId, { sectionName, content }
   api.patch(`/briefings/${briefingId}/sections/${sectionName}`, { content });
 export const approveBriefing = async (briefingId) => api.post(`/briefings/${briefingId}/approve`);
 
-// Settings — single API key per user
+// Settings — named API keys (multi); secret returned once at create time
+export const listApiKeys = () => api.get("/settings/api-keys");
+export const createNamedApiKey = (name) =>
+  api.post("/settings/api-keys", { name });
+export const revokeApiKeyByKeyId = (keyId) =>
+  api.delete(`/settings/api-keys/${keyId}`);
+// Legacy single-key surface (AddSensorModal / sensors page still use these)
 export const getApiKeyMeta = () => api.get("/settings/api-key");
 export const createUserApiKey = () => api.post("/settings/api-key");
 export const revokeUserApiKey = () => api.delete("/settings/api-key");

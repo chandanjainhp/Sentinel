@@ -9,6 +9,7 @@ import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js
 
 import healthCheckRouter from './routes/healthcheck.routes.js';
 import authRouter from './routes/auth.routes.js';
+import dashboardRouter from './routes/dashboard.routes.js';
 import siteRoutes from "./routes/site.routes.js";
 import machineRoutes from "./routes/machine.routes.js";
 import sensorRoutes from "./routes/sensor.routes.js";
@@ -55,6 +56,7 @@ app.use((req, res, next) => {
 
 // ROUTE MOUNTING (all under /api/v1)
 app.use('/api/v1/health', healthCheckRouter);
+app.use('/api/v1/dashboard', dashboardRouter);
 app.use('/api/v1/auth', authRouter);
 app.use("/api/v1/sites", siteRoutes);
 app.use("/api/v1/machines", machineRoutes);

@@ -51,7 +51,7 @@ const IncidentRow = memo(function IncidentRow({
     >
       <td style={{ padding: "12px 16px", fontFamily: MONO, fontSize: "11px" }}>
         <Link
-          href={`/incident/${incidentId}`}
+          href={`/incidents/${incidentId}`}
           onClick={(e) => e.stopPropagation()}
           style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 600 }}
         >

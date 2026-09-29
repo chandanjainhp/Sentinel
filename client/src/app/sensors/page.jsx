@@ -601,7 +601,7 @@ export default function SensorsPage() {
       label: "Generate an API key",
       done: hasKey,
       actionLabel: "Open settings",
-      actionHref: "/settings/api-key",
+      actionHref: "/settings/api-keys",
     },
     {
       label: "Send the first reading",

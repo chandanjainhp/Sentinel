@@ -8,6 +8,9 @@ import {
   updateMachine,
   deleteMachine,
 } from "../controllers/machine.controller.js";
+import {
+  getMachineDetailController,
+} from "../controllers/machine-detail.controller.js";
 import { verifyJWT, scopeToUser } from "../middlewares/auth.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import {
@@ -32,6 +35,10 @@ router.get("/sites/:siteId/machines", validate(siteMachineParamsSchema), getMach
 router.get("/coverage", getAllMachineCoverages);
 
 router.get("/:machineId/coverage", validate(machineIdSchema), getMachineCoverageStatus);
+
+// Aggregation for the machine signature page — same scope/validation as the
+// plain machine read, so another user's machine 404s exactly the same way.
+router.get("/:machineId/detail", validate(machineIdSchema), getMachineDetailController);
 
 router.get("/:machineId", validate(machineIdSchema), getMachine);
 

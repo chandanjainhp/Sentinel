@@ -50,9 +50,34 @@ const userSchema = new Schema(
       type: String,
       trim: true,
     },
+    // Password is only mandatory for locally-created accounts. Google
+    // sign-in accounts authenticate via verified Google ID tokens and carry
+    // NO password at all — no fake hashes, no plaintext placeholders.
     password: {
       type: String,
-      required: [true, "Password is required"],
+      required: [
+        function () {
+          return this.authProvider !== "google";
+        },
+        "Password is required",
+      ],
+    },
+    // Google Identity Services fields (populated only when a Google identity
+    // is attached to the account — either at creation or via safe linking).
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
+    },
+    authProvider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
+    },
+    profileImage: {
+      type: String,
+      default: "",
     },
     isEmailVerified: {
       type: Boolean,
@@ -87,6 +112,9 @@ userSchema.pre("save", async function (next) {
 });
 
 userSchema.methods.isPasswordCorrect = async function (password) {
+  // Google-only accounts have no password hash: comparing against undefined
+  // would make bcrypt throw (500) instead of cleanly rejecting credentials.
+  if (!this.password) return false;
   return await bcrypt.compare(password, this.password);
 };
 
