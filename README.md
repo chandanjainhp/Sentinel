@@ -80,7 +80,7 @@ flowchart TB
         ROUTES["Auth · Sites · Machines · Sensors<br/>Incidents · Dashboard · Settings"]
     end
 
-    subgraph DATA[(" ")]
+    subgraph DATA["Data plane"]
         MONGO[("MongoDB<br/>documents")]
         REDIS[("Redis<br/>BullMQ queues")]
     end
