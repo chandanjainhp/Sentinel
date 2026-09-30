@@ -794,6 +794,31 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 9000
 
 ---
 
+## Demo Environment
+
+A repeatable, camera-ready demo estate for walkthroughs and screen recordings.
+The full run-of-show (tabs, narration beats, post-take checklist) is in
+[docs/demo-script.md](docs/demo-script.md).
+
+```bash
+# 1. Wipe ONLY the demo user's data and rebuild the demo estate.
+#    Prints login credentials + a fresh API key (shown once — copy it).
+bun server/scripts/demo-reset.js
+
+# 2. Paced end-to-end walkthrough: sensors come ONLINE one by one, the
+#    coverage gate opens, the first prediction lands (PAUSE), a vibration
+#    ramp walks health HEALTHY → WARNING → CRITICAL, the incident fires,
+#    and Argus explains it (PAUSE).
+DEMO_KEY=sk_… bun server/scripts/demo-run.js
+```
+
+- **Login:** `demo@northwind.example` / `NorthwindDemo123!`
+- **Estate:** site *Northwind Fabrication* → machine *Compressor Line 2 [COMP-02]* with Temperature, Vibration, Current, RPM and Discharge Pressure sensors (compressor-type machines require the pressure channel before the prediction coverage gate opens).
+- **Knobs:** `DEMO_AUTO_DELAY_MS` (auto-continue the pauses), `DEMO_READING_GAP_MS`, `DEMO_FAULT_GAP_MS`, `DEMO_HEALTHY_CYCLES`, `DEMO_FAULT_CYCLES`.
+- The reset is scoped: other users' data is never touched, and no manual DB cleanup is needed between takes.
+
+---
+
 ## Google Login Setup
 
 Sentinel supports signing in with Google via **Google Identity Services (GIS)**. The

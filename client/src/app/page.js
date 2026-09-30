@@ -9,6 +9,7 @@ import {
   Shield,
   Server,
 } from "lucide-react";
+import { SentinelLockup } from "@/components/brand/SentinelMark";
 
 /* ── helpers ─────────────────────────────────────────── */
 const SEV = {
@@ -414,21 +415,10 @@ function LandingFooter() {
           }}
         >
           <div>
+            <SentinelLockup markSize={26} fontSize={15} />
             <div
               style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "16px",
-                fontWeight: 700,
-                letterSpacing: "0.15em",
-                textTransform: "uppercase",
-                color: "var(--fg-1)",
-              }}
-            >
-              Sentinel
-            </div>
-            <div
-              style={{
-                marginTop: "6px",
+                marginTop: "10px",
                 fontSize: "12px",
                 color: "var(--fg-4)",
               }}
@@ -631,39 +621,14 @@ export default function LandingPage() {
           zIndex: 100,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span
-            style={{
-              width: "7px",
-              height: "7px",
-              borderRadius: "50%",
-              background: "var(--sev-serious)",
-              boxShadow: "var(--glow-serious)",
-              animation: "status-pulse 2s ease-in-out infinite",
-              flexShrink: 0,
-            }}
-          />
-          <span
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "11px",
-              fontWeight: 600,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              color: "var(--fg-1)",
-            }}
-          >
-            Sentinel
-          </span>
-          <span
-            style={{
-              color: "var(--border-strong)",
-              fontSize: "16px",
-              lineHeight: 1,
-              userSelect: "none",
-            }}
-          ></span>
-        </div>
+        {/* Brand lockup — Night Watch mark + wordmark (matches app TopBar) */}
+        <Link
+          href="/"
+          aria-label="Sentinel home"
+          style={{ textDecoration: "none", flexShrink: 0 }}
+        >
+          <SentinelLockup markSize={22} fontSize={13} />
+        </Link>
 
         <div style={{ flex: 1 }} />
 

@@ -12,9 +12,9 @@ import { initTheme } from '@/lib/theme';
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const SYSTEM_FEATURES = [
-  { color: 'var(--dim)', label: 'Drone Patrol', desc: 'Sensors capture motion, badge swipes, vehicle movement, and environmental readings overnight.' },
+  { color: 'var(--dim)', label: 'Sensor Watch', desc: 'Sensors stream machine readings overnight; Sentinel scores every reading with predictive models.' },
   { color: 'var(--dim)', label: 'AI Investigation', desc: 'Argus correlates events, investigates anomalies, and classifies each incident before morning.' },
-  { color: 'var(--dim)', label: 'Morning Briefing', desc: 'Project Managers review structured findings, approve the briefing, and distribute to stakeholders.' },
+  { color: 'var(--dim)', label: 'Morning Briefing', desc: 'Review structured findings, approve the briefing, and act before the next shift starts.' },
 ];
 
 function LoginPageInner() {
