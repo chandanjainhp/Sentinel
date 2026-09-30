@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getIncidentDetail, updateIncidentStatus } from "@/lib/api";
 import { healthMeta } from "@/lib/health";
 import HealthDot from "@/components/brand/HealthDot";
+import ArgusExplanation from "@/components/incident/ArgusExplanation";
 
 const MONO = "var(--font-mono)";
 const DISPLAY = "var(--font-display)";
@@ -427,6 +428,23 @@ export default function IncidentDetailPage() {
               />
             </div>
           )}
+
+          {/* ══ 05 · ARGUS EXPLANATION — plain-language root cause ══
+           * The explanation rides on the incident sub-document, which the
+           * detail aggregation already includes. ArgusExplanation handles
+           * pending / failed / missing / ready states on its own. */}
+          <SecHead
+            index="05"
+            title="Argus Explanation"
+            note={
+              incident?.explanation?.source
+                ? `SOURCE · ${String(incident.explanation.source).toUpperCase()}`
+                : undefined
+            }
+          />
+          <div>
+            <ArgusExplanation explanation={incident?.explanation ?? null} />
+          </div>
         </>
       )}
     </div>
