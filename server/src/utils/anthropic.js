@@ -1,13 +1,19 @@
 /*
-  AI Client Configuration - Supports both Anthropic and OpenRouter
+  AI Client Configuration - Supports Anthropic, OpenRouter, local (LM Studio),
+  Mistral and Sarvam providers behind one Anthropic-shaped interface.
 
-  This module provides a singleton AI client that can use either:
+  This module provides a singleton AI client that can use:
   1. OpenRouter API (100+ models) - Recommended for testing
   2. Anthropic Claude API - If preferred
+  3. Local OpenAI-compat servers (LM Studio)
+  4. Mistral API
+  5. Sarvam API (sarvam-105b / sarvam-105b-conversations)
 
   Configuration:
   - For OpenRouter: Set OPENROUTER_API_KEY and OPENROUTER_MODEL in .env
   - For Anthropic: Set ANTHROPIC_API_KEY in .env
+  - For Mistral: Set MISTRAL_API_KEY in .env
+  - For Sarvam: Set SARVAM_API_KEY (and optionally SARVAM_MODEL) in .env
 */
 
 import Anthropic from '@anthropic-ai/sdk';
@@ -264,6 +270,50 @@ const createOpenAICompatClient = ({
   };
 };
 
+/** Sarvam chat completions (POST /v1/chat/completions, sarvam-105b* models). */
+const createSarvamClient = ({ apiKey, baseURL }) => {
+  const base = (baseURL || 'https://api.sarvam.ai').replace(/\/$/, '');
+
+  return {
+    messages: {
+      create: async ({ model, max_tokens, system, messages }) => {
+        // Sarvam V1 (api.sarvam.ai/v1) serves only its own models and takes
+        // OpenAI-style system/user text messages; tools are not exposed here.
+        const payload = {
+          model,
+          max_tokens,
+          messages: [
+            ...(system ? [{ role: 'system', content: system }] : []),
+            ...anthropicMessagesToOpenAIMessages(messages || []),
+          ],
+        };
+
+        const body = JSON.stringify(payload);
+        console.log(`[Sarvam] payload chars=${body.length} msgs=${payload.messages.length} max_tokens=${max_tokens}`);
+        const response = await fetch(`${base}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            // Sarvam's native header plus the Bearer form its OpenAI-compatible
+            // tooling accepts (docs.sarvam.ai/api-reference/authentication).
+            Authorization: `Bearer ${apiKey}`,
+            'api-subscription-key': apiKey,
+            'Content-Type': 'application/json',
+          },
+          body,
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`Sarvam error (${response.status}): ${text.slice(0, 500)}`);
+        }
+
+        const data = await response.json();
+        return openAIResponseToAnthropicShape(data);
+      },
+    },
+  };
+};
+
 const createMockAIClient = () => {
   return {
     messages: {
@@ -362,7 +412,7 @@ const createMockAIClient = () => {
 };
 
 /**
- * @returns {'openrouter' | 'anthropic' | 'local' | 'mistral' | 'mock'}
+ * @returns {'openrouter' | 'anthropic' | 'local' | 'mistral' | 'sarvam' | 'mock'}
  */
 const getAIProvider = () => {
   if (process.env.MOCK_AI === 'true') {
@@ -370,7 +420,12 @@ const getAIProvider = () => {
   }
 
   const explicit = (process.env.LLM_PROVIDER || '').trim().toLowerCase();
-  if (explicit === 'mistral' || explicit === 'anthropic' || explicit === 'openrouter') {
+  if (
+    explicit === 'mistral' ||
+    explicit === 'anthropic' ||
+    explicit === 'openrouter' ||
+    explicit === 'sarvam'
+  ) {
     return explicit;
   }
   if (explicit === 'local' || explicit === 'lmstudio') {
@@ -390,11 +445,14 @@ const getAIProvider = () => {
   if (process.env.MISTRAL_API_KEY) {
     return 'mistral';
   }
+  if (process.env.SARVAM_API_KEY) {
+    return 'sarvam';
+  }
   if (process.env.OPENAI_BASE_URL) {
     return 'local';
   }
   throw new Error(
-    'No AI provider configured. Set LLM_PROVIDER=anthropic|local|mistral (or USE_LOCAL_LLM / API keys) in .env'
+    'No AI provider configured. Set LLM_PROVIDER=anthropic|local|mistral|sarvam (or USE_LOCAL_LLM / API keys) in .env'
   );
 };
 
@@ -457,6 +515,21 @@ export const getAIClient = () => {
           process.env.MISTRAL_MODEL || 'mistral-large-latest'
         } | Base URL: ${baseURL}`
       );
+    } else if (aiProvider === 'sarvam') {
+      if (!process.env.SARVAM_API_KEY) {
+        throw new Error('LLM_PROVIDER=sarvam requires SARVAM_API_KEY');
+      }
+      const baseURL = process.env.SARVAM_BASE_URL || 'https://api.sarvam.ai';
+      console.log('[AI] Initializing Sarvam client...');
+      clientInstance = createSarvamClient({
+        apiKey: process.env.SARVAM_API_KEY,
+        baseURL,
+      });
+      console.log(
+        `[AI] ✅ Sarvam initialized - Model: ${
+          process.env.SARVAM_MODEL || 'sarvam-105b-conversations'
+        } | Base URL: ${baseURL}`
+      );
     }
   }
   return clientInstance;
@@ -499,6 +572,10 @@ export const getModelName = () => {
 
   if (provider === 'mistral') {
     return process.env.MISTRAL_MODEL || 'mistral-large-latest';
+  }
+
+  if (provider === 'sarvam') {
+    return process.env.SARVAM_MODEL || 'sarvam-105b-conversations';
   }
 
   // Anthropic uses claude-3-sonnet by default

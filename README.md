@@ -205,11 +205,13 @@ CHANNEL_MAX_AGE_SEC=300                 # optional: forward-fill age limit
 COVERAGE_RECENCY_WINDOW_SEC=900         # optional: coverage-gate recency
 
 # Argus LLM — leave everything unset to run on deterministic fallback.
-# LLM_PROVIDER: anthropic | local | lmstudio | mistral | openrouter
+# LLM_PROVIDER: anthropic | local | lmstudio | mistral | openrouter | sarvam
 #   anthropic:  ANTHROPIC_API_KEY
 #   local:      OPENAI_BASE_URL (LM Studio, e.g. http://localhost:1234/v1)
 #               OPENAI_API_KEY · LOCAL_LLM_MODEL | LMSTUDIO_MODEL · LMSTUDIO_MAX_TOKENS
 #   mistral:    MISTRAL_API_KEY · MISTRAL_MODEL · MISTRAL_BASE_URL
+#   sarvam:     SARVAM_API_KEY · SARVAM_MODEL (default sarvam-105b-conversations)
+#               SARVAM_BASE_URL (default https://api.sarvam.ai)
 #   openrouter: OPENROUTER_API_KEY · OPENROUTER_MODEL · OPENROUTER_BASE_URL
 # MOCK_AI=true forces the built-in mock client.
 GOOGLE_CLIENT_ID=<oauth client id>      # Google Sign-In token verification
