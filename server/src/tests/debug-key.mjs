@@ -11,7 +11,7 @@ const run = async () => {
   const reg = await fetch(`${BASE}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: "o@f.com", username: "o", password: "Password123!" }),
+    body: JSON.stringify({ email: "o@f.com", username: "o", password: "Password123!", ageConfirmed: true }),
   });
 
   const login = await fetch(`${BASE}/auth/login`, {

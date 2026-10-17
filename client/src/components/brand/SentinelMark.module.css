@@ -1,0 +1,102 @@
+/* Sentinel mark — geometry, states and boot animation (from log.html) */
+
+.mark {
+  display: block;
+  overflow: visible;
+  --sf: #E9EDF2; /* frame (arch + bowl) */
+  --st: #E9EDF2; /* trace */
+  --sd: #FFB224; /* dot / ping */
+}
+
+.arch path,
+.bowl path {
+  stroke: var(--sf);
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.trace path {
+  stroke: var(--st);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.dot { fill: var(--sd); }
+
+.ping {
+  fill: none;
+  stroke: var(--sd);
+  stroke-width: 1.5;
+  opacity: 0;
+}
+
+.dot,
+.ping {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* ---------- states ---------- */
+.idle     { --sd: #FFB224; }                 /* brand default: steady amber */
+.healthy  { --sd: #3ECF8E; }
+.warning  { --sd: #FFB224; }
+.critical { --sd: #F0544F; --st: #F0544F; }
+.offline  { --sd: #55606C; --st: #333D48; --sf: #3B4550; }
+
+.warning .dot  { animation: pulse 1.1s ease-in-out infinite alternate; }
+.critical .dot { animation: pulse .45s ease-in-out infinite alternate; }
+.critical .ping { animation: ping 1.5s ease-out .2s infinite; }
+.healthy .ping { animation: ping 4.8s ease-out .15s infinite; }
+
+.offline .trace path { stroke-dasharray: .04 .03; }
+.offline .dot { animation: none; }
+
+@keyframes pulse {
+  from { transform: scale(1); }
+  to   { transform: scale(1.28); }
+}
+
+@keyframes ping {
+  0%       { transform: scale(.7); opacity: .8; }
+  70%,100% { transform: scale(4.4); opacity: 0; }
+}
+
+/* ---------- boot: draw-on (must stay AFTER the state rules) ---------- */
+.booting .arch path,
+.booting .bowl path,
+.booting .trace path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw .8s cubic-bezier(.66, .05, .3, 1) forwards;
+}
+
+.booting .bowl path  { animation-delay: .22s; }
+.booting .trace path { animation-delay: .5s; animation-duration: .55s; }
+
+.booting .dot {
+  transform: scale(0);
+  animation: pop .5s cubic-bezier(.3, 1.6, .4, 1) 1.05s forwards;
+}
+
+.booting .ping { display: none; }
+
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes pop  { to { transform: scale(1); } }
+
+/* ---------- reduced motion: show the finished mark, no movement ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .mark *,
+  .mark *::before,
+  .mark *::after {
+    animation: none !important;
+  }
+  .ping { display: none; }
+  .booting .arch path,
+  .booting .bowl path,
+  .booting .trace path { stroke-dasharray: none; stroke-dashoffset: 0; }
+  .booting .dot { transform: none; }
+}

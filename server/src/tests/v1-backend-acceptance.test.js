@@ -50,6 +50,7 @@ describe("Sentinel Single-User Backend Test Suite", () => {
         email: "owner@factory.com",
         username: "owner",
         password: "Password123!",
+        ageConfirmed: true,
       }),
     });
     const regData = await regRes.json();
@@ -74,6 +75,7 @@ describe("Sentinel Single-User Backend Test Suite", () => {
       body: JSON.stringify({
         email: "owner@factory.com",
         password: "Password123!",
+        ageConfirmed: true,
       }),
     });
     const loginData = await loginRes.json();
@@ -254,6 +256,7 @@ describe("Sentinel Single-User Backend Test Suite", () => {
         email: "other@competingfactory.com",
         username: "other_user",
         password: "Password123!",
+        ageConfirmed: true,
       }),
     });
     const authHeadersB = {
@@ -362,6 +365,7 @@ describe("Sentinel Single-User Backend Test Suite", () => {
       body: JSON.stringify({
         email: "owner@factory.com",
         password: "Password123!",
+        ageConfirmed: true,
       }),
     });
     const authHeadersA = {
@@ -413,6 +417,7 @@ describe("Sentinel Single-User Backend Test Suite", () => {
         email: "third@factory.com",
         username: "third_user",
         password: "Password123!",
+        ageConfirmed: true,
       }),
     });
     const authHeadersC = {
@@ -571,6 +576,7 @@ describe("Sentinel Single-User Backend Test Suite", () => {
         email: "sensor-b@factory.com",
         username: "sensor_b",
         password: "Password123!",
+        ageConfirmed: true,
       }),
     });
     const authHeadersB = {
@@ -639,6 +645,7 @@ describe("Sentinel Single-User Backend Test Suite", () => {
         email: "limit@factory.com",
         username: "limit_user",
         password: "Password123!",
+        ageConfirmed: true,
       }),
     });
     const authHeaders = {

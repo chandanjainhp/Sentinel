@@ -239,7 +239,7 @@ const run = async () => {
   currentStep = "register-and-api-key";
   const email = `${RUN}@smoke.test`;
   const reg = await api("POST", "/auth/register", {
-    body: { email, username: `smoke_${RUN}`, password: "Password123!" },
+    body: { email, username: `smoke_${RUN}`, password: "Password123!", ageConfirmed: true },
   });
   assert("register returns 201", 201, reg.status);
   const cookie = reg.setCookie;

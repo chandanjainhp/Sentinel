@@ -127,7 +127,7 @@ try {
   /* ── fixture: one user, one machine, four sensors, API key ─────── */
 
   const reg = await api("POST", "/auth/register", {
-    body: { email: `${RUN}@factory.com`, username: RUN, password: "Password123!" },
+    body: { email: `${RUN}@factory.com`, username: RUN, password: "Password123!", ageConfirmed: true },
   });
   if (!check(reg.res?.status === 201, "register returns 201")) process.exit(1);
   const cookie = reg.res.headers.getSetCookie().map((c) => c.split(";")[0])[0];

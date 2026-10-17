@@ -250,9 +250,13 @@ export const loginUser = async (email, password) =>
 // Google Identity Services: the GIS callback hands us an ID token (credential);
 // the backend verifies it server-side and sets the same httpOnly cookie
 // session as normal login. The credential is the only thing sent — no Google
-// secrets ever touch the client.
-export const googleSignIn = async (credential) =>
-  api.post("/auth/google", { credential });
+// secrets ever touch the client. ageConfirmed backs the server-side 13+ gate
+// for first-time Google sign-ups (auto-provisioned accounts).
+export const googleSignIn = async (credential, ageConfirmed = false) =>
+  api.post("/auth/google", {
+    credential,
+    ...(ageConfirmed ? { ageConfirmed: true } : {}),
+  });
 
 export const getCurrentUser = async () => api.get("/auth/current-user");
 
@@ -262,8 +266,8 @@ export const changePassword = async ({ currentPassword, oldPassword, newPassword
     newPassword,
   });
 
-export const registerUser = async ({ email, username, password }) =>
-  api.post("/auth/register", { email, username, password });
+export const registerUser = async ({ email, username, password, ageConfirmed }) =>
+  api.post("/auth/register", { email, username, password, ageConfirmed });
 
 export const verifyEmail = async (otp) => api.post("/auth/verify-email", { otp });
 

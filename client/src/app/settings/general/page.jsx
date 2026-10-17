@@ -3,8 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Settings, Globe, AlertTriangle, Loader2, Save } from 'lucide-react';
+import { Settings, Globe, AlertTriangle, Loader2, Save, ShieldCheck } from 'lucide-react';
 import { getSite, updateSiteConfig } from '@/lib/api';
+import {
+  getRecordingConsent,
+  setRecordingConsent,
+  revokeRecordingConsent,
+} from '@/lib/consent';
 
 
 const MONO = 'var(--font-mono)';
@@ -59,6 +64,16 @@ const INPUT_BASE_STYLE = {
 export default function GeneralSettingsPage() {
   const queryClient = useQueryClient();
   const canEdit = true;
+
+  // Session-recording consent (analytics / replay / heatmaps / keystroke
+  // capture). Opt-in only — see docs/analytics-privacy.md and lib/consent.js.
+  const [recordingConsent, setRecordingConsentState] = useState(() => getRecordingConsent());
+
+  function handleRecordingConsentChange(next) {
+    // `next` is the desired boolean state from the switch control.
+    const stored = next ? setRecordingConsent(true) : revokeRecordingConsent();
+    setRecordingConsentState(stored);
+  }
 
   const { data: site, isLoading, isError } = useQuery({
     queryKey: ['site-me'],
@@ -250,6 +265,90 @@ export default function GeneralSettingsPage() {
         )}
 
       </form>
+
+      <SessionRecordingConsent consent={recordingConsent} onChange={handleRecordingConsentChange} />
     </div>
+  );
+}
+
+const CONSENT_NOTE_STYLE = {
+  margin: '8px 0 0 0',
+  fontFamily: SANS,
+  fontSize: '11px',
+  lineHeight: 1.5,
+  color: 'var(--fg-3)',
+};
+
+/**
+ * Explicit opt-in control for analytics / session-replay recording.
+ * Nothing records until the user turns this on; turning it off revokes
+ * immediately. See docs/analytics-privacy.md.
+ */
+function SessionRecordingConsent({ consent, onChange }) {
+  return (
+    <section style={CARD_STYLE}>
+      <div style={SECTION_HEADER_STYLE}>
+        <ShieldCheck size={13} style={{ color: 'var(--fg-3)' }} />
+        <h2 style={SECTION_TITLE_STYLE}>Privacy</h2>
+      </div>
+      <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+          <div style={{ maxWidth: '640px' }}>
+            <label
+              htmlFor="recordingConsent"
+              style={{ ...LABEL_STYLE, display: 'block', marginBottom: '4px' }}
+            >
+              Product analytics &amp; session replay
+            </label>
+            <p style={CONSENT_NOTE_STYLE}>
+              Off by default. If you opt in, any diagnostic recording (session replay,
+              heatmaps, interaction analytics) masks everything you type, and never
+              records password, payment, or email fields. Your choice is stored on this
+              device and you can withdraw it here at any time — recordings stop immediately.
+            </p>
+            {consent.decided && (
+              <p style={{ ...CONSENT_NOTE_STYLE, marginTop: '4px' }}>
+                Current choice:{' '}
+                <span style={{ color: consent.granted ? 'var(--sev-caution, var(--accent))' : 'var(--fg-2)' }}>
+                  {consent.granted ? 'recording allowed' : 'recording off'}
+                </span>{' '}
+                (stored locally; revocable anytime).
+              </p>
+            )}
+          </div>
+          <button
+            id="recordingConsent"
+            type="button"
+            role="switch"
+            aria-checked={consent.granted}
+            onClick={() => onChange(!consent.granted)}
+            style={{
+              flexShrink: 0,
+              width: '44px',
+              height: '24px',
+              borderRadius: '2px',
+              border: `1px solid ${consent.granted ? 'var(--accent)' : 'var(--border-default)'}`,
+              background: consent.granted ? 'var(--accent)' : 'var(--bg-base)',
+              cursor: 'pointer',
+              position: 'relative',
+              padding: 0,
+            }}
+          >
+            <span
+              style={{
+                position: 'absolute',
+                top: '2px',
+                left: consent.granted ? '22px' : '2px',
+                width: '18px',
+                height: '18px',
+                borderRadius: '1px',
+                background: consent.granted ? 'var(--bg-base)' : 'var(--fg-3)',
+                transition: 'left 120ms',
+              }}
+            />
+          </button>
+        </div>
+      </div>
+    </section>
   );
 }

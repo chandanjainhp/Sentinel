@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: Server (Bun)
+            dir: ./server
+            test_cmd: bun test
+            language: node
+            node-version: 20
+          - name: Client (Next.js)
+            dir: ./client
+            test_cmd: npm run lint
+            language: node
+            node-version: 20
+          - name: ML Service (Python)
+            dir: ./ml-service
+            test_cmd: pytest
+            language: python
+            python-version: "3.11"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        if: matrix.language == 'node'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Set up Python
+        if: matrix.language == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install dependencies
+        if: matrix.language == 'node'
+        working-directory: ${{ matrix.dir }}
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Install Python dependencies
+        if: matrix.language == 'python'
+        working-directory: ${{ matrix.dir }}
+        run: |
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+          if [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+          fi
+
+      - name: Run tests
+        working-directory: ${{ matrix.dir }}
+        run: ${{ matrix.test_cmd }}
+
+      - name: Upload test artifacts
+        if: failure()
+        working-directory: ${{ matrix.dir }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.name }}
+          path: |
+            **.log
+            **.json
+          retention-days: 3

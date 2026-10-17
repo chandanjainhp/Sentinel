@@ -35,6 +35,7 @@ try {
       email: "demo@factory.com",
       username: "demo",
       password: "Password123!",
+      ageConfirmed: true,
     }),
   });
   const cookie = reg.headers.get("set-cookie").split(";")[0];

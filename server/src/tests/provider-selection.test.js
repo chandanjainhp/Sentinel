@@ -148,7 +148,7 @@ describe("sarvam client (fetch stub)", () => {
     expect(capturedRequests.length).toBe(1);
     const req = capturedRequests[0];
 
-    expect(req.url).toBe("https://api.sarvam.ai/chat/completions");
+    expect(req.url).toBe("https://api.sarvam.ai/v1/chat/completions");
     expect(req.headers["api-subscription-key"]).toBe("test-key");
     expect(req.headers.Authorization).toBe("Bearer test-key");
 

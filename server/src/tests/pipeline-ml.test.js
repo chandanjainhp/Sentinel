@@ -105,6 +105,7 @@ const registerAndSetup = async (suffix) => {
       email: `ml-${suffix}@factory.com`,
       username: `ml_${suffix}`,
       password: "Password123!",
+      ageConfirmed: true,
     }),
   });
   const authHeaders = {

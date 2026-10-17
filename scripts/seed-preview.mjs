@@ -168,7 +168,7 @@ log(`registering ${DEMO.email}`);
 const registerRes = await fetch(`${API}/auth/register`, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(DEMO),
+  body: JSON.stringify({ ...DEMO, ageConfirmed: true }),
 });
 let token = cookieToken(registerRes.headers.getSetCookie?.());
 if (!registerRes.ok) {

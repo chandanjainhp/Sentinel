@@ -18,6 +18,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import mongoose from 'mongoose';
+import logger from './logger.js';
 
 let clientInstance = null;
 let aiProvider = null;
@@ -270,18 +271,35 @@ const createOpenAICompatClient = ({
   };
 };
 
-/** Sarvam chat completions (POST /v1/chat/completions, sarvam-105b* models). */
+/**
+ * Sarvam chat completions — POST {SARVAM_BASE_URL}/v1/chat/completions.
+ *
+ * Endpoint/auth/shape verified against docs.sarvam.ai (Chat Completion V1,
+ * 2026-10): the V1 route is /v1/chat/completions and serves ONLY
+ * sarvam-105b and sarvam-105b-conversations. The primary auth header is
+ * `api-subscription-key`; the same key is also accepted as
+ * `Authorization: Bearer` (docs.sarvam.ai/api-reference/authentication),
+ * so both are sent. Token limits: max_tokens default 2048, sarvam-105b
+ * 128K context / sarvam-105b-conversations 32K context.
+ * Errors: 400/403/422/429/500 with {error:{message, code, request_id}}.
+ * NOTE: auth failures are HTTP 403 (invalid_api_key_error), NOT 401.
+ *
+ * api.sarvam.ai also exposes Indus-era endpoints; indus.sarvam.ai is the
+ * older host — SARVAM_BASE_URL lets this stay overridable either way.
+ */
 const createSarvamClient = ({ apiKey, baseURL }) => {
   const base = (baseURL || 'https://api.sarvam.ai').replace(/\/$/, '');
 
   return {
     messages: {
       create: async ({ model, max_tokens, system, messages }) => {
-        // Sarvam V1 (api.sarvam.ai/v1) serves only its own models and takes
-        // OpenAI-style system/user text messages; tools are not exposed here.
+        // Sarvam V1 serves only its own models and takes OpenAI-style
+        // system/user text messages. response_format json_object asks the
+        // model for raw JSON (no fences) — Argus still Zod-validates it.
         const payload = {
           model,
           max_tokens,
+          response_format: { type: 'json_object' },
           messages: [
             ...(system ? [{ role: 'system', content: system }] : []),
             ...anthropicMessagesToOpenAIMessages(messages || []),
@@ -289,12 +307,15 @@ const createSarvamClient = ({ apiKey, baseURL }) => {
         };
 
         const body = JSON.stringify(payload);
-        console.log(`[Sarvam] payload chars=${body.length} msgs=${payload.messages.length} max_tokens=${max_tokens}`);
-        const response = await fetch(`${base}/chat/completions`, {
+        logger.info(
+          { provider: 'sarvam', chars: body.length, msgs: payload.messages.length, max_tokens },
+          '[Sarvam] chat completion request'
+        );
+        const response = await fetch(`${base}/v1/chat/completions`, {
           method: 'POST',
           headers: {
-            // Sarvam's native header plus the Bearer form its OpenAI-compatible
-            // tooling accepts (docs.sarvam.ai/api-reference/authentication).
+            // Native header (docs examples/SDKs) plus the Bearer form its
+            // OpenAI-compatible tooling accepts.
             Authorization: `Bearer ${apiKey}`,
             'api-subscription-key': apiKey,
             'Content-Type': 'application/json',
@@ -303,7 +324,14 @@ const createSarvamClient = ({ apiKey, baseURL }) => {
         });
 
         if (!response.ok) {
-          const text = await response.text();
+          // Error body is {error:{message, code, request_id}}; the code
+          // distinguishes e.g. invalid_api_key_error (403) from
+          // rate_limit_exceeded_error (429). Logged without the key.
+          const text = await Promise.resolve(response.text()).catch(() => '');
+          logger.warn(
+            { provider: 'sarvam', status: response.status, body: text.slice(0, 300) },
+            '[Sarvam] chat completion failed'
+          );
           throw new Error(`Sarvam error (${response.status}): ${text.slice(0, 500)}`);
         }
 

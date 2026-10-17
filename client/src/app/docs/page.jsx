@@ -251,7 +251,7 @@ const API_GROUPS = [
   {
     title: "Auth — session (JWT httpOnly cookies)",
     rows: [
-      ["POST", "/api/v1/auth/register", "Create the account (email + username + password)."],
+      ["POST", "/api/v1/auth/register", "Create the account (email + username + password). Requires a 13+ age confirmation."],
       ["POST", "/api/v1/auth/verify-email", "Verify with the emailed OTP."],
       ["POST", "/api/v1/auth/login", "Log in, sets the session cookie."],
       ["POST", "/api/v1/auth/refresh-token", "Rotate the access token."],

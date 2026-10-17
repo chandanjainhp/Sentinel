@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
 import { loginUser } from '@/lib/api';
 import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
-import { SentinelLockup } from '@/components/brand/SentinelMark';
+import SentinelMark, { SentinelLockup } from '@/components/brand/SentinelMark';
 import { initTheme } from '@/lib/theme';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -27,6 +27,12 @@ function LoginPageInner() {
   const [serverError, setServerError] = useState('');
   const [loginSuccess, setLoginSuccess] = useState(false);
 
+  // Mark state machine for the boot/auth animation above the form:
+  // idle (amber) -> auth (warning pulse) -> success (healthy + ping)
+  // or error (critical) -> back to idle. Purely cosmetic; form logic unchanged.
+  const [markPhase, setMarkPhase] = useState('idle');
+  const MARK_STATE = { idle: 'idle', auth: 'warning', success: 'healthy', error: 'critical' };
+
   useEffect(() => {
     initTheme();
     if (reason === 'session_ended') {
@@ -36,15 +42,19 @@ function LoginPageInner() {
 
   const mutation = useMutation({
     mutationFn: ({ email, password }) => loginUser(email, password),
+    onMutate: () => setMarkPhase('auth'),
     onSuccess: async (data) => {
       setServerError('');
 
       if (data?.user?.isActive === false) {
         setServerError('__disabled__');
+        setMarkPhase('error');
+        setTimeout(() => setMarkPhase('idle'), 1000);
         return;
       }
 
       setLoginSuccess(true);
+      setMarkPhase('success');
       if (data?.user) {
         localStorage.setItem('ridgeway_user', JSON.stringify(data.user));
         const { useAuthStore } = require('@/store/authStore');
@@ -52,10 +62,13 @@ function LoginPageInner() {
       }
       document.cookie = 'ridgeway_auth=1; path=/; max-age=86400; SameSite=Lax';
 
-      router.replace('/overview');
+      // Let the healthy ping land before navigating (~500ms).
+      setTimeout(() => router.replace('/overview'), 500);
     },
     onError: (error) => {
       setLoginSuccess(false);
+      setMarkPhase('error');
+      setTimeout(() => setMarkPhase('idle'), 1000);
       const msg = error?.message || '';
       if (msg.toLowerCase().includes('suspend') || error?.code === 'ORG_SUSPENDED') {
         setServerError('__suspended__');
@@ -170,6 +183,16 @@ function LoginPageInner() {
         padding: '40px 24px', minHeight: '100vh',
       }}>
         <div style={{ width: '100%', maxWidth: '380px' }}>
+
+          {/* Sentinel mark — boots (draw-on) on load, reflects auth phase.
+              Fixed 96px box so nothing shifts when states change. */}
+          <div style={{
+            width: '96px', height: '96px',
+            margin: '0 auto 28px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <SentinelMark boot size={88} state={MARK_STATE[markPhase]} />
+          </div>
 
           {/* Header */}
           <div style={{ marginBottom: '36px' }}>

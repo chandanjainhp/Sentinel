@@ -69,7 +69,7 @@ const openCoverageGate = async (apiMachineId) => {
 
 const register = async (suffix) => {
   const res = await api("POST", "/auth/register", {
-    body: { email: `advwk-${suffix}@factory.com`, username: `advwk_${suffix}`, password: "Password123!" },
+    body: { email: `advwk-${suffix}@factory.com`, username: `advwk_${suffix}`, password: "Password123!", ageConfirmed: true },
   });
   expect(res.status).toBe(201);
   return {

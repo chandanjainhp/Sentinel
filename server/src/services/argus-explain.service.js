@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { withTimeout } from "../utils/with-timeout.js";
+import logger from "../utils/logger.js";
 import { ML_TIMEOUT_MS } from "./ml-contract.service.js";
 import { Incident } from "../models/incident.model.js";
 import { Prediction } from "../models/prediction.model.js";
@@ -46,11 +47,40 @@ const explanationShape = {
 
 const ExplanationSchema = z.object(explanationShape).strict();
 
-/** Strip markdown code fences some models wrap JSON in. */
+/**
+ * Strip everything a model may wrap the JSON in: markdown code fences, and
+ * reasoning/thinking prose before or after the JSON object. When prose
+ * surrounds it, take the first balanced top-level {...} block instead of
+ * failing outright (the fence is preferred when present because it is unambiguous).
+ * Exported for tests.
+ */
 export const stripCodeFences = (text) => {
   const trimmed = String(text || "").trim();
   const fenced = trimmed.match(/^```[a-zA-Z]*\s*([\s\S]*?)\s*```$/);
-  return fenced ? fenced[1].trim() : trimmed;
+  if (fenced) return fenced[1].trim();
+  // Plain JSON, patched reasoning output, or a fence plus trailing commentary:
+  // recover the first balanced top-level object.
+  const start = trimmed.indexOf("{");
+  if (start === -1) return trimmed;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < trimmed.length; i += 1) {
+    const ch = trimmed[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return trimmed.slice(start, i + 1);
+    }
+  }
+  return trimmed;
 };
 
 /* ── Context collection (stored values only) ────────────────────── */
@@ -340,9 +370,12 @@ export const explainIncident = async ({ incidentId }) => {
         );
         const parsed = ExplanationSchema.safeParse(JSON.parse(stripCodeFences(text)));
         if (!parsed.success) {
-          lastError = new Error(
-            `LLM reply failed validation: ${parsed.error.issues?.[0]?.message || "unknown"}`
+          const reason = parsed.error.issues?.[0]?.message || "unknown";
+          logger.warn(
+            { provider, model, reason, textLength: String(text || "").length },
+            "Argus: LLM reply failed validation"
           );
+          lastError = new Error(`LLM reply failed validation: ${reason}`);
         } else {
           await writeExplanation(incident._id, {
             ...parsed.data,

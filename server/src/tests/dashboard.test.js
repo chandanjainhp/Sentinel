@@ -37,6 +37,7 @@ const register = async (suffix) => {
       email: `dash-${suffix}@factory.com`,
       username: `dash_${suffix}`,
       password: "Password123!",
+      ageConfirmed: true,
     },
   });
   expect(res.status).toBe(201);

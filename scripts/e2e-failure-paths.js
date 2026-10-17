@@ -129,6 +129,7 @@ const makeUserAndKey = async () => {
       email: `${RUN}-${Math.random().toString(36).slice(2, 8)}@smoke.test`,
       username: `fail_${RUN}_${Math.random().toString(36).slice(2, 8)}`,
       password: "Password123!",
+      ageConfirmed: true,
     },
   });
   if (reg.status !== 201) {

@@ -84,6 +84,7 @@ const registerAndSetup = async (suffix, machineType = "Centrifugal Pump") => {
       email: `cov-${suffix}@factory.com`,
       username: `cov_${suffix}`,
       password: "Password123!",
+      ageConfirmed: true,
     }),
   });
   const authHeaders = {

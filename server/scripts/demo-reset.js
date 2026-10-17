@@ -124,6 +124,7 @@ const reg = await api("POST", "/auth/register", {
     username: DEMO_USERNAME,
     password: DEMO_PASSWORD,
     fullName: "Dana Reyes",
+    ageConfirmed: true,
   },
 });
 if (reg.status !== 201) {

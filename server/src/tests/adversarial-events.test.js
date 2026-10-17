@@ -41,6 +41,7 @@ const register = async (suffix) => {
       email: `advev-${suffix}@factory.com`,
       username: `advev_${suffix}`,
       password: "Password123!",
+      ageConfirmed: true,
     },
   });
   expect(res.status).toBe(201);

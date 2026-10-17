@@ -40,6 +40,7 @@ const register = async (suffix) => {
       email: `advauth-${suffix}@factory.com`,
       username: `advauth_${suffix}`,
       password: "Password123!",
+      ageConfirmed: true,
     },
   });
   expect(res.status).toBe(201);

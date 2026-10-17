@@ -93,7 +93,7 @@ export default function TopBar() {
       {/* Brand lockup — Night Watch mark + stretched wordmark */}
       <div className="topbar-brand" style={{ flexShrink: 0, marginRight: "20px" }}>
         <Link href="/overview" aria-label="Sentinel home" style={{ textDecoration: "none" }}>
-          <SentinelLockup markSize={22} fontSize={13} />
+          <SentinelLockup boot markSize={22} fontSize={13} />
         </Link>
       </div>
 

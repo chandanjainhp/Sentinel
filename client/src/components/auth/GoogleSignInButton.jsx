@@ -16,6 +16,13 @@ import { useAuthStore } from '@/store/authStore';
  * GOOGLE_CLIENT_ID and establishes the same httpOnly-cookie JWT session as
  * normal email/password login. No client secret ever reaches the client.
  *
+ * `ageConfirmed` optionally mirrors the register page's 13+ checkbox: when
+ * explicitly `false` (register form unchecked), the credential is withheld
+ * client-side until the user confirms their age. When unset (login page), the
+ * credential is submitted as-is — the server-side age gate applies only to
+ * brand-new Google sign-ups and grandfathers existing accounts, so returning
+ * users keep working and first-time sign-ups get a clear server error.
+ *
  * Renders nothing when NEXT_PUBLIC_GOOGLE_CLIENT_ID is unset (except a dev-only
  * hint), so unconfigured deployments keep a clean login page.
  *
@@ -24,14 +31,21 @@ import { useAuthStore } from '@/store/authStore';
  */
 const GIS_SRC = 'https://accounts.google.com/gsi/client';
 
-export default function GoogleSignInButton({ onSuccess }) {
+export default function GoogleSignInButton({ onSuccess, ageConfirmed }) {
   const router = useRouter();
   const setUser = useAuthStore((s) => s.setUser);
   const btnRef = useRef(null);
   const pendingRef = useRef(false);
+  // Mirror into a ref so the one-time GIS callback closure always sees the
+  // latest checkbox state without re-initializing the GIS client.
+  const ageConfirmedRef = useRef(ageConfirmed);
   const [scriptReady, setScriptReady] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    ageConfirmedRef.current = ageConfirmed;
+  }, [ageConfirmed]);
 
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   const enabled = Boolean(clientId);
@@ -54,11 +68,21 @@ export default function GoogleSignInButton({ onSuccess }) {
     async (response) => {
       const credential = response?.credential;
       if (!credential || pendingRef.current) return; // duplicate-submit guard
+      if (ageConfirmedRef.current === false) {
+        // 13+ gate: on the register page an unchecked box withholds the
+        // credential. On the login page (undefined) the server decides —
+        // existing users are grandfathered there.
+        setError('Confirm you are 13 or older before continuing with Google.');
+        return;
+      }
       pendingRef.current = true;
       setSubmitting(true);
       setError('');
       try {
-        const data = await googleSignIn(credential);
+        const data = await googleSignIn(
+          credential,
+          ageConfirmedRef.current === true,
+        );
         finishSignIn(data);
       } catch (err) {
         // Network failures get a friendlier message from the shared API layer;

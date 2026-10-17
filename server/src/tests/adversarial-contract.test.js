@@ -93,7 +93,7 @@ beforeAll(async () => {
   server = app.listen(PORT);
 
   const reg = await api("POST", "/auth/register", {
-    body: { email: "advcon@factory.com", username: "advcon", password: "Password123!" },
+    body: { email: "advcon@factory.com", username: "advcon", password: "Password123!", ageConfirmed: true },
   });
   env.cookie = reg.headers.getSetCookie().map((c) => c.split(";")[0])[0];
   env.site = (await (await api("POST", "/sites", { cookie: env.cookie, body: { name: "Contract Plant", timezone: "UTC" } })).json()).data;

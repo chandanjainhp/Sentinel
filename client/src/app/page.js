@@ -9,7 +9,7 @@ import {
   Shield,
   Server,
 } from "lucide-react";
-import { SentinelLockup } from "@/components/brand/SentinelMark";
+import SentinelMark, { SentinelLockup, SENTINEL_FAVICON } from "@/components/brand/SentinelMark";
 
 /* ── helpers ─────────────────────────────────────────── */
 const SEV = {
@@ -551,6 +551,79 @@ function FooterCol({ heading, links }) {
   );
 }
 
+function BootSplash() {
+  const [visible, setVisible] = useState(false);
+  const [fading, setFading] = useState(false);
+
+  useEffect(() => {
+    let shown = false;
+    try {
+      shown = sessionStorage.getItem("sentinel.boot-splash") === "1";
+    } catch {
+      shown = false;
+    }
+    if (shown) return;
+    try {
+      sessionStorage.setItem("sentinel.boot-splash", "1");
+    } catch {
+      /* storage blocked — still show once this render */
+    }
+    setVisible(true);
+    const fade = setTimeout(() => setFading(true), 1250);
+    const hide = setTimeout(() => setVisible(false), 1600);
+    return () => {
+      clearTimeout(fade);
+      clearTimeout(hide);
+    };
+  }, []);
+
+  if (!visible) return null;
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 3000,
+        background: "var(--bg-base)",
+        display: "grid",
+        placeItems: "center",
+        opacity: fading ? 0 : 1,
+        transition: "opacity 350ms ease",
+        pointerEvents: fading ? "none" : "auto",
+      }}
+    >
+      <SentinelMark boot size={96} />
+    </div>
+  );
+}
+
+/** Hero mark that replays the boot draw-on when clicked. */
+function HeroMark() {
+  const [replayKey, setReplayKey] = useState(0);
+  return (
+    <button
+      type="button"
+      onClick={() => setReplayKey((n) => n + 1)}
+      aria-label="Replay the Sentinel mark animation"
+      title="Replay the mark"
+      style={{
+        background: "none",
+        border: "none",
+        padding: 0,
+        cursor: "pointer",
+        width: "120px",
+        height: "120px",
+        display: "grid",
+        placeItems: "center",
+        flexShrink: 0,
+      }}
+    >
+      <SentinelMark boot size={120} replayKey={replayKey} />
+    </button>
+  );
+}
+
 export default function LandingPage() {
   const [time, setTime] = useState("--:--:--");
 
@@ -577,6 +650,13 @@ export default function LandingPage() {
         color: "var(--fg-1)",
       }}
     >
+      {/* First-visit boot splash — mark draws on, fades out (~1.6s max).
+          Session-scoped; reduced-motion users see the finished mark only. */}
+      <BootSplash />
+
+      {/* Favicon — same mark geometry, inline SVG data URI */}
+      <link rel="icon" href={SENTINEL_FAVICON} type="image/svg+xml" />
+
       {/* Skip-to-content */}
       <a
         href="#main"
@@ -627,7 +707,7 @@ export default function LandingPage() {
           aria-label="Sentinel home"
           style={{ textDecoration: "none", flexShrink: 0 }}
         >
-          <SentinelLockup markSize={22} fontSize={13} />
+          <SentinelLockup boot markSize={22} fontSize={13} />
         </Link>
 
         <div style={{ flex: 1 }} />
@@ -768,11 +848,12 @@ export default function LandingPage() {
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: "8px",
+              gap: "12px",
               marginBottom: "36px",
               alignSelf: "flex-start",
             }}
           >
+            <HeroMark />
             <span
               style={{
                 width: "6px",

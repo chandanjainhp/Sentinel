@@ -8,6 +8,7 @@ import {
   forgotPasswordMailgenContent,
   sendEmail,
 } from "../utils/mail.js";
+import { assertEligibleForAccountCreation } from "../utils/age-gate.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
@@ -83,12 +84,26 @@ const googleAuth = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Google account email is not verified");
   }
 
+  // Age gate (13+) — enforced server-side BEFORE any write. Existing users
+  // (Google match, or a local account that will be linked by the verified
+  // email) are grandfathered; only BRAND-NEW account creation is gated, and a
+  // rejected attempt persists nothing.
+  const existingGoogleUser = await User.findOne({ googleId: claims.sub });
+  const existingByEmail = existingGoogleUser
+    ? null
+    : await User.findOne({ email: claims.email });
+  if (!existingGoogleUser && !existingByEmail) {
+    assertEligibleForAccountCreation(req.body);
+  }
+
   // 1) Existing Google user → straight login.
-  let user = await User.findOne({ googleId: claims.sub });
+  let user = existingGoogleUser;
   let linked = false;
 
   if (!user) {
-    const existingByEmail = await User.findOne({ email: claims.email });
+    // Already resolved above for the age gate — an existing local account is
+    // safely linked; Google has verified the email claim, and the existing
+    // password, tokens and credentials are never touched or overwritten.
 
     if (existingByEmail) {
       // 2) Safe account linking for an existing local account. Google has
@@ -169,6 +184,10 @@ const googleAuth = asyncHandler(async (req, res) => {
 
 const registerUser = asyncHandler(async (req, res) => {
   const { email, username, password } = req.body;
+
+  // Age gate (13+) — enforced server-side BEFORE any user is created, so a
+  // rejected attempt stores nothing (no user record, no tokens, no cookies).
+  assertEligibleForAccountCreation(req.body);
 
   const existedUser = await User.findOne({
     $or: [{ username }, { email }],

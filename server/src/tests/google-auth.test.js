@@ -79,7 +79,9 @@ const makeIdToken = ({
 };
 
 const postGoogle = (credential, extra = {}) =>
-  api("POST", "/auth/google", { body: { credential, ...extra } });
+  api("POST", "/auth/google", {
+    body: { credential, ageConfirmed: true, ...extra },
+  });
 
 const firstCookie = (res) => res.headers.getSetCookie().map((c) => c.split(";")[0]);
 
@@ -234,6 +236,7 @@ describe("google auth — account lifecycle", () => {
         email: "local.link@example.com",
         username: "local_link",
         password: "Password123!",
+        ageConfirmed: true,
       },
     });
     expect(reg.status).toBe(201);

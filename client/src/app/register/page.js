@@ -41,12 +41,12 @@ const CAPABILITIES = [
 export default function RegisterPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    username: '', email: '', password: '', confirmPassword: '', terms: false,
+    username: '', email: '', password: '', confirmPassword: '', terms: false, ageConfirmed: false,
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({
-    username: '', email: '', password: '', confirmPassword: '', terms: '',
+    username: '', email: '', password: '', confirmPassword: '', terms: '', ageConfirmed: '',
   });
   const [serverError, setServerError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -60,7 +60,7 @@ export default function RegisterPage() {
   }, [router, successMessage, formData.email]);
 
   const mutation = useMutation({
-    mutationFn: ({ username, email, password }) => registerUser({ username, email, password }),
+    mutationFn: ({ username, email, password, ageConfirmed }) => registerUser({ username, email, password, ageConfirmed }),
     onSuccess: (data) => { 
       setServerError(''); 
       setSuccessMessage('Account created successfully.'); 
@@ -76,7 +76,7 @@ export default function RegisterPage() {
   });
 
   const validateForm = () => {
-    const errors = { username: '', email: '', password: '', confirmPassword: '', terms: '' };
+    const errors = { username: '', email: '', password: '', confirmPassword: '', terms: '', ageConfirmed: '' };
     if (!formData.username.trim()) errors.username = 'Username is required.';
     else if (formData.username.length < 3) errors.username = 'Min 3 characters.';
     else if (formData.username.length > 20) errors.username = 'Max 20 characters.';
@@ -90,6 +90,7 @@ export default function RegisterPage() {
     if (!formData.confirmPassword) errors.confirmPassword = 'Confirm password is required.';
     else if (formData.confirmPassword !== formData.password) errors.confirmPassword = 'Passwords do not match.';
     if (!formData.terms) errors.terms = 'You must agree to the terms to continue.';
+    if (!formData.ageConfirmed) errors.ageConfirmed = 'You must be 13 or older to create an account.';
     setFieldErrors(errors);
     return !Object.values(errors).some(Boolean);
   };
@@ -387,6 +388,41 @@ export default function RegisterPage() {
               {fieldErrors.terms && <div style={{ ...errStyle, marginTop: '6px' }}>{fieldErrors.terms}</div>}
             </div>
 
+            {/* Age gate — mirrors the server-side 13+ requirement */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                <div style={{ position: 'relative', marginTop: '1px' }}>
+                  <input
+                    id="age-confirm"
+                    type="checkbox"
+                    checked={formData.ageConfirmed}
+                    onChange={(e) => handleFieldChange('ageConfirmed', e.target.checked)}
+                    style={{ position: 'absolute', opacity: 0, width: '16px', height: '16px', cursor: 'pointer', zIndex: 1 }}
+                  />
+                  <div style={{
+                    width: '16px', height: '16px',
+                    background: formData.ageConfirmed ? 'var(--accent)' : 'var(--bg-surface-2)',
+                    border: `1px solid ${formData.ageConfirmed ? 'var(--accent)' : fieldErrors.ageConfirmed ? 'var(--sev-serious-dim)' : 'var(--border-default)'}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    {formData.ageConfirmed && (
+                      <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="var(--bg-base)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M2 6l3 3 5-5" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+                <label htmlFor="age-confirm" style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '10px',
+                  color: 'var(--fg-3)', lineHeight: 1.6, cursor: 'pointer',
+                }}>
+                  I confirm I am 13 years of age or older
+                </label>
+              </div>
+              {fieldErrors.ageConfirmed && <div style={{ ...errStyle, marginTop: '6px' }}>{fieldErrors.ageConfirmed}</div>}
+            </div>
+
             <button
               type="submit"
               disabled={mutation.isPending}
@@ -417,7 +453,7 @@ export default function RegisterPage() {
             }}>or</span>
             <div style={{ flex: 1, height: '1px', background: 'var(--border-hairline)' }} />
           </div>
-          <GoogleSignInButton />
+          <GoogleSignInButton ageConfirmed={formData.ageConfirmed} />
 
           {/* Footer links */}
           <div style={{
