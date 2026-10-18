@@ -1,0 +1,14 @@
+# PC override for the Pi-oriented docker-compose.yml.
+#   docker compose -f docker-compose.yml -f docker-compose.pc.yml \
+#     --env-file server/.env up -d --build
+# Publishes the UI/API on the PC's localhost and disables cloudflared
+# (enable the real tunnel with: --profile tunnel, Pi only).
+services:
+  cloudflared:
+    profiles: ["tunnel"]
+  client:
+    ports:
+      - "3000:3000"
+  server:
+    ports:
+      - "8000:8000"
