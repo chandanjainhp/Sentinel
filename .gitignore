@@ -17,3 +17,6 @@ pnpm-debug.log*
 coverage/
 ml-service/models/*.pt
 ml-service/models/*.meta.json
+
+# Freebuff preview runtime logs (run.md is tracked; the logs it writes are not)
+.freebuff/*.log

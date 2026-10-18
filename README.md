@@ -17,8 +17,30 @@ is configured, or from a deterministic fallback when it is not.
 
 ---
 
+## Screenshots
+
+The rendered product — captured from the running stack (Next.js client proxying the
+Express API, scoring live sensor data through the ML service).
+
+**Landing page** — the value prop and the live overnight-investigation feed:
+
+![Sentinel landing page](docs/screenshots/landing.png)
+
+**Fleet overview** — per-site machine health rollup (healthy / warning / critical) with
+the open-incident feed:
+
+![Fleet overview dashboard](docs/screenshots/overview.png)
+
+**Sensors** — coverage-gate readiness per machine and the full sensor inventory with
+live status:
+
+![Sensor coverage and readiness](docs/screenshots/sensors.png)
+
+---
+
 ## Contents
 
+- [Screenshots](#screenshots)
 - [At a glance](#at-a-glance)
 - [Architecture](#architecture)
 - [Data flow](#data-flow)
