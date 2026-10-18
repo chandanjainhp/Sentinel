@@ -2,83 +2,139 @@ name: CI
 
 on:
   pull_request:
-    branches: [ "main" ]
+    branches: [ main, full-developer ]
   push:
-    branches: [ "main" ]
+    branches: [ main, full-developer ]
 
 jobs:
-  test:
-    name: Test & Lint
+  server:
+    name: Server (Bun tests)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - name: Server (Bun)
-            dir: ./server
-            test_cmd: bun test
-            language: node
-            node-version: 20
-          - name: Client (Next.js)
-            dir: ./client
-            test_cmd: npm run lint
-            language: node
-            node-version: 20
-          - name: ML Service (Python)
-            dir: ./ml-service
-            test_cmd: pytest
-            language: python
-            python-version: "3.11"
+    defaults:
+      run:
+        working-directory: server
+    services:
+      # Dedicated test containers on the non-default ports the suite expects
+      # (same wiring as the local sentinel-test-mongo / sentinel-test-redis).
+      mongo:
+        image: mongo:7.0
+        ports:
+          - 28017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: sentinel
+          MONGO_INITDB_ROOT_PASSWORD: sentinel-test
+          MONGO_INITDB_DATABASE: sentinel
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ ping: 1 }).ok'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 26379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        if: matrix.language == 'node'
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: "npm"
-
-      - name: Set up Python
-        if: matrix.language == 'python'
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: "pip"
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
-        if: matrix.language == 'node'
-        working-directory: ${{ matrix.dir }}
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
+        run: bun install --frozen-lockfile
 
-      - name: Install Python dependencies
-        if: matrix.language == 'python'
-        working-directory: ${{ matrix.dir }}
+      # bun test loads ./.env.test automatically (BUN_ENV=test); it is
+      # gitignored, so CI writes its own copy pointing at the services above.
+      - name: Write test environment
         run: |
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          fi
-          if [ -f requirements-dev.txt ]; then
-            pip install -r requirements-dev.txt
-          fi
+          cat > .env.test <<'EOF'
+          NODE_ENV=test
+          MONGODB_URL=mongodb://sentinel:sentinel-test@localhost:28017/sentinel_ci?authSource=admin
+          REDIS_URL=redis://localhost:26379/7
+          EOF
 
       - name: Run tests
-        working-directory: ${{ matrix.dir }}
-        run: ${{ matrix.test_cmd }}
+        run: bun test
 
       - name: Upload test artifacts
         if: failure()
-        working-directory: ${{ matrix.dir }}
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-${{ matrix.name }}
-          path: |
-            **.log
-            **.json
+          name: test-results-server
+          path: server/**/*.log
+          if-no-files-found: ignore
+          retention-days: 3
+
+  client:
+    name: Client (Next.js build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # npm run lint (eslint .) is not runnable: eslint and an ESLint config
+      # are not part of the project. The production build is the client gate.
+      - name: Build
+        run: npm run build
+
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-client
+          path: client/**/*.log
+          if-no-files-found: ignore
+          retention-days: 3
+
+  ml-service:
+    name: ML Service (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ml-service
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            ml-service/requirements.txt
+            ml-service/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: pytest
+
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-ml-service
+          path: ml-service/**/*.log
+          if-no-files-found: ignore
           retention-days: 3

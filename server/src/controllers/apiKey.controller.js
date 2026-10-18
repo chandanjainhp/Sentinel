@@ -133,13 +133,10 @@ export const getApiKeyMeta = asyncHandler(async (req, res) => {
 });
 
 export const createApiKey = asyncHandler(async (req, res) => {
-  const count = await ApiKey.countDocuments({ userId: req.user._id });
-  if (count >= MAX_KEYS_PER_USER) {
-    throw new ApiError(
-      400,
-      `Key limit reached (${MAX_KEYS_PER_USER}). Revoke one before creating another.`
-    );
-  }
+  // Legacy single-key surface: exactly one key per user. Generate a
+  // replacement, dropping any existing keys (named keys are only created
+  // through POST /settings/api-keys, the plural endpoint).
+  await ApiKey.deleteMany({ userId: req.user._id });
 
   const rawSecret = generateApiKeySecret();
   const keyPrefix = apiKeyPrefixFromSecret(rawSecret);

@@ -417,7 +417,9 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   try {
     const decodedToken = jwt.verify(
       incomingRefreshToken,
-      process.env.REFRESH_TOKEN_SECRET,
+      // Same fallback as generateRefreshToken (user.models.js) — verify must
+      // use the exact key the token was signed with when the env is unset.
+      process.env.REFRESH_TOKEN_SECRET || "default-refresh-secret",
     );
 
     const user = await User.findById(decodedToken?._id);
