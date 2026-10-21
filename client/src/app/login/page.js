@@ -8,6 +8,7 @@ import { loginUser } from '@/lib/api';
 import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
 import SentinelMark, { SentinelLockup } from '@/components/brand/SentinelMark';
 import { initTheme } from '@/lib/theme';
+import { useAuthStore } from '@/store/authStore';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -57,7 +58,6 @@ function LoginPageInner() {
       setMarkPhase('success');
       if (data?.user) {
         localStorage.setItem('ridgeway_user', JSON.stringify(data.user));
-        const { useAuthStore } = require('@/store/authStore');
         useAuthStore.getState().setUser(data.user);
       }
       document.cookie = 'ridgeway_auth=1; path=/; max-age=86400; SameSite=Lax';

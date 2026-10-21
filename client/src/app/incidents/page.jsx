@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useIncidents, useIncidentById, useIncidentEvidenceGraph } from "@/hooks/useIncidents";
 import AgentReasoning from "@/components/incident/AgentReasoning";
 import EvidenceChain from "@/components/incident/EvidenceChain";
-import { useStartInvestigation, usePollInvestigationStatus } from "@/hooks/useInvestigation";
+import { useStartInvestigation, useNightInvestigations } from "@/hooks/useInvestigation";
 import { useInvestigationStore } from "@/store/investigationStore";
 import { useIncidentFilterStore } from "@/store/incidentFilterStore";
 import AgentFeed from "@/components/agent/AgentFeed";
@@ -114,13 +114,13 @@ function IncidentsWorkspace({ nightDate }) {
     return incidents.find((i) => getIncidentId(i) === selectedIncidentId);
   }, [incidents, selectedIncidentId]);
   // Connect to investigation store and polling
-  const jobId = useInvestigationStore((s) => s.jobId);
+  const jobIds = useInvestigationStore((s) => s.jobIds);
   const jobStatus = useInvestigationStore((s) => s.jobStatus);
   const stats = useInvestigationStore((s) => s.investigationStats);
   const { mutate: startInvestigation, isPending: isStarting } = useStartInvestigation();
-  
-  // Poll investigation status when job is active
-  usePollInvestigationStatus(jobId);
+
+  // One poll per queued investigation job; the same docs feed the panel.
+  const { docs: investigations } = useNightInvestigations(jobIds);
 
   const { data: selectedDetail, isLoading: detailLoading } = useIncidentById(
     selectedIncidentId,
@@ -131,11 +131,15 @@ function IncidentsWorkspace({ nightDate }) {
     { enabled: !!selectedIncidentId },
   );
 
-  const isNightJobActive = jobStatus !== "idle" || jobId;
+  const isNightJobActive = jobStatus !== "idle" || jobIds.length > 0;
   const persistedInvestigation = selectedDetail?.investigationId;
+  // The detail read attaches the latest complete investigation; the evidence
+  // graph is the same document, so either one proves results exist.
   const hasCompletedInvestigation =
     persistedInvestigation?.status === "complete" ||
-    Boolean(persistedInvestigation?.classification?.reasoning);
+    Boolean(persistedInvestigation?.classification?.reasoning) ||
+    Boolean(evidenceGraph?.steps?.length) ||
+    Boolean(evidenceGraph?.classification);
   const showPersistedResults =
     !!selectedIncidentId && hasCompletedInvestigation && !isNightJobActive;
   const showPanelWorkspace = isNightJobActive || showPersistedResults;
@@ -148,7 +152,7 @@ function IncidentsWorkspace({ nightDate }) {
     persistedClassification.reasoning ||
     selectedDetail?.classification?.reasoning ||
     selectedIncident?.agentSummary ||
-    "No reasoning attached by Argus.";
+    "No investigation reasoning was recorded for this incident.";
   const persistedConfidence = persistedClassification.confidence ?? 0;
   const persistedUncertainties = persistedClassification.uncertainties || [];
   const evidenceSteps = evidenceGraph?.steps || [];
@@ -464,7 +468,10 @@ function IncidentsWorkspace({ nightDate }) {
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <span style={{
                   width: "6px", height: "6px", borderRadius: "50%",
-                  background: jobStatus === "running" ? "var(--accent)" : "var(--fg-4)",
+                  background: jobStatus === "running" ? "var(--accent)"
+                    : jobStatus === "complete" ? "var(--sev-harmless)"
+                    : jobStatus === "failed" ? "var(--sev-serious)"
+                    : "var(--fg-4)",
                   boxShadow: jobStatus === "running" ? "0 0 6px var(--accent)" : "none",
                   animation: jobStatus === "running" ? "status-pulse 1.6s ease-in-out infinite" : "none",
                 }} />
@@ -561,7 +568,7 @@ function IncidentsWorkspace({ nightDate }) {
                     )}
                   </div>
                 ) : (
-                  <AgentFeed />
+                  <AgentFeed investigations={investigations} />
                 )}
               </div>
             ) : (

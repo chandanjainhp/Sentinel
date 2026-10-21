@@ -2,6 +2,7 @@ import mongoose, { Schema } from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import { accessTokenSecret, refreshTokenSecret } from "../config/secrets.js";
 
 const userSchema = new Schema(
   {
@@ -126,7 +127,7 @@ userSchema.methods.generateAccessToken = function () {
       username: this.username,
       tokenVersion: this.tokenVersion,
     },
-    process.env.ACCESS_TOKEN_SECRET || "default-secret-key",
+    accessTokenSecret(),
     { expiresIn: process.env.ACCESS_TOKEN_EXPIRY || "15m" },
   );
 };
@@ -135,8 +136,11 @@ userSchema.methods.generateRefreshToken = function () {
   return jwt.sign(
     {
       _id: this._id,
+      // Unique per issue: without it two tokens minted in the same second are
+      // byte-identical, so rotation could never invalidate the old one.
+      jti: crypto.randomUUID(),
     },
-    process.env.REFRESH_TOKEN_SECRET || "default-refresh-secret",
+    refreshTokenSecret(),
     { expiresIn: process.env.REFRESH_TOKEN_EXPIRY || "7d" },
   );
 };

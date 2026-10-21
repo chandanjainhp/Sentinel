@@ -1,5 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getLatestBriefing, updateBriefingSection, approveBriefing } from '@/lib/api';
+import {
+  generateBriefing,
+  getLatestBriefing,
+  listBriefings,
+  getBriefingById,
+  updateBriefingSection,
+  approveBriefing,
+} from '@/lib/api';
 import { toast } from 'sonner';
 
 export function useBriefing(nightDate, options = {}) {
@@ -30,6 +37,60 @@ export function useBriefing(nightDate, options = {}) {
   });
 }
 
+export function useGenerateBriefing(options = {}) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (nightDate) => generateBriefing(nightDate),
+    onSuccess: (result, variables, context) => {
+      toast.success('Briefing generated successfully', { duration: 3000 });
+      queryClient.invalidateQueries({ queryKey: ['briefing'] });
+      queryClient.invalidateQueries({ queryKey: ['briefings'] });
+      if (options.onSuccess) options.onSuccess(result, variables, context);
+    },
+    onError: (err) => {
+      toast.error(`Failed to generate briefing: ${err.message}`);
+      if (options.onError) options.onError(err);
+    },
+    ...options,
+  });
+}
+
+export function useListBriefings(params = {}, options = {}) {
+  return useQuery({
+    queryKey: ['briefings', params],
+    queryFn: () => listBriefings(params),
+    select: (data) => {
+      if (!data) return [];
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 30 * 1000,
+    retry: (failureCount, error) => {
+      if (error?.statusCode === 401 || error?.statusCode === 403) return false;
+      if (!error?.statusCode) return failureCount < 2;
+      return failureCount < 1;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    ...options,
+  });
+}
+
+export function useBriefingById(briefingId, options = {}) {
+  return useQuery({
+    queryKey: ['briefing', 'byId', briefingId],
+    queryFn: () => getBriefingById(briefingId),
+    enabled: !!briefingId,
+    staleTime: 5 * 60 * 1000,
+    retry: (failureCount, error) => {
+      if (error?.statusCode === 401 || error?.statusCode === 403) return false;
+      if (!error?.statusCode) return failureCount < 2;
+      return failureCount < 1;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    ...options,
+  });
+}
+
 export function useUpdateBriefingSection(options = {}) {
   const queryClient = useQueryClient();
 
@@ -42,6 +103,7 @@ export function useUpdateBriefingSection(options = {}) {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['briefing'] });
+      queryClient.invalidateQueries({ queryKey: ['briefings'] });
     },
     ...options,
   });

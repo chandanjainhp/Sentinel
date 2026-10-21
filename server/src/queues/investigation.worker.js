@@ -1,6 +1,7 @@
 import { Worker } from "bullmq";
 import Investigation from "../models/investigation.model.js";
 import { buildInvestigationTrace } from "../services/investigation.service.js";
+import { resolveInvestigationQueueName } from "./investigation.queue.js";
 
 let workerInstance = null;
 
@@ -16,7 +17,7 @@ let workerInstance = null;
 export const startInvestigationWorker = (connection) => {
   if (workerInstance) return workerInstance;
 
-  const queueName = process.env.INVESTIGATION_QUEUE_NAME || "investigations";
+  const queueName = resolveInvestigationQueueName();
 
   workerInstance = new Worker(
     queueName,

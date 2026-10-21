@@ -1,12 +1,12 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
 import { startInvestigation, getInvestigation, getIncidents } from "@/lib/api";
+import { summarizeInvestigations } from "@/lib/investigation-state";
 import { useInvestigationStore } from "@/store/investigationStore";
 import { incidentQueryKey } from "@/store/incidentFilterStore";
 import { toast } from "sonner";
 import { useEffect } from "react";
 
 export function useStartInvestigation(options = {}) {
-  const setJobId = useInvestigationStore((state) => state.setJobId);
   const setJobIds = useInvestigationStore((state) => state.setJobIds);
   const setJobStatus = useInvestigationStore((state) => state.setJobStatus);
   const setInvestigationStats = useInvestigationStore(
@@ -28,38 +28,26 @@ export function useStartInvestigation(options = {}) {
               return `${year}-${month}-${day}`;
             })();
 
-      console.log("[MUTATION] Starting investigation for", nightDate);
       return startInvestigation(nightDate);
     },
     onSuccess: (result, variables, context) => {
-      console.log("[MUTATION] SUCCESS - Got result:", result);
+      const jobIds = result.jobIds || [];
+      setJobIds(jobIds);
 
-      if (result.jobIds && result.jobIds.length > 0) {
-        console.log("[MUTATION] Setting jobId:", result.jobIds[0]);
-        setJobIds(result.jobIds);
-        setJobId(result.jobIds[0]);
-      } else {
-        setJobIds([]);
-        setJobId(null);
-      }
-
-      // Server tells us there is nothing to investigate — stay idle, don't open SSE.
+      // Server tells us there is nothing to investigate — stay idle.
       if (result.status === "no_incidents") {
         setJobStatus("idle");
+        setInvestigationStats({ totalIncidents: 0, resolvedIncidents: 0 });
         toast.success("No incidents to investigate for this night.");
         if (options.onSuccess) options.onSuccess(result, variables, context);
         return;
       }
 
-      if (result.totalJobs !== undefined) {
-        console.log("[MUTATION] Setting stats - totalJobs:", result.totalJobs);
-        setInvestigationStats({ totalIncidents: result.totalJobs });
-      }
-
-      // Start polling for investigation status
-      if (result.jobIds && result.jobIds.length > 0) {
-        setJobStatus("running");
-      }
+      setInvestigationStats({
+        totalIncidents: result.totalJobs ?? jobIds.length,
+        resolvedIncidents: 0,
+      });
+      if (jobIds.length > 0) setJobStatus("queued");
 
       const toastMessages = {
         already_running:
@@ -72,14 +60,6 @@ export function useStartInvestigation(options = {}) {
       if (options.onSuccess) options.onSuccess(result, variables, context);
     },
     onError: (error, variables, context) => {
-      console.error("[MUTATION] ERROR raw:", error);
-      console.error("[MUTATION] ERROR details:", {
-        message: error?.message,
-        name: error?.name,
-        type: error?.type,
-        statusCode: error?.statusCode,
-        variables,
-      });
       toast.error(
         `Investigation failed to initialize: ${error?.message || String(error) || "Unknown error"}`,
       );
@@ -89,52 +69,60 @@ export function useStartInvestigation(options = {}) {
   });
 }
 
-export function usePollInvestigationStatus(jobId, options = {}) {
-  const queryClient = useQueryClient();
+/**
+ * Poll every investigation job the night's start call returned.
+ *
+ * React Query v5 has no query-level onSuccess, so the store is synced from a
+ * useEffect over the derived summary primitives (runs once per real change,
+ * not once per render). The same documents are returned for the feed, so the
+ * panel and the progress counter can never disagree.
+ */
+export function useNightInvestigations(jobIds = []) {
   const setJobStatus = useInvestigationStore((state) => state.setJobStatus);
   const setInvestigationStats = useInvestigationStore((state) => state.setInvestigationStats);
+  const setError = useInvestigationStore((state) => state.setError);
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["investigation-poll", jobId],
-    queryFn: () => getInvestigation(jobId),
-    enabled: !!jobId,
-    refetchInterval: (query) => {
-      const data = query.state.data;
-      if (!data) return 2000; // Initial poll
-      if (data.status === 'running' || data.status === 'queued') return 2000; // Poll every 2s while running
-      return false; // Stop polling when complete or failed
-    },
-    onSuccess: (data) => {
-      if (data) {
-        setJobStatus(data.status);
-        // Update stats from investigation data
-        if (data.toolCallSequence) {
-          setInvestigationStats({
-            resolvedIncidents: data.toolCallSequence.length,
-            totalIncidents: data.totalToolCalls || data.toolCallSequence.length,
-          });
-        }
-      }
-    },
-    retry: (failureCount, error) => {
-      if (error?.statusCode === 401 || error?.statusCode === 403 || error?.statusCode === 400) return false;
-      if (!error?.statusCode) return failureCount < 2;
-      return failureCount < 1;
-    },
-    ...options,
+  const queries = useQueries({
+    queries: jobIds.map((id) => ({
+      queryKey: ["investigation", id],
+      queryFn: () => getInvestigation(id),
+      enabled: !!id,
+      staleTime: 0,
+      refetchInterval: (query) => {
+        const status = query.state.data?.status;
+        // Keep polling until the worker records a terminal status.
+        return !status || status === "queued" || status === "running" ? 2000 : false;
+      },
+      retry: (failureCount, error) => {
+        if (error?.statusCode === 401 || error?.statusCode === 403 || error?.statusCode === 400) return false;
+        if (!error?.statusCode) return failureCount < 2;
+        return failureCount < 1;
+      },
+    })),
   });
 
-  return { data, isLoading, error };
-}
+  const docs = queries.map((query) => query.data).filter(Boolean);
+  const summary = summarizeInvestigations(docs, jobIds.length);
 
-export function useInvestigationData(id, options = {}) {
-  return useQuery({
-    queryKey: ["investigation", id],
-    queryFn: () => getInvestigation(id),
-    enabled: !!id,
-    staleTime: 0, // Rapidly changing agent states should never cache
-    ...options,
-  });
+  useEffect(() => {
+    setJobStatus(summary.status);
+    setInvestigationStats({ totalIncidents: summary.total, resolvedIncidents: summary.resolved });
+    setError(summary.failureReason);
+  }, [
+    summary.status,
+    summary.total,
+    summary.resolved,
+    summary.failureReason,
+    setJobStatus,
+    setInvestigationStats,
+    setError,
+  ]);
+
+  return {
+    docs,
+    summary,
+    isLoading: queries.some((query) => query.isLoading),
+  };
 }
 
 export function useNightSummary(nightDate, options = {}) {

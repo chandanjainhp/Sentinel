@@ -7,7 +7,7 @@ import { Site } from "../models/site.model.js";
 import { Machine } from "../models/machine.model.js";
 import { Sensor } from "../models/sensor.model.js";
 import { Event } from "../models/event.model.js";
-import { User } from "../models/user.models.js";
+import { User } from "../models/user.model.js";
 
 /**
  * Argus explanation worker — Fix A (Wave 4).

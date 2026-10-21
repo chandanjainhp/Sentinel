@@ -9,6 +9,20 @@ const sensorValuesSchema = z
     }
   );
 
+/** Same pagination contract as getIncidentsSchema — junk or huge limits are a 400. */
+export const getEventsSchema = z.object({
+  body: z.object({}),
+  params: z.object({}),
+  query: z.object({
+    siteId: z.string().min(1).optional(),
+    machineId: z.string().min(1).optional(),
+    sensorId: z.string().min(1).optional(),
+    from: z.coerce.date().optional(),
+    to: z.coerce.date().optional(),
+    limit: z.coerce.number().int().min(1).max(500).default(100),
+  }),
+});
+
 export const ingestEventSchema = z.object({
   body: z.object({
     siteId: z.string().min(1),

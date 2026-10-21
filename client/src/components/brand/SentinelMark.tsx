@@ -99,7 +99,9 @@ export default function SentinelMark({
   const [booting, setBooting] = useState(boot);
   const firstRun = useRef(true);
   const endRef = useRef(onBootEnd);
-  endRef.current = onBootEnd;
+  useEffect(() => {
+    endRef.current = onBootEnd;
+  });
 
   useEffect(() => {
     const isFirst = firstRun.current;

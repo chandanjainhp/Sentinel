@@ -922,7 +922,7 @@ export default function LandingPage() {
               marginBottom: "44px",
             }}
           >
-            Sentinel ingests your machines' sensor readings around the clock, scores them with predictive-maintenance models, and computes machine health — so you start each day knowing exactly which equipment needs attention.
+            Sentinel ingests your machines&apos; sensor readings around the clock, scores them with predictive-maintenance models, and computes machine health — so you start each day knowing exactly which equipment needs attention.
           </p>
 
           {/* CTA buttons */}

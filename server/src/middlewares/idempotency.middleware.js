@@ -1,5 +1,14 @@
-import crypto from 'crypto';
-import { getRedis } from '../../db/redis.js';
+/**
+ * NOT MOUNTED, on purpose.
+ *
+ * Event idempotency is enforced in the database (event.service.js plus the
+ * unique { userId, idempotencyKey } index on Event), which is the authoritative
+ * path and survives multiple server replicas. Mounting this Redis cache as well
+ * would answer replays before authentication/user scoping and return a cached
+ * body instead of the stored event, so it stays as reference only.
+ */
+import crypto from 'node:crypto';
+import { getRedis } from '../db/redis.js';
 
 const IDEM_KEY_TTL = 24 * 60 * 60;
 const HASH_KEY_TTL = 5 * 60;

@@ -142,7 +142,7 @@ describe("adversarial isolation — user B reads user A's resources by id", () =
   });
   it("A's incident detail and explain endpoint are invisible to B", async () => {
     const { Incident } = await import("../models/incident.model.js");
-    const { User } = await import("../models/user.models.js");
+    const { User } = await import("../models/user.model.js");
     const aUser = await User.findOne({ email: "adviso-a@factory.com" });
     const inc = await Incident.create({
       userId: aUser._id,

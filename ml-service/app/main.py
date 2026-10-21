@@ -1,4 +1,5 @@
 """Sentinel ML service. Stateless: models are loaded once at startup."""
+
 from __future__ import annotations
 
 import logging
@@ -32,7 +33,9 @@ def create_app(models_dir: Optional[Path] = None) -> FastAPI:
     app.include_router(predict.router)
 
     @app.exception_handler(RequestValidationError)
-    async def json_safe_validation_handler(request: Request, exc: RequestValidationError):
+    async def json_safe_validation_handler(
+        request: Request, exc: RequestValidationError
+    ):
         """422 with a JSON-legal body even when the invalid input is NaN/Infinity.
 
         The default handler embeds the offending value verbatim in the error
@@ -54,7 +57,12 @@ def create_app(models_dir: Optional[Path] = None) -> FastAPI:
 
         return JSONResponse(
             status_code=422,
-            content={"detail": [{**err, "input": json_safe(err.get("input"))} for err in exc.errors()]},
+            content={
+                "detail": [
+                    {**err, "input": json_safe(err.get("input"))}
+                    for err in exc.errors()
+                ]
+            },
         )
 
     @app.get("/health", response_model=HealthResponse)
@@ -63,8 +71,12 @@ def create_app(models_dir: Optional[Path] = None) -> FastAPI:
         return HealthResponse(
             status="ok" if not reg.errors else "degraded",
             models=[
-                {"machineType": mt, "model": p.meta.modelName, "modelVersion": p.meta.modelVersion,
-                 "dataSource": p.meta.dataSource}
+                {
+                    "machineType": mt,
+                    "model": p.meta.modelName,
+                    "modelVersion": p.meta.modelVersion,
+                    "dataSource": p.meta.dataSource,
+                }
                 for mt, p in reg.loaded.items()
             ],
             notLoaded=reg.errors,
@@ -74,9 +86,16 @@ def create_app(models_dir: Optional[Path] = None) -> FastAPI:
     def models(request: Request):
         reg: ModelRegistry = request.app.state.registry
         return [
-            ModelInfo(machineType=mt, model=p.meta.modelName, modelVersion=p.meta.modelVersion,
-                      features=p.meta.features, seq_len=p.meta.seq_len, threshold=p.meta.threshold,
-                      trainedAt=p.meta.trainedAt, dataSource=p.meta.dataSource)
+            ModelInfo(
+                machineType=mt,
+                model=p.meta.modelName,
+                modelVersion=p.meta.modelVersion,
+                features=p.meta.features,
+                seq_len=p.meta.seq_len,
+                threshold=p.meta.threshold,
+                trainedAt=p.meta.trainedAt,
+                dataSource=p.meta.dataSource,
+            )
             for mt, p in reg.loaded.items()
         ]
 

@@ -12,7 +12,7 @@ import { ML_TIMEOUT_MS } from "../services/ml-contract.service.js";
 import { Event } from "../models/event.model.js";
 import { Sensor } from "../models/sensor.model.js";
 import { Site } from "../models/site.model.js";
-import { User } from "../models/user.models.js";
+import { User } from "../models/user.model.js";
 import { Prediction } from "../models/prediction.model.js";
 import { Machine } from "../models/machine.model.js";
 

@@ -72,6 +72,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "baseline-browser-mapping": "^2.11.6",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.2.12",
     "postcss": "^8.5.24",
     "tailwindcss": "^4.3.3",
     "tw-animate-css": "1.3.3",

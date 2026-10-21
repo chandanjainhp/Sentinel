@@ -31,6 +31,9 @@ export function normalizeIncident(incident) {
     machine: incident.machine || null,
     correlation: incident.correlation || null,
     agentSummary: incident.agentSummary || null,
+    // Latest complete overnight investigation attached by GET /incidents/:id.
+    // Without it the incidents panel cannot show saved results after a reload.
+    investigationId: incident.investigationId || null,
     explanation,
   };
 }

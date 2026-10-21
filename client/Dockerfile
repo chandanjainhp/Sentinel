@@ -28,6 +28,12 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=production \
     API_UPSTREAM_URL=http://server:8000
 
+# Google Sign-In: NEXT_PUBLIC_* is inlined by `next build`, so the client id
+# must be a BUILD arg (runtime env / client/.env never reach this stage —
+# .dockerignore excludes .env). Empty value keeps the button disabled-but-clean.
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID=
+ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+
 RUN npm run build
 
 # --- runtime ---

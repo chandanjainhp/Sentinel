@@ -4,7 +4,7 @@ import http from "node:http";
 import mongoose from "mongoose";
 import app from "../app.js";
 import { connectDatabases, disconnectDatabases } from "../db/index.js";
-import { User } from "../models/user.models.js";
+import { User } from "../models/user.model.js";
 import {
   __setGoogleDiscoveryOverride,
   __resetGoogleDiscoveryOverride,

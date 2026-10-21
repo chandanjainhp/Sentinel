@@ -5,9 +5,8 @@ import { devtools } from "zustand/middleware";
 
 // Initial state object for reset capability
 const initialState = {
-  jobId: null,
   jobIds: [],
-  jobStatus: "idle", // 'idle' | 'running' | 'complete' | 'failed'
+  jobStatus: "idle", // 'idle' | 'queued' | 'running' | 'complete' | 'failed'
 
   investigationStats: {
     totalIncidents: 0,
@@ -24,7 +23,6 @@ export const useInvestigationStore = create(
     (set, get) => ({
       ...initialState,
 
-      setJobId: (jobId) => set({ jobId }, false, "setJobId"),
       setJobIds: (jobIds = []) => set({ jobIds }, false, "setJobIds"),
 
       setJobStatus: (status) =>

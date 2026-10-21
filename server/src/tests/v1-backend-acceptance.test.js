@@ -1,9 +1,10 @@
 import { describe, it, beforeAll, afterAll, expect } from "bun:test";
+import { createHash } from "node:crypto";
 import mongoose from "mongoose";
 import app from "../app.js";
 import { connectDatabases, disconnectDatabases } from "../db/index.js";
 import { startWorker, stopWorker } from "../queues/worker.js";
-import { User } from "../models/user.models.js";
+import { User } from "../models/user.model.js";
 import { Site } from "../models/site.model.js";
 import { Machine } from "../models/machine.model.js";
 import { Sensor } from "../models/sensor.model.js";
@@ -722,7 +723,7 @@ describe("Sentinel Single-User Backend Test Suite", () => {
     const knownSecret = "sk_deadbeef_" + "a".repeat(48);
     await ApiKey.updateOne(
       { userId: (await User.findOne({ email: "owner@factory.com" }))._id },
-      { $set: { hashedSecret: require("crypto").createHash("sha256").update(knownSecret).digest("hex") } }
+      { $set: { hashedSecret: createHash("sha256").update(knownSecret).digest("hex") } }
     );
 
     const endpoints = [

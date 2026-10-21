@@ -2,6 +2,7 @@ import Redis from 'ioredis';
 import { startPredictionWorker, stopPredictionWorker } from './prediction.worker.js';
 import { startArgusExplainWorker, stopArgusExplainWorker } from './argus-explain.worker.js';
 import { startInvestigationWorker, stopInvestigationWorker } from './investigation.worker.js';
+import { resolveInvestigationQueueName } from './investigation.queue.js';
 
 /**
  * Background workers for Sentinel.
@@ -80,7 +81,9 @@ export const startWorker = async () => {
     console.log('[Worker] ✓ Argus explain worker started (queue: argus-explain)');
 
     startInvestigationWorker(workerRedisConnection);
-    console.log('[Worker] ✓ Investigation worker started (queue: investigations)');
+    console.log(
+      `[Worker] ✓ Investigation worker started (queue: ${resolveInvestigationQueueName()})`
+    );
   } catch (error) {
     console.error('[Worker] Failed to start worker:', error);
     throw error;

@@ -5,7 +5,7 @@ import { Incident } from "../models/incident.model.js";
 import { Prediction } from "../models/prediction.model.js";
 import { Site } from "../models/site.model.js";
 import { Machine } from "../models/machine.model.js";
-import { User } from "../models/user.models.js";
+import { User } from "../models/user.model.js";
 import { explainIncident, _setLLMDriverForTests } from "../services/argus-explain.service.js";
 
 /**

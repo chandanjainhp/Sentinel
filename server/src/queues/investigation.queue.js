@@ -1,8 +1,13 @@
 import { Queue, QueueEvents } from 'bullmq';
 import { getRedis } from '../db/redis.js';
 
-// Queue name constant
-const INVESTIGATION_QUEUE_NAME = 'investigations';
+// One source of truth for the queue name. The producer and the worker MUST
+// resolve the same value, otherwise jobs are enqueued on a queue nobody
+// consumes (which is exactly what happened when only one side read the env).
+const DEFAULT_INVESTIGATION_QUEUE_NAME = 'investigations';
+
+export const resolveInvestigationQueueName = (env = process.env) =>
+  env.INVESTIGATION_QUEUE_NAME || DEFAULT_INVESTIGATION_QUEUE_NAME;
 
 /**
  * Initialize and export the investigations queue
@@ -21,7 +26,7 @@ export const getInvestigationQueue = () => {
       throw new Error('Redis client not initialized. Call connectRedis() first.');
     }
 
-    investigationQueue = new Queue(INVESTIGATION_QUEUE_NAME, {
+    investigationQueue = new Queue(resolveInvestigationQueueName(), {
       connection: redisClient,
       defaultJobOptions: {
         removeOnComplete: true,
@@ -142,7 +147,7 @@ export const getJobStatus = async (jobId) => {
 export const subscribeToJobProgress = (jobId, onProgress, onComplete, onFailed) => {
   try {
     const queue = getInvestigationQueue();
-    const queueEvents = new QueueEvents(INVESTIGATION_QUEUE_NAME, {
+    const queueEvents = new QueueEvents(resolveInvestigationQueueName(), {
       connection: getRedis(),
     });
 

@@ -1,16 +1,22 @@
+// First import on purpose: ESM evaluates imports in order, so .env is loaded
+// before app.js (and every other module) reads process.env at import time.
+import 'dotenv/config';
+
 import * as Sentry from '@sentry/node';
-import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import logger from './utils/logger.js';
-
-// Load environment variables BEFORE importing app.js
-// In ESM, imports are evaluated before the module body runs,
-// so dotenv.config() must be called before any imports that depend on env vars
-dotenv.config({ path: './.env' });
+import { assertSecretsConfigured } from './config/secrets.js';
 
 import app from './app.js';
 import { connectDatabases, disconnectDatabases } from './db/index.js';
 import { startWorker, stopWorker } from './queues/worker.js';
+
+try {
+  assertSecretsConfigured();
+} catch (error) {
+  logger.error({ err: error }, 'Invalid configuration');
+  process.exit(1);
+}
 
 Sentry.init({
   dsn: process.env.SENTRY_DSN,

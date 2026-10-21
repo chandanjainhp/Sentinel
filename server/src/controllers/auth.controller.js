@@ -1,4 +1,4 @@
-import { User } from "../models/user.models.js";
+import { User } from "../models/user.model.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
 import { asyncHandler } from "../utils/async-handler.js";
@@ -11,6 +11,7 @@ import {
 import { assertEligibleForAccountCreation } from "../utils/age-gate.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import { refreshTokenSecret } from "../config/secrets.js";
 
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
@@ -313,6 +314,9 @@ const logoutUser = asyncHandler(async (req, res) => {
       $set: {
         refreshToken: "",
       },
+      // Access tokens are stateless and outlive this request by up to 15m;
+      // bumping the version is what actually revokes them at logout.
+      $inc: { tokenVersion: 1 },
     },
     {
       new: true,
@@ -414,49 +418,46 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Unauthorized access");
   }
 
+  let user;
   try {
-    const decodedToken = jwt.verify(
-      incomingRefreshToken,
-      // Same fallback as generateRefreshToken (user.models.js) — verify must
-      // use the exact key the token was signed with when the env is unset.
-      process.env.REFRESH_TOKEN_SECRET || "default-refresh-secret",
-    );
-
-    const user = await User.findById(decodedToken?._id);
-    if (!user) {
-      throw new ApiError(401, "Invalid refresh token");
-    }
-
-    if (incomingRefreshToken !== user?.refreshToken) {
-      throw new ApiError(401, "Refresh token has expired");
-    }
-
-    const options = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-    };
-
-    const { accessToken, refreshToken: newRefreshToken } =
-      await generateAccessAndRefreshTokens(user._id);
-
-    user.refreshToken = newRefreshToken;
-    await user.save();
-
-    return res
-      .status(200)
-      .cookie("accessToken", accessToken, options)
-      .cookie("refreshToken", newRefreshToken, options)
-      .json(
-        new ApiResponse(
-          200,
-          { refreshed: true },
-          "Access token refreshed",
-        ),
-      );
-  } catch (error) {
+    const decodedToken = jwt.verify(incomingRefreshToken, refreshTokenSecret());
+    user = await User.findById(decodedToken?._id);
+  } catch {
     throw new ApiError(401, "Invalid refresh token");
   }
+
+  if (!user) {
+    throw new ApiError(401, "Invalid refresh token");
+  }
+
+  const options = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+  };
+
+  const accessToken = user.generateAccessToken();
+  const newRefreshToken = user.generateRefreshToken();
+
+  // Compare-and-swap on the stored token: the presented token is the guard, so
+  // a replay (or two concurrent refreshes) cannot both rotate successfully.
+  const rotated = await User.findOneAndUpdate(
+    { _id: user._id, refreshToken: incomingRefreshToken },
+    { $set: { refreshToken: newRefreshToken } },
+    { new: true, projection: { _id: 1 } },
+  );
+
+  if (!rotated) {
+    throw new ApiError(401, "Refresh token has expired");
+  }
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", newRefreshToken, options)
+    .json(
+      new ApiResponse(200, { refreshed: true }, "Access token refreshed"),
+    );
 });
 
 const forgotPasswordRequest = asyncHandler(async (req, res) => {
@@ -509,7 +510,7 @@ const resetForgotPassword = asyncHandler(async (req, res) => {
   });
 
   if (!user) {
-    throw new ApiError(489, "Token is invalid or expired");
+    throw new ApiError(400, "Token is invalid or expired");
   }
 
   user.forgotPasswordExpiry = undefined;

@@ -28,7 +28,7 @@ beforeAll(async () => {
   const collections = await mongoose.connection.db.collections();
   for (const c of collections) await c.deleteMany({});
 
-  const { User } = await import("../models/user.models.js");
+  const { User } = await import("../models/user.model.js");
   const { Site } = await import("../models/site.model.js");
   const { Machine } = await import("../models/machine.model.js");
 

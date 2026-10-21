@@ -18,6 +18,7 @@ import eventRoutes from "./routes/event.routes.js";
 import predictionRoutes from "./routes/prediction.routes.js";
 import incidentRoutes from "./routes/incident.routes.js";
 import investigationRoutes from "./routes/investigation.routes.js";
+import briefingRoutes from "./routes/briefing.routes.js";
 import testRoutes from "./routes/test.routes.js";
 
 const app = express();
@@ -66,6 +67,7 @@ app.use("/api/v1/events", eventRoutes);
 app.use("/api/v1/predictions", predictionRoutes);
 app.use("/api/v1/incidents", incidentRoutes);
 app.use("/api/v1/investigations", investigationRoutes);
+app.use("/api/v1/briefings", briefingRoutes);
 
 // DEVELOPMENT ONLY — test routes. Never mounted in production: the seed
 // helper must not exist on a deployed instance.

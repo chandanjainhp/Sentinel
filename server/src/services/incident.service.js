@@ -33,7 +33,7 @@ import mongoose from "mongoose";
  * The embedded worker runs jobs for a machine's events concurrently, so the
  * race is real (proven by adversarial-incidents.test.js). Chaining per-machine
  * promises closes it within this process. NOTE: a multi-replica deployment
- * needs a Mongo partial unique index instead — tracked in BUGS_FOUND.md.
+ * needs a Mongo partial unique index instead — see docs/audit-fixes.md.
  */
 const machineChains = new Map();
 

@@ -282,7 +282,7 @@ function clearDraft() {
 
 export default function AddSensorModal({ open, onOpenChange, summary }) {
   const queryClient = useQueryClient();
-  const draft = useMemo(loadDraft, []);
+  const draft = useMemo(() => loadDraft(), []);
   // A saved step 3 means the sensor was already created — resume at step 1
   // rather than re-running the create step.
   const [step, setStep] = useState(draft?.step === 2 ? 2 : 1);

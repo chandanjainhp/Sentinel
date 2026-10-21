@@ -23,6 +23,7 @@ import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
+import { createApi } from "./demo-api.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -72,20 +73,7 @@ const pause = async (msg) => {
 
 const say = (line) => console.log(`\n${line}`);
 
-const api = async (method, p, { cookie, key, body } = {}) => {
-  const res = await fetch(`${API}${p}`, {
-    method,
-    headers: {
-      ...(body ? { "Content-Type": "application/json" } : {}),
-      ...(cookie ? { Cookie: cookie } : {}),
-      ...(key ? { Authorization: `Bearer ${key}` } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  let json = null;
-  try { json = await res.json(); } catch { /* non-JSON */ }
-  return { status: res.status, json, setCookie: res.headers.get("set-cookie") };
-};
+const api = createApi(API);
 
 const waitUntil = async (describe, fn, timeoutMs, intervalMs = 1500) => {
   const start = Date.now();

@@ -55,10 +55,14 @@ computes Docker-network URLs itself.
   maps host.docker.internal). `MOCK_AI=true` for fully offline.
 - Email/SMTP: `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASSWORD`,
   `EMAIL_FROM_EMAIL`, `EMAIL_FROM_NAME`
-- Google login: `GOOGLE_CLIENT_ID`
+- Google login: `GOOGLE_CLIENT_ID` **and** `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (same
+  value). The latter is a client **build** arg — compose reads it from this env
+  file and bakes it into the client bundle at `next build`; without it the
+  "Continue with Google" button does not render in production.
 - Misc: `LOG_LEVEL`, `MAX_SENSORS`, `ML_TIMEOUT_MS`, `SENTRY_DSN`
 
-The client needs NO .env in Docker — compose sets `API_UPSTREAM_URL`.
+The client needs NO .env in Docker — compose sets `API_UPSTREAM_URL` (and bakes
+`NEXT_PUBLIC_GOOGLE_CLIENT_ID` from this env file as a build arg).
 
 ## Step 2 — Create the PC override `docker-compose.pc.yml` (repo root)
 

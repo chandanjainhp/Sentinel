@@ -179,8 +179,11 @@ api.interceptors.response.use(
       throw expiredError;
     }
 
-    // Attempt token refresh on 401 (only if not already retrying)
-    if (statusCode === 401 && !originalRequest._retry) {
+    // Attempt token refresh on 401 (only if not already retrying). The refresh
+    // call itself opts out: without that, its own 401 would queue behind the
+    // in-flight refresh and never reject, so the redirect below never ran and
+    // a stale/forged session cookie left the app stuck on a loading screen.
+    if (statusCode === 401 && !originalRequest._retry && !originalRequest._skipAuthRefresh) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -212,7 +215,7 @@ api.interceptors.response.use(
       }
 
       try {
-        await api.post("/auth/refresh-token", {});
+        await api.post("/auth/refresh-token", {}, { _skipAuthRefresh: true });
         processQueue(null, true);
         return api(originalRequest);
       } catch (refreshError) {
@@ -286,7 +289,7 @@ export const logoutUser = async () => {
 };
 
 export const refreshAccessToken = async () =>
-  api.post("/auth/refresh-token", {});
+  api.post("/auth/refresh-token", {}, { _skipAuthRefresh: true });
 
 // Dashboard — all /overview numbers come from this single server-side
 // aggregation (fleet health counts, open incidents, predicted risk). The
@@ -332,7 +335,11 @@ export const getIncidentEvidenceGraph = async (id) => api.get(`/incidents/${id}/
 export const explainIncident = async (id) => api.post(`/incidents/${id}/explain`);
 
 // Briefing
+export const generateBriefing = async (nightDate) =>
+  api.post("/briefings/generate", { nightDate });
 export const getLatestBriefing = async (nightDate) => api.get(`/briefings/latest`, { params: { nightDate } });
+export const listBriefings = async (params) => api.get("/briefings", { params });
+export const getBriefingById = async (briefingId) => api.get(`/briefings/${briefingId}`);
 export const updateBriefingSection = async (briefingId, { sectionName, content }) =>
   api.patch(`/briefings/${briefingId}/sections/${sectionName}`, { content });
 export const approveBriefing = async (briefingId) => api.post(`/briefings/${briefingId}/approve`);

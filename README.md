@@ -483,6 +483,9 @@ need the same OAuth Client ID:
 GOOGLE_CLIENT_ID=1234...apps.googleusercontent.com
 # client/.env (public by design; inlined at build time)
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=1234...apps.googleusercontent.com
+# Docker/Pi 5: also put NEXT_PUBLIC_GOOGLE_CLIENT_ID in server/.env — compose
+# passes it as a client build arg (it is inlined by `next build`; runtime env
+# and client/.env never reach the image build context).
 ```
 
 In Google Cloud, create a **Web application** OAuth client with your origins authorized

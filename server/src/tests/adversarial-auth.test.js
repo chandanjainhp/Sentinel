@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 import app from "../app.js";
 import { connectDatabases, disconnectDatabases } from "../db/index.js";
 import { startWorker, stopWorker } from "../queues/worker.js";
-import { User } from "../models/user.models.js";
+import { User } from "../models/user.model.js";
 
 /**
  * Adversarial Scope B.1 — auth/authz edge cases over real HTTP.

@@ -131,6 +131,10 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_* is inlined at `next build` — supplied from the same
+        # --env-file server/.env as the server's GOOGLE_CLIENT_ID.
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
     restart: unless-stopped
     environment:
       NODE_ENV: production
