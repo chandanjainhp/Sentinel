@@ -12,6 +12,7 @@ import AgentFeed from "@/components/agent/AgentFeed";
 import EventPanel from "@/components/events/EventPanel";
 import SeverityBadge from "@/components/events/SeverityBadge";
 import { Activity, ShieldAlert, Calendar, Play } from "lucide-react";
+import { previousReportingDate } from "@/lib/reporting-window";
 
 const MONO = "var(--font-mono)";
 const SANS = "var(--font-sans)";
@@ -19,9 +20,7 @@ const SANS = "var(--font-sans)";
 function useNightDate() {
   return useMemo(() => {
     if (process.env.NEXT_PUBLIC_SEED_NIGHT_DATE) return process.env.NEXT_PUBLIC_SEED_NIGHT_DATE;
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return previousReportingDate();
   }, []);
 }
 

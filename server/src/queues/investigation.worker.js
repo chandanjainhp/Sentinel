@@ -33,6 +33,10 @@ export const startInvestigationWorker = (connection) => {
         throw new Error(`Investigation doc ${investigationId} not found`);
       }
 
+      if (doc.status === "complete") {
+        return { investigationId, status: "complete", toolCalls: doc.totalToolCalls || 0 };
+      }
+
       doc.status = "running";
       await doc.save({ validateBeforeSave: false });
 

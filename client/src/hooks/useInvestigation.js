@@ -5,6 +5,7 @@ import { useInvestigationStore } from "@/store/investigationStore";
 import { incidentQueryKey } from "@/store/incidentFilterStore";
 import { toast } from "sonner";
 import { useEffect } from "react";
+import { previousReportingDate, reportingWindow } from "@/lib/reporting-window";
 
 export function useStartInvestigation(options = {}) {
   const setJobIds = useInvestigationStore((state) => state.setJobIds);
@@ -19,14 +20,7 @@ export function useStartInvestigation(options = {}) {
         typeof input === "string"
           ? input
           : input?.nightDate ||
-            (() => {
-              const d = new Date();
-              d.setDate(d.getDate() - 1);
-              const year = d.getFullYear();
-              const month = String(d.getMonth() + 1).padStart(2, "0");
-              const day = String(d.getDate()).padStart(2, "0");
-              return `${year}-${month}-${day}`;
-            })();
+            previousReportingDate();
 
       return startInvestigation(nightDate);
     },
@@ -126,9 +120,13 @@ export function useNightInvestigations(jobIds = []) {
 }
 
 export function useNightSummary(nightDate, options = {}) {
+  const window = reportingWindow(nightDate);
   return useQuery({
     queryKey: ["incidents", incidentQueryKey({ nightDate })],
-    queryFn: () => getIncidents({ nightDate }),
+    queryFn: () => getIncidents(window ? {
+      from: window.from.toISOString(),
+      to: new Date(window.to.getTime() - 1).toISOString(),
+    } : {}),
     select: (data) => {
       const raw = Array.isArray(data) ? data : [];
       const incidents = raw.map((i) => ({

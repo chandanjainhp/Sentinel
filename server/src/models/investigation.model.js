@@ -138,6 +138,7 @@ const investigationSchema = new mongoose.Schema(
 // Indexes for common queries
 investigationSchema.index({ nightDate: 1, status: 1 });
 investigationSchema.index({ status: 1, createdAt: -1 });
+investigationSchema.index({ incidentId: 1, nightDate: 1 }, { unique: true });
 
 // Ensure virtuals are included in JSON output
 investigationSchema.set('toJSON', { virtuals: true });

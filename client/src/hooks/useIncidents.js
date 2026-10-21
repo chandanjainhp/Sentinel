@@ -7,6 +7,7 @@ import {
 } from "@/lib/api";
 import { normalizeIncident } from "@/lib/projectContext";
 import { incidentQueryKey } from "@/store/incidentFilterStore";
+import { reportingWindow } from "@/lib/reporting-window";
 
 function normalizeList(data) {
   const raw = Array.isArray(data)
@@ -49,10 +50,12 @@ export function useIncidents(filters = {}, options = {}) {
 
   const nightWindow = key.nightDate
     ? (() => {
-        const from = new Date(`${key.nightDate}T00:00:00`);
-        const to = new Date(from.getTime() + 24 * 60 * 60 * 1000);
-        if (Number.isNaN(from.getTime())) return {};
-        return { from: from.toISOString(), to: to.toISOString() };
+        const window = reportingWindow(key.nightDate);
+        if (!window) return {};
+        const { from, to } = window;
+        // The API's `to` filter is inclusive; send the last millisecond of the
+        // UTC calendar day so the next midnight is not included.
+        return { from: from.toISOString(), to: new Date(to.getTime() - 1).toISOString() };
       })()
     : {};
 

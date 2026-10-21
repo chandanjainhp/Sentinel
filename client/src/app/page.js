@@ -168,85 +168,97 @@ const STAGES = [
   },
 ];
 
-function StageCard({ Icon, label, desc }) {
-  return (
-    <div
-      style={{
-        background: "var(--bg-surface-1)",
-        border: "1px solid var(--border-default)",
-        borderRadius: "var(--radius-sm, 4px)",
-        padding: "20px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "12px",
-        transition: "background var(--dur-fast, 120ms)",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "var(--bg-surface-2)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "var(--bg-surface-1)";
-      }}
-    >
-      <Icon size={24} color="var(--accent)" aria-hidden="true" />
-      <div
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: "10px",
-          fontWeight: 600,
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
-          color: "var(--fg-1)",
-        }}
-      >
-        {label}
-      </div>
-      <p
-        style={{
-          fontFamily: "var(--font-sans)",
-          fontSize: "13px",
-          color: "var(--fg-3)",
-          lineHeight: 1.55,
-          margin: 0,
-        }}
-      >
-        {desc}
-      </p>
-    </div>
-  );
-}
-
 function StageRow() {
   return (
-    <div
-      className="stage-row"
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 24px 1fr 24px 1fr 24px 1fr",
-        alignItems: "stretch",
-        gap: "0",
-      }}
-    >
-      {STAGES.map((s, i) => (
-        <React.Fragment key={s.label}>
-          <StageCard {...s} />
-          {i < STAGES.length - 1 && (
+    <div className="stage-track" style={{ position: "relative" }}>
+      {/* the signal path — one continuous line the stages sit on */}
+      <div
+        aria-hidden="true"
+        className="stage-track-line"
+        style={{
+          position: "absolute",
+          top: "19px",
+          left: "19px",
+          right: "19px",
+          height: "1px",
+          background:
+            "linear-gradient(90deg, var(--accent) 0%, var(--border-default) 100%)",
+        }}
+      />
+      <div
+        className="stage-track-grid"
+        style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${STAGES.length}, 1fr)`,
+          position: "relative",
+        }}
+      >
+        {STAGES.map((s, i) => (
+          <div
+            key={s.label}
+            className="stage-node"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              paddingRight: i < STAGES.length - 1 ? "20px" : 0,
+            }}
+          >
             <div
-              aria-hidden="true"
-              className="stage-arrow"
               style={{
-                color: "var(--accent)",
-                fontFamily: "var(--font-mono)",
-                fontSize: "22px",
-                textAlign: "center",
-                alignSelf: "center",
+                width: "38px",
+                height: "38px",
+                borderRadius: "50%",
+                background: "var(--bg-base)",
+                border: `1px solid ${i === 0 ? "var(--accent)" : "var(--border-default)"}`,
+                display: "grid",
+                placeItems: "center",
+                flexShrink: 0,
+                marginBottom: "18px",
+                zIndex: 1,
               }}
             >
-              →
+              <s.Icon
+                size={16}
+                color={i === 0 ? "var(--accent)" : "var(--fg-2)"}
+                aria-hidden="true"
+              />
             </div>
-          )}
-        </React.Fragment>
-      ))}
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "10px",
+                color: "var(--fg-4)",
+                marginBottom: "6px",
+              }}
+            >
+              STAGE {String(i + 1).padStart(2, "0")}
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-sans)",
+                fontSize: "16px",
+                fontWeight: 500,
+                color: "var(--fg-1)",
+                marginBottom: "8px",
+              }}
+            >
+              {s.label}
+            </div>
+            <p
+              style={{
+                fontFamily: "var(--font-sans)",
+                fontSize: "13px",
+                color: "var(--fg-3)",
+                lineHeight: 1.55,
+                margin: 0,
+                maxWidth: "220px",
+              }}
+            >
+              {s.desc}
+            </p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -261,70 +273,70 @@ function RoleCard({
   ctaLabel,
   ctaHref,
   ctaColor,
+  first,
 }) {
   return (
     <div
+      className="role-row"
       style={{
-        background: "var(--bg-surface-1)",
-        border: "1px solid var(--border-default)",
-        borderRadius: "var(--radius-sm, 4px)",
-        padding: "24px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "10px",
-        transition: "background var(--dur-fast, 120ms)",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "var(--bg-surface-2)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "var(--bg-surface-1)";
+        display: "grid",
+        gridTemplateColumns: "140px 1fr auto",
+        alignItems: "center",
+        gap: "24px",
+        padding: "28px 0",
+        borderTop: first ? "1px solid var(--border-default)" : "1px solid var(--border-hairline)",
       }}
     >
-      <Icon size={28} color={iconColor} aria-hidden="true" />
-      <div
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: "11px",
-          fontWeight: 600,
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
-          color: labelColor,
-        }}
-      >
-        {label}
+      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <Icon size={18} color={iconColor} aria-hidden="true" />
+        <span
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "10px",
+            fontWeight: 600,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: labelColor,
+          }}
+        >
+          {label}
+        </span>
       </div>
-      <h3
-        style={{
-          fontFamily: "var(--font-sans)",
-          fontSize: "18px",
-          fontWeight: 500,
-          color: "var(--fg-1)",
-          margin: 0,
-        }}
-      >
-        {title}
-      </h3>
-      <p
-        style={{
-          fontFamily: "var(--font-sans)",
-          fontSize: "13px",
-          color: "var(--fg-3)",
-          lineHeight: 1.55,
-          margin: 0,
-          flex: 1,
-        }}
-      >
-        {desc}
-      </p>
+      <div>
+        <h3
+          style={{
+            fontFamily: "var(--font-sans)",
+            fontSize: "17px",
+            fontWeight: 500,
+            color: "var(--fg-1)",
+            margin: "0 0 4px",
+          }}
+        >
+          {title}
+        </h3>
+        <p
+          style={{
+            fontFamily: "var(--font-sans)",
+            fontSize: "13px",
+            color: "var(--fg-3)",
+            lineHeight: 1.55,
+            margin: 0,
+            maxWidth: "480px",
+          }}
+        >
+          {desc}
+        </p>
+      </div>
       <Link
         href={ctaHref}
+        className="role-row-cta"
         style={{
-          marginTop: "10px",
-          fontSize: "14px",
+          fontSize: "13px",
           fontWeight: 500,
           color: ctaColor,
           textDecoration: "none",
+          whiteSpace: "nowrap",
+          justifySelf: "end",
         }}
       >
         {ctaLabel}
@@ -333,66 +345,86 @@ function RoleCard({
   );
 }
 
-function StepCard({ n, title, desc, ctaLabel, ctaHref }) {
+function StepCard({ n, title, desc, ctaLabel, ctaHref, last }) {
   return (
     <div
-      style={{
-        background: "var(--bg-surface-2)",
-        border: "1px solid var(--border-default)",
-        borderRadius: "var(--radius-sm, 4px)",
-        padding: "24px",
-        display: "flex",
-        flexDirection: "column",
-        gap: "10px",
-      }}
+      className="step-item"
+      style={{ display: "grid", gridTemplateColumns: "40px 1fr", gap: "20px" }}
     >
       <div
         style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: "32px",
-          fontWeight: 700,
-          color: "var(--fg-4)",
-          letterSpacing: "-0.02em",
-          lineHeight: 1,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
         }}
       >
-        {n}
+        <div
+          style={{
+            width: "40px",
+            height: "40px",
+            borderRadius: "50%",
+            border: "1px solid var(--accent)",
+            display: "grid",
+            placeItems: "center",
+            flexShrink: 0,
+            fontFamily: "var(--font-mono)",
+            fontSize: "14px",
+            fontWeight: 700,
+            color: "var(--accent)",
+          }}
+        >
+          {n}
+        </div>
+        {!last && (
+          <div
+            aria-hidden="true"
+            className="step-connector"
+            style={{
+              width: "1px",
+              flex: 1,
+              minHeight: "40px",
+              background: "var(--border-default)",
+              marginTop: "4px",
+            }}
+          />
+        )}
       </div>
-      <h3
-        style={{
-          fontFamily: "var(--font-sans)",
-          fontSize: "17px",
-          fontWeight: 500,
-          color: "var(--fg-1)",
-          margin: 0,
-        }}
-      >
-        {title}
-      </h3>
-      <p
-        style={{
-          fontFamily: "var(--font-sans)",
-          fontSize: "13px",
-          color: "var(--fg-3)",
-          lineHeight: 1.55,
-          margin: 0,
-          flex: 1,
-        }}
-      >
-        {desc}
-      </p>
-      <Link
-        href={ctaHref}
-        style={{
-          marginTop: "8px",
-          fontSize: "14px",
-          fontWeight: 500,
-          color: "var(--accent)",
-          textDecoration: "none",
-        }}
-      >
-        {ctaLabel}
-      </Link>
+      <div style={{ paddingBottom: last ? 0 : "32px" }}>
+        <h3
+          style={{
+            fontFamily: "var(--font-sans)",
+            fontSize: "18px",
+            fontWeight: 500,
+            color: "var(--fg-1)",
+            margin: "6px 0 6px",
+          }}
+        >
+          {title}
+        </h3>
+        <p
+          style={{
+            fontFamily: "var(--font-sans)",
+            fontSize: "13px",
+            color: "var(--fg-3)",
+            lineHeight: 1.55,
+            margin: "0 0 10px",
+            maxWidth: "460px",
+          }}
+        >
+          {desc}
+        </p>
+        <Link
+          href={ctaHref}
+          style={{
+            fontSize: "14px",
+            fontWeight: 500,
+            color: "var(--accent)",
+            textDecoration: "none",
+          }}
+        >
+          {ctaLabel}
+        </Link>
+      </div>
     </div>
   );
 }
@@ -1327,14 +1359,9 @@ export default function LandingPage() {
             No organizations, no roles, no admin panels. Your account owns sites, machines, sensors, events, and incidents — top to bottom.
           </p>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-              gap: "16px",
-            }}
-          >
+          <div>
             <RoleCard
+              first
               Icon={Shield}
               iconColor="var(--accent)"
               labelColor="var(--accent)"
@@ -1407,13 +1434,7 @@ export default function LandingPage() {
             From zero to your first briefing in 5 minutes.
           </h2>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-              gap: "16px",
-            }}
-          >
+          <div style={{ maxWidth: "560px" }}>
             <StepCard
               n="01"
               title="Create your site"
@@ -1434,6 +1455,7 @@ export default function LandingPage() {
               desc="Generate your API key, paste the ready-made curl from the Connect step, and watch the sensor flip to Connected — live."
               ctaLabel="API reference →"
               ctaHref="/docs#api"
+              last
             />
           </div>
 
@@ -1483,12 +1505,22 @@ export default function LandingPage() {
           .landing-nav {
             display: none !important;
           }
-          .stage-row {
+          .stage-track-grid {
             grid-template-columns: 1fr !important;
+            gap: 28px;
           }
-          .stage-arrow {
-            transform: rotate(90deg);
-            padding: 8px 0;
+          .stage-track-line {
+            display: none;
+          }
+          .stage-node {
+            padding-right: 0 !important;
+          }
+          .role-row {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+          .role-row-cta {
+            justify-self: start !important;
           }
         }
         html { scroll-behavior: smooth; }

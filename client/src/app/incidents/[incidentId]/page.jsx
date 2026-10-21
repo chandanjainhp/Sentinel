@@ -5,9 +5,12 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getIncidentDetail, updateIncidentStatus } from "@/lib/api";
+import { useIncidentEvidenceGraph, useIncidentExplain } from "@/hooks/useIncidents";
 import { healthMeta } from "@/lib/health";
 import HealthDot from "@/components/brand/HealthDot";
 import ArgusExplanation from "@/components/incident/ArgusExplanation";
+import EvidenceChain from "@/components/incident/EvidenceChain";
+import AgentReasoning from "@/components/incident/AgentReasoning";
 
 const MONO = "var(--font-mono)";
 const DISPLAY = "var(--font-display)";
@@ -216,6 +219,14 @@ export default function IncidentDetailPage() {
     enabled: Boolean(incidentId),
     staleTime: 15 * 1000,
     retry: 1,
+  });
+  const { data: evidenceGraph } = useIncidentEvidenceGraph(incidentId);
+  const queryClient = useQueryClient();
+  const {
+    mutate: regenerateExplanation,
+    isPending: isRegeneratingExplanation,
+  } = useIncidentExplain(incidentId, {
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["incident-detail", incidentId] }),
   });
 
   const incident = data?.incident;
@@ -443,8 +454,28 @@ export default function IncidentDetailPage() {
             }
           />
           <div>
-            <ArgusExplanation explanation={incident?.explanation ?? null} />
+            <ArgusExplanation
+              explanation={incident?.explanation ?? null}
+              onRegenerate={() => regenerateExplanation()}
+              isRegenerating={isRegeneratingExplanation}
+            />
           </div>
+
+          {/* Investigation evidence and reasoning from the overnight agent. */}
+          <SecHead index="06" title="Evidence Chain" />
+          <div style={{ marginBottom: 40 }}>
+            <EvidenceChain
+              steps={evidenceGraph?.steps || []}
+              classification={evidenceGraph?.classification || {}}
+            />
+          </div>
+
+          <SecHead index="07" title="Agent Reasoning" />
+          <AgentReasoning
+            reasoning={evidenceGraph?.classification?.reasoning || "No reasoning attached by agent."}
+            uncertainties={evidenceGraph?.classification?.uncertainties || []}
+            confidence={evidenceGraph?.classification?.confidence || 0}
+          />
         </>
       )}
     </div>
