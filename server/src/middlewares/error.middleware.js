@@ -3,7 +3,7 @@ import { ApiResponse } from "../utils/api-response.js";
 
 export const errorHandler = (error, _req, res, _next) => {
   let statusCode = error.statusCode || 500;
-  let message = error.message || "Internal server error";
+  let message = error instanceof ApiError ? error.message : "Internal server error";
   let errors = error.errors || [];
 
   if (!(error instanceof ApiError)) {
@@ -18,10 +18,6 @@ export const errorHandler = (error, _req, res, _next) => {
 
   const response = new ApiResponse(statusCode, null, message);
   response.errors = errors;
-
-  if (process.env.NODE_ENV !== "production" && error.stack) {
-    response.stack = error.stack;
-  }
 
   return res.status(statusCode).json(response);
 };

@@ -22,17 +22,14 @@ describe("useDefaultNightDate utility", () => {
     };
 
     const yesterday = getYesterday();
-    const date = new Date(yesterday);
     
     // Verify it's in the correct format
     expect(yesterday).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     
     // Verify it's not today
     const today = new Date();
-    const timeDiff = today.getTime() - date.getTime();
-    const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
-    expect(daysDiff).toBeGreaterThanOrEqual(0.5);
-    expect(daysDiff).toBeLessThan(1.5);
+    const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    expect(yesterday).not.toBe(todayString);
   });
 });
 

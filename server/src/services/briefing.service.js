@@ -134,12 +134,16 @@ export const buildBriefingSections = ({ nightDate, incidents, investigations, ma
 };
 
 /** Resolve a public briefingId or a raw ObjectId (same convenience as incidents). */
-const findBriefingDoc = async (briefingId) => {
+const briefingLookup = (briefingId) => {
   if (/^[a-f\d]{24}$/i.test(briefingId)) {
-    const byId = await Briefing.findById(briefingId);
-    if (byId) return byId;
+    return { $or: [{ _id: briefingId }, { briefingId }] };
   }
-  return Briefing.findOne({ briefingId });
+  return { briefingId };
+};
+
+const findBriefingDoc = async (briefingId) => {
+  const lookup = briefingLookup(briefingId);
+  return Briefing.findOne(lookup);
 };
 
 const loadOwnedBriefing = async (briefingId, userFilter = {}) => {
@@ -227,41 +231,45 @@ export const getBriefingById = async (briefingId, userFilter = {}) =>
   loadOwnedBriefing(briefingId, userFilter);
 
 export const updateBriefingSection = async ({ briefingId, sectionName, content, userFilter }) => {
-  const doc = await loadOwnedBriefing(briefingId, userFilter);
+  const updated = await Briefing.findOneAndUpdate(
+    { ...userFilter, ...briefingLookup(briefingId), status: BRIEFING_STATUS.DRAFT, "sections.name": sectionName },
+    {
+      $set: {
+        "sections.$.content": content,
+        "sections.$.lastEditedAt": new Date(),
+      },
+    },
+    { new: true, runValidators: true },
+  );
+  if (updated) return updated;
 
+  const doc = await loadOwnedBriefing(briefingId, userFilter);
   if (doc.status === BRIEFING_STATUS.APPROVED) {
     throw new ApiError(409, "Briefing is approved and can no longer be edited");
   }
   if (doc.status === BRIEFING_STATUS.GENERATING) {
     throw new ApiError(409, "Briefing is still being generated");
   }
-
-  const section = doc.sections.find((s) => s.name === sectionName);
-  if (!section) {
-    throw new ApiError(400, `Section "${sectionName}" is not part of this briefing`);
-  }
-
-  section.content = content;
-  section.lastEditedAt = new Date();
-  await doc.save();
-
-  return doc;
+  throw new ApiError(400, `Section "${sectionName}" is not part of this briefing`);
 };
 
 export const approveBriefing = async ({ briefingId, userId, userFilter }) => {
-  const doc = await loadOwnedBriefing(briefingId, userFilter);
+  const approved = await Briefing.findOneAndUpdate(
+    { ...userFilter, ...briefingLookup(briefingId), status: BRIEFING_STATUS.DRAFT },
+    {
+      $set: {
+        status: BRIEFING_STATUS.APPROVED,
+        approvedAt: new Date(),
+        approvedBy: userId,
+      },
+    },
+    { new: true, runValidators: true },
+  );
+  if (approved) return approved;
 
+  const doc = await loadOwnedBriefing(briefingId, userFilter);
   if (doc.status === BRIEFING_STATUS.APPROVED) {
     throw new ApiError(409, "Briefing is already approved");
   }
-  if (doc.status !== BRIEFING_STATUS.DRAFT) {
-    throw new ApiError(409, `Briefing cannot be approved while it is ${doc.status}`);
-  }
-
-  doc.status = BRIEFING_STATUS.APPROVED;
-  doc.approvedAt = new Date();
-  doc.approvedBy = userId;
-  await doc.save();
-
-  return doc;
+  throw new ApiError(409, `Briefing cannot be approved while it is ${doc.status}`);
 };
