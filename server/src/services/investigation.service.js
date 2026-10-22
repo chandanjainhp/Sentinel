@@ -11,6 +11,7 @@ import { getAIClient, getAIProviderName, getModelName } from "../utils/anthropic
 import { withTimeout } from "../utils/with-timeout.js";
 import { getMlTimeoutMs } from "./ml-contract.service.js";
 import logger from "../utils/logger.js";
+import { recordInvestigationOutcome } from "../utils/metrics.js";
 
 const LLM_MAX_TOKENS = 2400;
 const INVESTIGATION_LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS || 15000);
@@ -178,21 +179,38 @@ export const startInvestigation = async ({ userId, nightDate, dispatch = dispatc
   }
 
   const incidentIds = incidents.map((incident) => incident._id);
-  const existing = await Investigation.find({ nightDate, incidentId: { $in: incidentIds } });
+
+  // Find existing investigations - include both new (with userId) and old (without userId) formats
+  const existing = await Investigation.find({
+    nightDate,
+    incidentId: { $in: incidentIds },
+    $or: [
+      { userId }, // New investigations with userId
+      { userId: { $exists: false } }, // Legacy investigations without userId
+    ],
+  });
   const byIncident = new Map(existing.map((doc) => [String(doc.incidentId), doc]));
 
-  // The unique (incidentId, nightDate) index is the cross-request lock. A
+  // The unique (userId, incidentId, nightDate) index is the cross-request lock. A
   // loser of a concurrent create simply reloads the winner's document.
   for (const incident of incidents) {
     if (byIncident.has(String(incident._id))) continue;
     try {
-      const doc = await Investigation.create({ incidentId: incident._id, nightDate, status: "queued" });
+      const doc = await Investigation.create({ userId, incidentId: incident._id, nightDate, status: "queued" });
       doc.jobId = String(doc._id);
       await doc.save({ validateBeforeSave: false });
       byIncident.set(String(incident._id), doc);
     } catch (error) {
       if (error?.code !== 11000) throw error;
-      const doc = await Investigation.findOne({ incidentId: incident._id, nightDate });
+      // Retry with userId filter for new format, or without for legacy
+      const doc = await Investigation.findOne({
+        nightDate,
+        incidentId: incident._id,
+        $or: [
+          { userId },
+          { userId: { $exists: false } },
+        ],
+      });
       if (!doc) throw error;
       byIncident.set(String(incident._id), doc);
     }
@@ -233,13 +251,25 @@ export const getInvestigationById = async (investigationId, userFilter = {}) => 
     throw new ApiError(404, "Investigation not found");
   }
 
-  // Ownership: the incident belongs to the requesting user.
-  const incident = await Incident.findOne({
-    _id: doc.incidentId,
-    ...(userFilter.userId ? { userId: userFilter.userId } : {}),
-  }).lean();
-  if (!incident) {
-    throw new ApiError(404, "Investigation not found");
+  // Ownership: the investigation must belong to the requesting user.
+  if (!userFilter.userId) {
+    throw new ApiError(403, "Authentication required");
+  }
+
+  // New investigations have userId directly; old ones validate via incident ownership
+  if (doc.userId) {
+    if (String(doc.userId) !== String(userFilter.userId)) {
+      throw new ApiError(403, "Investigation not found");
+    }
+  } else {
+    // Legacy investigations: validate via incident ownership
+    const incident = await Incident.findOne({
+      _id: doc.incidentId,
+      userId: userFilter.userId,
+    }).lean();
+    if (!incident) {
+      throw new ApiError(404, "Investigation not found");
+    }
   }
 
   return doc;

@@ -128,6 +128,7 @@ describe("investigation start durability", () => {
     const retryNight = "2026-01-04";
     const incident = await makeIncident("2026-01-04T13:00:00.000Z");
     const failed = await Investigation.create({
+      userId: seeded.user._id,
       incidentId: incident._id,
       nightDate: retryNight,
       status: "failed",
@@ -156,7 +157,7 @@ describe("investigation start durability", () => {
 describe("investigation worker evidence", () => {
   it("does not expose an investigation to another user's read scope", async () => {
     const incident = await makeIncident("2026-01-02T09:00:00.000Z");
-    const doc = await Investigation.create({ incidentId: incident._id, nightDate, status: "queued" });
+    const doc = await Investigation.create({ userId: seeded.user._id, incidentId: incident._id, nightDate, status: "queued" });
     const otherUser = await User.create({ email: `reader-${suffix}@factory.com`, username: `reader_${suffix}`, password: "Password123!" });
     await expect(getInvestigationById(String(doc._id), { userId: otherUser._id })).rejects.toThrow("Investigation not found");
     await User.deleteOne({ _id: otherUser._id });
@@ -171,7 +172,7 @@ describe("investigation worker evidence", () => {
     expect(trace.events).toBe(1);
     expect(trace.stats[0]).toMatchObject({ min: 10, max: 10, samples: 1 });
 
-    const doc = await Investigation.create({ incidentId: incident._id, nightDate, status: "queued" });
+    const doc = await Investigation.create({ userId: seeded.user._id, incidentId: incident._id, nightDate, status: "queued" });
     await startInvestigationWorker(getRedis());
     await queue.resume();
     await queue.add("investigate", { investigationId: String(doc._id), incidentId: String(incident._id), nightDate, dispatchedAt: new Date().toISOString() }, { jobId: String(doc._id), attempts: 1 });

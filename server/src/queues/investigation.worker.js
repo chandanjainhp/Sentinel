@@ -2,6 +2,7 @@ import { Worker } from "bullmq";
 import Investigation from "../models/investigation.model.js";
 import { analyzeInvestigation } from "../services/investigation.service.js";
 import { resolveInvestigationQueueName } from "./investigation.queue.js";
+import { recordInvestigationOutcome } from "../utils/metrics.js";
 
 let workerInstance = null;
 
@@ -91,10 +92,16 @@ export const startInvestigationWorker = (connection) => {
     console.log(
       `[InvestigationWorker] ✓ Job completed: ${job.id} | incident=${job.data?.incidentId} severity=${result?.severity}`
     );
+    // Record successful investigation completion
+    if (result?.severity) {
+      recordInvestigationOutcome(result.severity);
+    }
   });
 
   workerInstance.on("failed", (job, error) => {
     console.error(`[InvestigationWorker] ✗ Job failed: ${job?.id} - ${error.message}`);
+    // Record failed investigation
+    recordInvestigationOutcome('failed');
   });
 
   return workerInstance;

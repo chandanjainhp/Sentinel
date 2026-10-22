@@ -10,6 +10,7 @@ import {
 } from "../queues/argus-explain.queue.js";
 import { SEVERITY_RANK } from "./argus-explain.service.js";
 import mongoose from "mongoose";
+import { recordIncidentAction } from "../utils/metrics.js";
 
 /**
  * One live incident per machine (Fix B).
@@ -133,6 +134,9 @@ const createIncidentIfEligibleUnsafe = async ({
     occurrenceCount: 1,
     lastSeenAt: new Date(),
   });
+
+  // Record incident creation
+  recordIncidentAction('created');
 
   // Argus explanation for the NEW incident. jobId deduplicates: the same
   // incident+severity never re-runs automatically (see argus-explain.queue.js).

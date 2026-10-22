@@ -5,6 +5,8 @@ import helmet from 'helmet';
 import mongoSanitize from 'express-mongo-sanitize';
 import { httpLogger } from './utils/logger.js';
 import { apiLimiter } from './middlewares/rateLimit.middleware.js';
+import { csrfProtection } from './middlewares/csrf.middleware.js';
+import { metricsMiddleware } from './middlewares/metrics.middleware.js';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js';
 
 import healthCheckRouter from './routes/healthcheck.routes.js';
@@ -48,12 +50,19 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // 5. Request logger
 app.use(httpLogger);
 
-// 6. Global rate limiter — skip health + event ingestion
+// 6. Metrics collection — must be early to capture full request lifecycle
+app.use(metricsMiddleware);
+
+// 7. Global rate limiter — skip health + event ingestion + metrics
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/v1/health')) return next();
+  if (req.path.startsWith('/api/v1/metrics')) return next();
   if (req.method === 'POST' && req.path.startsWith('/api/v1/events')) return next();
   return apiLimiter(req, res, next);
 });
+
+// 8. CSRF protection for state-changing requests with cookie auth
+app.use(csrfProtection);
 
 // ROUTE MOUNTING (all under /api/v1)
 app.use('/api/v1/health', healthCheckRouter);
@@ -68,6 +77,12 @@ app.use("/api/v1/predictions", predictionRoutes);
 app.use("/api/v1/incidents", incidentRoutes);
 app.use("/api/v1/investigations", investigationRoutes);
 app.use("/api/v1/briefings", briefingRoutes);
+
+// Metrics endpoint - restricted access, Prometheus-compatible
+// Mount path can be customized via METRICS_PATH environment variable
+const metricsPath = process.env.METRICS_PATH || '/api/v1/metrics';
+import { metricsHandler } from './middlewares/metrics.middleware.js';
+app.get(metricsPath, metricsHandler);
 
 // DEVELOPMENT ONLY — test routes. Never mounted in production: the seed
 // helper must not exist on a deployed instance.

@@ -67,7 +67,7 @@ afterAll(async () => {
 describe("LLM overnight investigation", () => {
   it("persists an LLM result and provenance through the BullMQ worker", async () => {
     _setInvestigationLLMForTests(async () => ({ content: [{ type: "text", text: JSON.stringify(valid()) }], provider: "sarvam", model: "sarvam-105b-conversations" }));
-    const doc = await Investigation.create({ incidentId: seeded.incident._id, nightDate, status: "queued", jobId: "pending" });
+    const doc = await Investigation.create({ userId: seeded.user._id, incidentId: seeded.incident._id, nightDate, status: "queued", jobId: "pending" });
     doc.jobId = String(doc._id);
     await doc.save({ validateBeforeSave: false });
     const queue = getInvestigationQueue();

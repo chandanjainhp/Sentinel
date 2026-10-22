@@ -56,4 +56,11 @@ const eventKey = (req) => req.apiKey?.userId?.toString() || req.ip;
 const EVENT_RATE_LIMIT_MAX = Number(process.env.EVENT_RATE_LIMIT_MAX || 600);
 const eventsLimiter = wrapLimiter('events', 60 * 1000, EVENT_RATE_LIMIT_MAX, 'events', eventKey);
 
-export { apiLimiter, authLimiter, eventsLimiter, getLimiter, buildLimiter, eventKey };
+// Password reset rate limiting: very strict to prevent brute force attacks.
+// 5 attempts per hour per IP address (not per user, since we don't have user context yet).
+const passwordResetLimiter = wrapLimiter('password-reset', 60 * 60 * 1000, 5, 'password-reset');
+
+// Verify email and resend verification: 10 attempts per hour per user.
+const emailVerificationLimiter = wrapLimiter('email-verification', 60 * 60 * 1000, 10, 'email-verification', (req) => req.user?._id?.toString() || req.ip);
+
+export { apiLimiter, authLimiter, eventsLimiter, passwordResetLimiter, emailVerificationLimiter, getLimiter, buildLimiter, eventKey };

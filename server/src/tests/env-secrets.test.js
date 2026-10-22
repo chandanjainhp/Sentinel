@@ -8,10 +8,11 @@ import {
 } from "../config/secrets.js";
 
 /**
- * A fallback secret in production is a signing key anyone can read in the
- * repository: they could mint access and refresh tokens for any user id.
- * These tests pin the contract: production refuses, development/test keep
- * working without a .env.
+ * JWT secret configuration tests.
+ *
+ * After the security fix, ALL environments (including dev/test) must have
+ * explicit secrets configured. There are NO fallback secrets in any environment.
+ * This ensures that tokens are never signed with predictable, public keys.
  */
 
 const ORIGINAL = {
@@ -39,17 +40,20 @@ const user = () =>
   });
 
 describe("JWT secret configuration", () => {
-  it("keeps dev/test convenience: the fallback works without a .env", () => {
+  it("requires explicit secrets in all environments - no fallbacks", () => {
     process.env.NODE_ENV = "test";
     delete process.env.ACCESS_TOKEN_SECRET;
     delete process.env.REFRESH_TOKEN_SECRET;
 
-    expect(accessTokenSecret()).toBe("default-secret-key");
-    expect(refreshTokenSecret()).toBe("default-refresh-secret");
-    expect(() => assertSecretsConfigured()).not.toThrow();
+    // In all environments, missing secrets should throw
+    expect(() => accessTokenSecret()).toThrow(/ACCESS_TOKEN_SECRET/);
+    expect(() => accessTokenSecret()).toThrow(/refusing to sign tokens/);
+    expect(() => refreshTokenSecret()).toThrow(/REFRESH_TOKEN_SECRET/);
+    expect(() => refreshTokenSecret()).toThrow(/refusing to sign tokens/);
+    expect(() => assertSecretsConfigured()).toThrow(/ACCESS_TOKEN_SECRET/);
   });
 
-  it("refuses to sign with the fallback in production", () => {
+  it("refuses to sign with missing secrets in production", () => {
     process.env.NODE_ENV = "production";
     delete process.env.ACCESS_TOKEN_SECRET;
 

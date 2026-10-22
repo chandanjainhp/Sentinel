@@ -1,6 +1,7 @@
 import { asyncHandler } from "../utils/async-handler.js";
 import { ApiResponse } from "../utils/api-response.js";
 import * as eventService from "../services/event.service.js";
+import { recordEventIngestion } from "../utils/metrics.js";
 
 export const ingestEvent = asyncHandler(async (req, res) => {
   const { siteId, machineId, sensorId, type, timestamp, values, rawData, source } = req.body;
@@ -18,6 +19,14 @@ export const ingestEvent = asyncHandler(async (req, res) => {
     source,
     idempotencyHeader,
   });
+
+  // Record event ingestion metrics
+  recordEventIngestion('received');
+  if (result.isDuplicate) {
+    recordEventIngestion('skipped');
+  } else {
+    recordEventIngestion('processed');
+  }
 
   const statusCode = result.isDuplicate ? 200 : 201;
   const message = result.isDuplicate ? "Event already processed" : "Event ingested successfully";

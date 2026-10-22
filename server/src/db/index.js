@@ -1,5 +1,5 @@
-import { connectMongo, disconnectMongo } from './mongo.js';
-import { connectRedis, disconnectRedis } from './redis.js';
+import { connectMongo, disconnectMongo, isMongoReady, getMongoStats, buildMongoOptions } from './mongo.js';
+import { connectRedis, disconnectRedis, getRedis } from './redis.js';
 
 let instances = {
   mongo: null,
@@ -37,5 +37,40 @@ const disconnectDatabases = async () => {
 
 const getInstances = () => instances;
 
-export { connectDatabases, disconnectDatabases, getInstances };
-export default { connectDatabases, disconnectDatabases, getInstances };
+/**
+ * Check if all databases are ready (for readiness probes)
+ */
+const isDatabaseReady = () => {
+  return isMongoReady() && getRedis()?.status === 'ready';
+};
+
+/**
+ * Get combined database statistics
+ */
+const getDatabaseStats = () => {
+  return {
+    mongo: getMongoStats(),
+    redis: getRedis()?.status,
+  };
+};
+
+export {
+  connectDatabases,
+  disconnectDatabases,
+  getInstances,
+  isMongoReady,
+  getMongoStats,
+  buildMongoOptions,
+  isDatabaseReady,
+  getDatabaseStats,
+};
+export default {
+  connectDatabases,
+  disconnectDatabases,
+  getInstances,
+  isMongoReady,
+  getMongoStats,
+  buildMongoOptions,
+  isDatabaseReady,
+  getDatabaseStats,
+};

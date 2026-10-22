@@ -11,12 +11,18 @@ import {
   mapMachineType,
   parseMlResponse,
   ML_RECOMMENDED_WINDOW,
+  getMlServiceUrl,
+  getMlApiKey,
 } from "./ml-contract.service.js";
-import { ML_SERVICE_URL, ML_TIMEOUT_MS, getMlServiceUrl } from "./ml-contract.service.js";
 import { getMachineCoverage } from "./coverage.service.js";
 import { EVENT_TAGS } from "../models/event.model.js";
 import { ApiError } from "../utils/api-error.js";
 import mongoose from "mongoose";
+import {
+  recordPredictionOutcome,
+  recordMlStatus,
+  recordEventIngestion,
+} from "../utils/metrics.js";
 
 /**
  * How many prediction runs may be running per machine at once.
@@ -155,19 +161,29 @@ const predictForMachine = async ({ event, machine }) => {
   };
 
   let parsed;
+  const mlStart = Date.now();
   try {
+    const headers = { "Content-Type": "application/json" };
+    const mlApiKey = getMlApiKey();
+    if (mlApiKey) {
+      headers["X-ML-API-Key"] = mlApiKey;
+    }
     const response = await fetch(`${getMlServiceUrl()}/predict`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(ML_TIMEOUT_MS),
     });
+
+    // Record ML service availability
+    recordMlStatus(response.ok);
 
     if (response.status === 503) {
       await markMachineUnknown(
         machine._id,
         HEALTH_UNKNOWN_REASONS.ML_MODEL_NOT_LOADED
       );
+      recordPredictionOutcome('failed');
       return { scored: false, reason: HEALTH_UNKNOWN_REASONS.ML_MODEL_NOT_LOADED };
     }
 
@@ -178,18 +194,30 @@ const predictForMachine = async ({ event, machine }) => {
         machine._id,
         `${HEALTH_UNKNOWN_REASONS.ML_BAD_REQUEST} (${response.status}: ${detail.slice(0, 200)})`
       );
+      recordPredictionOutcome('failed');
       return { scored: false, reason: HEALTH_UNKNOWN_REASONS.ML_BAD_REQUEST };
     }
 
     if (!response.ok) {
       // 500-class: transient server fault. Re-throw for BullMQ backoff.
+      recordMlStatus(false);
+      recordPredictionOutcome('failed');
       throw new Error(`ML service returned status ${response.status}`);
     }
 
     parsed = parseMlResponse(await response.json());
+
+    // Record ML latency
+    const mlDurationMs = Date.now() - mlStart;
+    if (mlDurationMs > 100) {
+      // Only log slow ML calls for observability
+      console.log(`[Prediction] ML service responded in ${mlDurationMs}ms`);
+    }
   } catch (err) {
     // Timeout / connection refused / 500 → treat as "ML unavailable",
     // never as "machine is fine". UNKNOWN now; BullMQ retries the job.
+    recordMlStatus(false);
+    recordPredictionOutcome('failed');
     await markMachineUnknown(
       machine._id,
       HEALTH_UNKNOWN_REASONS.ML_UNREACHABLE
@@ -202,6 +230,7 @@ const predictForMachine = async ({ event, machine }) => {
       machine._id,
       `${HEALTH_UNKNOWN_REASONS.ML_BAD_RESPONSE}: ${parsed.error.slice(0, 200)}`
     );
+    recordPredictionOutcome('failed');
     return { scored: false, reason: parsed.error };
   }
 
@@ -210,6 +239,7 @@ const predictForMachine = async ({ event, machine }) => {
       machine._id,
       `Collecting data: ${parsed.have} of ${parsed.need} readings`
     );
+    recordPredictionOutcome('insufficient_data');
     return { scored: false, reason: "insufficient_data", have: parsed.have, need: parsed.need };
   }
 
@@ -254,6 +284,9 @@ const predictForMachine = async ({ event, machine }) => {
 
   // ── Deterministic machine health + incident rules ──
   await evaluateMachineHealth(prediction);
+
+  // Record successful prediction
+  recordPredictionOutcome('scored');
 
   return { scored: true, predictionId: String(prediction._id) };
 };

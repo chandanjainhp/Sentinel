@@ -109,7 +109,7 @@ describe("adversarial auth — token abuse", () => {
   it("expired JWT → 401 (not 500, not pass-through)", async () => {
     const expired = jwt.sign(
       { _id: env.a.body.user._id ?? env.a.body._id, tokenVersion: 0 },
-      process.env.ACCESS_TOKEN_SECRET || "default-secret-key",
+      process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: "-10m" }
     );
     const res = await api("GET", "/sites", { cookie: `accessToken=${expired}` });
