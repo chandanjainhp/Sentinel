@@ -5,6 +5,110 @@ import { Machine } from "../models/machine.model.js";
 import { dispatchInvestigation } from "../queues/investigation.queue.js";
 import { ApiError } from "../utils/api-error.js";
 import { reportingWindow, REPORTING_TIMEZONE } from "../utils/reporting-window.js";
+import { z } from "zod";
+import { Prediction } from "../models/prediction.model.js";
+import { getAIClient, getAIProviderName, getModelName } from "../utils/anthropic.js";
+import { withTimeout } from "../utils/with-timeout.js";
+import { getMlTimeoutMs } from "./ml-contract.service.js";
+import logger from "../utils/logger.js";
+
+const LLM_MAX_TOKENS = 2400;
+const INVESTIGATION_LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS || 15000);
+const arrayOrSingle = (value) => Array.isArray(value) ? value : [value];
+
+const investigationResultSchema = z.object({
+  executiveSummary: z.string().trim().min(1).max(2000),
+  findings: z.array(z.object({
+    category: z.string().trim().min(1).max(120),
+    detail: z.string().trim().min(1).max(2000),
+    severity: z.enum(["critical", "warning", "minor", "unknown"]),
+  })).max(20),
+  rootCause: z.string().trim().min(1).max(2000),
+  recommendedActions: z.preprocess(arrayOrSingle, z.array(z.string().trim().min(1).max(1000)).max(20)),
+  // Sarvam sometimes compresses a single limitation into a string.
+  dataLimitations: z.preprocess((value) => Array.isArray(value) ? value : [value], z.array(z.string().trim().min(1).max(500)).max(20)),
+  unresolvedQuestions: z.preprocess(arrayOrSingle, z.array(z.string().trim().min(1).max(500)).max(20)),
+  classification: z.object({
+    severity: z.enum(["serious", "minor", "harmless", "uncertain"]),
+    confidence: z.number().min(0).max(1),
+    reasoning: z.string().trim().min(1).max(2000),
+    uncertainties: z.preprocess(arrayOrSingle, z.array(z.string().trim().min(1).max(500)).max(20)),
+    recommendedFollowup: z.string().trim().min(1).max(1000),
+  }),
+});
+
+const extractLLMText = (response) =>
+  (Array.isArray(response?.content) ? response.content : [])
+    .filter((block) => block?.type === "text" && typeof block.text === "string")
+    .map((block) => block.text)
+    .join("\n");
+
+const stripJson = (value) => {
+  const text = String(value || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  const start = text.indexOf("{");
+  if (start < 0) return text;
+  let depth = 0;
+  let quoted = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i += 1) {
+    const char = text[i];
+    if (quoted) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === '"') quoted = false;
+      continue;
+    }
+    if (char === '"') quoted = true;
+    else if (char === "{") depth += 1;
+    else if (char === "}" && --depth === 0) return text.slice(start, i + 1);
+  }
+  return text.slice(start);
+};
+
+const failureReason = (error) => {
+  const text = String(error?.message || error || "").toLowerCase();
+  if (text.includes("timed out") || text.includes("timeout")) return "timeout";
+  if (text.includes("401") || text.includes("403") || text.includes("api key") || text.includes("authentication")) return "authentication";
+  if (text.includes("validation") || text.includes("json")) return "invalid_response";
+  if (text.includes("429") || text.includes("rate_limit") || text.includes("quota")) return "rate_limit";
+  if (/\b[45]\d{2}\b/.test(text)) return "provider_http_error";
+  return "provider_error";
+};
+
+export const buildInvestigationPrompt = ({ trace, predictionHistory }) => {
+  const { incident, machine, stats, events, window, evidenceChain, recentReadings } = trace;
+  const evidence = incident.evidence || {};
+  const storedExplanation = incident.explanation || null;
+  const system = [
+    "You are Sentinel's overnight industrial reliability investigator.",
+    "Use only the supplied stored evidence. Do not invent readings, causes, timestamps, or actions.",
+    "Distinguish confirmed observations from likely causes in the finding text.",
+    "Return only one JSON object matching the requested schema; no markdown or commentary.",
+  ].join(" ");
+  const user = JSON.stringify({
+    requestedSchema: {
+      executiveSummary: "string",
+      findings: [{ category: "string", detail: "string", severity: "critical|warning|minor|unknown" }],
+      rootCause: "string, explicitly hedged when not confirmed",
+      recommendedActions: ["string"],
+      dataLimitations: ["string"],
+      unresolvedQuestions: ["string"],
+      classification: { severity: "serious|minor|harmless|uncertain", confidence: "0..1", reasoning: "string", uncertainties: ["string"], recommendedFollowup: "string" },
+    },
+    investigationWindow: { nightDate: trace.nightDate, timezone: REPORTING_TIMEZONE, from: window.from.toISOString(), to: window.to.toISOString() },
+    incident: { id: incident.incidentId, title: incident.title, severity: incident.severity, type: incident.type, reason: incident.reason, occurrenceCount: incident.occurrenceCount, createdAt: incident.createdAt, evidence },
+    machine: machine ? { id: String(machine._id), name: machine.name, assetId: machine.assetId, siteId: String(machine.siteId), type: machine.machineType, status: machine.status } : null,
+    readings: {
+      eventCount: typeof events === "number" ? events : events.length,
+      channelStats: stats,
+      recentReadings: recentReadings || [],
+    },
+    existingEvidenceChain: evidenceChain || [],
+    predictionHistory,
+    argusExplanation: storedExplanation ? { summary: storedExplanation.summary, likelyCause: storedExplanation.likelyCause, recommendedAction: storedExplanation.recommendedAction, source: storedExplanation.source, generatedAt: storedExplanation.generatedAt } : null,
+  });
+  return { system, user };
+};
 
 export const aggregateChannelStats = (events) => {
   const channelStats = {};
@@ -83,6 +187,8 @@ export const startInvestigation = async ({ userId, nightDate, dispatch = dispatc
     if (byIncident.has(String(incident._id))) continue;
     try {
       const doc = await Investigation.create({ incidentId: incident._id, nightDate, status: "queued" });
+      doc.jobId = String(doc._id);
+      await doc.save({ validateBeforeSave: false });
       byIncident.set(String(incident._id), doc);
     } catch (error) {
       if (error?.code !== 11000) throw error;
@@ -93,11 +199,22 @@ export const startInvestigation = async ({ userId, nightDate, dispatch = dispatc
   }
 
   const docs = incidents.map((incident) => byIncident.get(String(incident._id)));
+  let retried = false;
   for (const doc of docs) {
     // A queued document is also the recovery ledger for a dispatch that failed
     // after the document was written. BullMQ's deterministic job id makes a
     // retry safe if the earlier add actually reached Redis.
+    if (doc.status === "failed") {
+      doc.status = "queued";
+      doc.failureReason = undefined;
+      await doc.save({ validateBeforeSave: false });
+      retried = true;
+    }
     if (doc.status !== "queued") continue;
+    if (!doc.jobId) {
+      doc.jobId = String(doc._id);
+      await doc.save({ validateBeforeSave: false });
+    }
     await dispatch(String(doc.incidentId), 5, String(doc._id), {
       investigationId: String(doc._id),
       nightDate,
@@ -106,7 +223,7 @@ export const startInvestigation = async ({ userId, nightDate, dispatch = dispatc
 
   const jobIds = docs.map((doc) => String(doc._id));
   const complete = docs.every((doc) => doc.status === "complete");
-  const status = complete ? "already_complete" : existing.length ? "already_running" : "started";
+  const status = complete ? "already_complete" : existing.length && !retried ? "already_running" : "started";
   return { status, jobIds, totalJobs: jobIds.length };
 };
 
@@ -253,5 +370,80 @@ export const buildInvestigationTrace = async ({ incidentId, nightDate }) => {
     },
   ];
 
-  return { incident, machine, stats, events: events.length, classification, toolCallSequence, evidenceChain };
+  const predictionHistory = await Prediction.find({
+    userId: incident.userId,
+    siteId: incident.siteId,
+    machineId: incident.machineId,
+    timestamp: { $gte: window.from, $lt: window.to },
+  })
+    .select("timestamp model modelVersion anomalyScore faultProbability faultType confidence rulValue rulUnit evidence")
+    .sort({ timestamp: 1 })
+    .limit(100)
+    .lean();
+
+  const recentReadings = events.slice(-20).map((event) => ({
+    timestamp: event.timestamp,
+    values: event.values instanceof Map ? Object.fromEntries(event.values) : event.values || {},
+  }));
+
+  return { incident, machine, stats, events: events.length, recentReadings, classification, toolCallSequence, evidenceChain, predictionHistory, window, nightDate };
+};
+
+const callInvestigationLLM = async (system, user) => {
+  const provider = getAIProviderName();
+  const model = getModelName();
+  const response = await getAIClient().messages.create({
+    model,
+    max_tokens: LLM_MAX_TOKENS,
+    system,
+    messages: [{ role: "user", content: user }],
+  });
+  return { ...response, provider, model };
+};
+
+let investigationLLM = callInvestigationLLM;
+
+export const analyzeInvestigation = async ({ incidentId, nightDate }) => {
+  const trace = await buildInvestigationTrace({ incidentId, nightDate });
+  let lastError;
+
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const prompt = buildInvestigationPrompt({ trace, predictionHistory: trace.predictionHistory });
+      const response = await withTimeout(
+        investigationLLM(prompt.system, prompt.user),
+        Number(process.env.LLM_TIMEOUT_MS || INVESTIGATION_LLM_TIMEOUT_MS || getMlTimeoutMs()),
+        "Investigation LLM call",
+      );
+      const parsed = investigationResultSchema.safeParse(JSON.parse(stripJson(extractLLMText(response))));
+      if (!parsed.success) {
+        const issue = parsed.error.issues?.[0];
+        throw new Error(`Investigation LLM response validation failed at ${issue?.path?.join(".") || "root"}: ${issue?.message || "invalid shape"}`);
+      }
+      logger.info({ incidentId, provider: response.provider, model: response.model }, "Investigation LLM analysis succeeded");
+      return { ...trace, ...parsed.data, resultSource: "llm", provider: response.provider, agentModel: response.model, failureReason: undefined };
+    } catch (error) {
+      lastError = error;
+      logger.warn({ incidentId, attempt, category: failureReason(error), reason: String(error?.message || "").slice(0, 200) }, "Investigation LLM attempt failed");
+    }
+  }
+
+  const fallback = {
+    executiveSummary: trace.classification.reasoning,
+    findings: [{ category: "deterministic_classification", detail: trace.classification.reasoning, severity: trace.incident.severity }],
+    rootCause: "The stored prediction identifies an anomalous signal, but the underlying physical cause is not confirmed by the available evidence.",
+    recommendedActions: [trace.classification.recommendedFollowup],
+    dataLimitations: trace.classification.uncertainties,
+    unresolvedQuestions: ["What physical mechanism caused the observed anomaly?"] ,
+    resultSource: "fallback",
+    provider: null,
+    agentModel: null,
+    failureReason: `LLM unavailable after retry: ${failureReason(lastError)}`,
+  };
+  logger.warn({ incidentId, source: "fallback", error: fallback.failureReason }, "Investigation deterministic fallback activated");
+  return { ...trace, ...fallback };
+};
+
+export const _setInvestigationLLMForTests = (fn) => {
+  investigationLLM = fn || callInvestigationLLM;
 };

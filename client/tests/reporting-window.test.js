@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { reportingWindow, previousReportingDate } from "../src/lib/reporting-window.js";
+import {
+  reportingWindow,
+  previousReportingDate,
+  defaultNightDate,
+} from "../src/lib/reporting-window.js";
 
 describe("client reporting window", () => {
   it("matches UTC midnight and the adjacent-date boundary", () => {
@@ -12,5 +16,10 @@ describe("client reporting window", () => {
   it("computes the previous UTC reporting date across midnight", () => {
     expect(previousReportingDate(new Date("2026-01-02T00:00:00.000Z"))).toBe("2026-01-01");
     expect(previousReportingDate(new Date("2026-01-02T23:59:59-08:00"))).toBe("2026-01-02");
+  });
+
+  it("defaultNightDate follows previousReportingDate when seed env is unset", () => {
+    const now = new Date("2026-03-10T15:00:00.000Z");
+    expect(defaultNightDate(now)).toBe(previousReportingDate(now));
   });
 });

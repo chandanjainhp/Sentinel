@@ -5,7 +5,8 @@ import { useInvestigationStore } from "@/store/investigationStore";
 import { incidentQueryKey } from "@/store/incidentFilterStore";
 import { toast } from "sonner";
 import { useEffect } from "react";
-import { previousReportingDate, reportingWindow } from "@/lib/reporting-window";
+import { previousReportingDate } from "@/lib/reporting-window";
+import { buildIncidentsListParams } from "@/hooks/useIncidents";
 
 export function useStartInvestigation(options = {}) {
   const setJobIds = useInvestigationStore((state) => state.setJobIds);
@@ -13,6 +14,7 @@ export function useStartInvestigation(options = {}) {
   const setInvestigationStats = useInvestigationStore(
     (state) => state.setInvestigationStats,
   );
+  const setError = useInvestigationStore((state) => state.setError);
 
   return useMutation({
     mutationFn: (input) => {
@@ -54,6 +56,10 @@ export function useStartInvestigation(options = {}) {
       if (options.onSuccess) options.onSuccess(result, variables, context);
     },
     onError: (error, variables, context) => {
+      setJobIds([]);
+      setJobStatus("failed");
+      setInvestigationStats({ totalIncidents: 0, resolvedIncidents: 0 });
+      setError(error?.message || "Unknown error");
       toast.error(
         `Investigation failed to initialize: ${error?.message || String(error) || "Unknown error"}`,
       );
@@ -120,13 +126,9 @@ export function useNightInvestigations(jobIds = []) {
 }
 
 export function useNightSummary(nightDate, options = {}) {
-  const window = reportingWindow(nightDate);
   return useQuery({
     queryKey: ["incidents", incidentQueryKey({ nightDate })],
-    queryFn: () => getIncidents(window ? {
-      from: window.from.toISOString(),
-      to: new Date(window.to.getTime() - 1).toISOString(),
-    } : {}),
+    queryFn: () => getIncidents(buildIncidentsListParams({ nightDate })),
     select: (data) => {
       const raw = Array.isArray(data) ? data : [];
       const incidents = raw.map((i) => ({

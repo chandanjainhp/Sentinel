@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { withTimeout } from "../utils/with-timeout.js";
 import logger from "../utils/logger.js";
-import { ML_TIMEOUT_MS } from "./ml-contract.service.js";
+import { getMlTimeoutMs } from "./ml-contract.service.js";
 import { Incident } from "../models/incident.model.js";
 import { Prediction } from "../models/prediction.model.js";
 import { Machine } from "../models/machine.model.js";
@@ -27,6 +27,23 @@ const LLM_MAX_TOKENS = 800;
 const MAX_TEXT_LEN = 600;
 const MAX_SENSORS_IN_PROMPT = 8;
 const MAX_CHANNELS_PER_SENSOR = 8;
+
+const failureCategory = (error) => {
+  const text = String(error?.message || error || "").toLowerCase();
+  if (text.includes("timed out") || text.includes("timeout")) return "timeout";
+  if (text.includes("validation") || text.includes("json")) return "invalid_response";
+  if (text.includes("401") || text.includes("403") || text.includes("api key") || text.includes("authentication")) return "authentication";
+  if (text.includes("429") || text.includes("rate_limit") || text.includes("quota")) return "rate_limit";
+  if (/\b[45]\d{2}\b/.test(text)) return "provider_http_error";
+  if (text.includes("econn") || text.includes("fetch failed") || text.includes("network")) return "network";
+  if (text.includes("provider") || text.includes("llm_provider")) return "configuration";
+  return "provider_error";
+};
+
+const failureDetail = (error) => {
+  const status = String(error?.message || error || "").match(/\b([45]\d{2})\b/);
+  return `${failureCategory(error)}${status ? ` (${status[1]})` : ""}`;
+};
 
 export const SEVERITY_RANK = { warning: 1, critical: 2 };
 
@@ -236,13 +253,17 @@ const extractText = (response) => {
 
 export const callLLM = async (system, user) => {
   const client = getAIClient();
+  const startedAt = Date.now();
   const response = await client.messages.create({
     model: getModelName(),
     max_tokens: LLM_MAX_TOKENS,
     system,
     messages: [{ role: "user", content: user }],
   });
-  return { text: extractText(response), provider: getAIProviderName(), model: getModelName() };
+  const provider = getAIProviderName();
+  const model = getModelName();
+  logger.info({ provider, model, durationMs: Date.now() - startedAt }, "Argus LLM request succeeded");
+  return { text: extractText(response), provider, model };
 };
 
 /**
@@ -290,9 +311,14 @@ export const buildFallbackExplanation = (incident, prediction, machineName = nul
 
 /* ── Persistence ────────────────────────────────────────────────── */
 
-export const writeExplanation = async (incidentId, fields) =>
+export const writeExplanation = async (incidentId, fields, expected = {}) =>
   Incident.findOneAndUpdate(
-    { _id: incidentId },
+    {
+      _id: incidentId,
+      ...(expected.predictionId ? { predictionId: expected.predictionId } : {}),
+      ...(expected.severity ? { severity: expected.severity } : {}),
+      ...(expected.jobId ? { "explanation.jobId": expected.jobId } : {}),
+    },
     {
       $set: {
         explanation: {
@@ -306,6 +332,7 @@ export const writeExplanation = async (incidentId, fields) =>
           generatedAt: new Date(),
           status: fields.status,
           error: fields.error ?? null,
+          jobId: fields.jobId ?? null,
         },
       },
     },
@@ -323,7 +350,8 @@ const getAIProviderNameSafe = () => {
 
 /* ── Entry point (worker job handler) ───────────────────────────── */
 
-export const explainIncident = async ({ incidentId }) => {
+export const explainIncident = async ({ incidentId, jobId = null }) => {
+  logger.info({ incidentId, jobId }, "Argus explanation started");
   const isObjectId = mongoose.Types.ObjectId.isValid(incidentId);
   const incident = await Incident.findOne(
     isObjectId ? { $or: [{ incidentId }, { _id: incidentId }] } : { incidentId }
@@ -335,24 +363,33 @@ export const explainIncident = async ({ incidentId }) => {
   const prediction = incident.predictionId
     ? await Prediction.findById(incident.predictionId)
     : null;
+  const expected = {
+    predictionId: incident.predictionId,
+    severity: incident.severity,
+    ...(jobId && incident.explanation?.jobId === jobId ? { jobId } : {}),
+  };
 
   // No stored prediction (should not happen for pipeline-created incidents):
   // still answer deterministically rather than leaving the incident unexplained.
   if (!prediction) {
     const machine = await Machine.findById(incident.machineId).select("name");
     await writeExplanation(incident._id, {
-      ...buildFallbackExplanation(incident, {}, machine?.name),
+      // Keep any evidence denormalized on the incident, but never treat it as
+      // a recovered Prediction document or as LLM-generated output.
+      ...buildFallbackExplanation(incident, incident.evidence || {}, machine?.name),
       source: "fallback",
       provider: null,
       model: null,
       status: "ready",
-    });
+      error: "missing_prediction_reference",
+      jobId: expected.jobId,
+    }, expected);
+    logger.info({ incidentId, jobId, source: "fallback" }, "Argus explanation completed");
     return { source: "fallback", status: "ready" };
   }
 
   const machine = await Machine.findById(incident.machineId);
   const sensorStats = machine ? await collectSensorContext(machine._id) : [];
-
   try {
     const { system, user } = buildExplanationPrompt({ incident, prediction, machine, sensorStats });
 
@@ -365,7 +402,7 @@ export const explainIncident = async ({ incidentId }) => {
         // is just another LLM failure — retry, then deterministic fallback.
         const { text, provider, model } = await withTimeout(
           llmDriver(system, user),
-          ML_TIMEOUT_MS,
+          getMlTimeoutMs(),
           "LLM call"
         );
         const parsed = ExplanationSchema.safeParse(JSON.parse(stripCodeFences(text)));
@@ -377,41 +414,60 @@ export const explainIncident = async ({ incidentId }) => {
           );
           lastError = new Error(`LLM reply failed validation: ${reason}`);
         } else {
-          await writeExplanation(incident._id, {
+          const saved = await writeExplanation(incident._id, {
             ...parsed.data,
             source: "llm",
             provider,
             model,
             status: "ready",
-          });
+            jobId: expected.jobId,
+          }, expected);
+          if (!saved) {
+            logger.warn({ incidentId, jobId }, "Argus explanation result ignored as stale");
+            return { source: "stale", status: "ignored" };
+          }
+          logger.info({ incidentId, jobId, source: "llm" }, "Argus explanation completed");
           return { source: "llm", status: "ready" };
         }
       } catch (err) {
+        logger.warn({ incidentId, jobId, attempt, category: failureCategory(err) }, "Argus LLM attempt failed");
         lastError = err;
       }
     }
 
     // Both attempts failed → deterministic fallback. The incident itself is
     // never touched beyond its explanation field.
-    await writeExplanation(incident._id, {
+    const saved = await writeExplanation(incident._id, {
       ...buildFallbackExplanation(incident, prediction, machine?.name),
       source: "fallback",
       provider: getAIProviderNameSafe(),
       model: null,
       status: "ready",
-      error: `LLM unavailable after retry: ${String(lastError?.message || lastError).slice(0, 200)}`,
-    });
+      error: `LLM unavailable after retry: ${failureDetail(lastError)}`,
+      jobId: expected.jobId,
+    }, expected);
+    if (!saved) {
+      logger.warn({ incidentId, jobId }, "Argus fallback ignored as stale");
+      return { source: "stale", status: "ignored" };
+    }
+    logger.warn({ incidentId, jobId, source: "fallback", error: "provider_or_validation_failure" }, "Argus fallback activated");
     return { source: "fallback", status: "ready" };
   } catch (err) {
     // Unexpected error (context collection etc.) — still end in a usable state.
-    await writeExplanation(incident._id, {
+    const saved = await writeExplanation(incident._id, {
       ...buildFallbackExplanation(incident, prediction, machine?.name),
       source: "fallback",
       provider: getAIProviderNameSafe(),
       model: null,
       status: "ready",
-      error: `Explanation pipeline error: ${String(err?.message || err).slice(0, 200)}`,
-    });
+      error: `Explanation pipeline error: ${failureCategory(err)}`,
+      jobId: expected.jobId,
+    }, expected);
+    if (!saved) {
+      logger.warn({ incidentId, jobId }, "Argus pipeline fallback ignored as stale");
+      return { source: "stale", status: "ignored" };
+    }
+    logger.warn({ incidentId, jobId, source: "fallback", error: "context_or_pipeline_failure" }, "Argus fallback activated");
     return { source: "fallback", status: "ready", error: true };
   }
 };

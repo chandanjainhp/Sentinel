@@ -2,8 +2,16 @@
 
 import { BrainCircuit, AlertTriangle } from "lucide-react";
 
-export default function AgentReasoning({ reasoning, uncertainties = [], confidence = 0 }) {
-  const hasUncertainties = uncertainties.length > 0;
+export default function AgentReasoning({ analysis, reasoning, uncertainties = [], confidence = 0 }) {
+  const modelUncertainties = analysis?.uncertainties || uncertainties;
+  const hasUncertainties = modelUncertainties.length > 0;
+  const isFallback = analysis?.source === "fallback";
+  const paragraphs = [
+    ["Assessment", analysis?.assessment],
+    ["Key observations", analysis?.findings?.map((finding) => finding.detail).join(" ")],
+    ["Likely cause", analysis?.likelyCause],
+    ["Recommended actions", analysis?.recommendedActions?.join(" ")],
+  ].filter(([, value]) => value);
 
   return (
     <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -31,8 +39,22 @@ export default function AgentReasoning({ reasoning, uncertainties = [], confiden
           fontSize: "14px", lineHeight: "var(--lh-loose)",
           color: "var(--fg-1)", opacity: 0.9,
         }}>
-          {reasoning}
+          {analysis ? paragraphs.map(([label, value]) => (
+            <span key={label} style={{ display: "block", marginBottom: "10px" }}>
+              <strong style={{ color: "var(--accent)", fontFamily: "var(--font-mono)", fontSize: "10px", textTransform: "uppercase" }}>
+                {label}: {" "}
+              </strong>
+              {value}
+            </span>
+          )) : reasoning}
         </p>
+        {analysis ? (
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.1em", color: "var(--fg-3)", textTransform: "uppercase" }}>
+            SOURCE · {isFallback ? "FALLBACK" : "LLM"}
+            {analysis.provider ? ` · ${analysis.provider}` : ""}
+            {analysis.model ? ` · ${analysis.model}` : ""}
+          </div>
+        ) : null}
       </div>
 
       {/* Uncertainties block */}
@@ -56,7 +78,7 @@ export default function AgentReasoning({ reasoning, uncertainties = [], confiden
             </span>
           </div>
           <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "12px" }}>
-            {uncertainties.map((unc, idx) => {
+            {modelUncertainties.map((unc, idx) => {
               const isDroneGap = unc.startsWith("Drone did not cover");
               return (
                 <li key={idx} style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>

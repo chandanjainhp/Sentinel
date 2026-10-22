@@ -1,5 +1,6 @@
 import { Worker } from "bullmq";
 import { explainIncident } from "../services/argus-explain.service.js";
+import logger from "../utils/logger.js";
 
 let workerInstance = null;
 
@@ -12,7 +13,8 @@ export const startArgusExplainWorker = (connection) => {
     queueName,
     async (job) => {
       if (job.name === "explain") {
-        return explainIncident(job.data);
+        logger.info({ jobId: job.id, incidentId: job.data?.incidentId }, "Argus job started");
+        return explainIncident({ ...job.data, jobId: job.id });
       }
       throw new Error(`Unknown job name: ${job.name}`);
     },
@@ -24,15 +26,13 @@ export const startArgusExplainWorker = (connection) => {
   );
 
   workerInstance.on("completed", (job, result) => {
-    console.log(
-      `[ArgusExplainWorker] ✓ Job completed: ${job.id} | source=${result?.source} status=${result?.status}`
-    );
+    logger.info({ jobId: job.id, incidentId: job.data?.incidentId, source: result?.source, status: result?.status }, "Argus job completed");
   });
 
   workerInstance.on("failed", (job, error) => {
     // explainIncident is written to never throw after the incident is loaded;
     // a failure here means the incident itself was not found. Nothing to retry.
-    console.error(`[ArgusExplainWorker] ✗ Job failed: ${job?.id} - ${error.message}`);
+    logger.error({ jobId: job?.id, incidentId: job?.data?.incidentId, error: error.message.slice(0, 200) }, "Argus job failed");
   });
 
   return workerInstance;

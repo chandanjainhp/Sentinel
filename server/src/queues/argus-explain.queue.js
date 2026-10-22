@@ -1,5 +1,6 @@
 import { Queue } from "bullmq";
 import { getRedis } from "../db/redis.js";
+import logger from "../utils/logger.js";
 
 /**
  * argus-explain queue (Fix A / Wave 4).
@@ -64,15 +65,10 @@ export const dispatchArgusExplain = async ({ incidentId, severity, jobId }) => {
       { incidentId },
       { jobId: jobId || argusExplainJobId(incidentId, severity) }
     );
-    console.log(
-      `[ArgusExplainQueue] Job dispatched: ${job.id} | Incident: ${incidentId} | Severity: ${severity}`
-    );
+    logger.info({ jobId: job.id, incidentId, severity }, "Argus job enqueued");
     return job;
   } catch (err) {
-    console.error(
-      `[ArgusExplainQueue] Failed to dispatch explanation for ${incidentId}:`,
-      err.message
-    );
+    logger.error({ incidentId, severity, error: err.message.slice(0, 200) }, "Argus job enqueue failed");
     return null;
   }
 };

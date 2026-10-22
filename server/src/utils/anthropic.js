@@ -166,12 +166,6 @@ const openAIResponseToAnthropicShape = (payload) => {
   };
 };
 
-const OPENROUTER_TOOL_MODELS = new Set([
-  'anthropic/claude-sonnet-4',
-  'anthropic/claude-3-haiku',
-  'anthropic/claude-3.5-sonnet',
-]);
-
 const createOpenRouterCompatClient = ({ apiKey, baseURL }) => {
   const normalizedBase = normalizeOpenRouterBaseURL(baseURL);
 
@@ -194,6 +188,7 @@ const createOpenRouterCompatClient = ({ apiKey, baseURL }) => {
           payload.tool_choice = tool_choice?.type || 'auto';
         }
 
+        const startedAt = Date.now();
         const response = await fetch(`${normalizedBase}/chat/completions`, {
           method: 'POST',
           headers: {
@@ -208,6 +203,11 @@ const createOpenRouterCompatClient = ({ apiKey, baseURL }) => {
           },
           body: JSON.stringify(payload),
         });
+
+        logger.info(
+          { provider: 'openrouter', status: response.status, durationMs: Date.now() - startedAt },
+          'LLM request completed'
+        );
 
         if (!response.ok) {
           const text = await response.text();
@@ -249,7 +249,7 @@ const createOpenAICompatClient = ({
         }
 
         const body = JSON.stringify(payload);
-        console.log(`[${label}] payload chars=${body.length} msgs=${openAIMessages.length} max_tokens=${max_tokens}`);
+        const startedAt = Date.now();
         const response = await fetch(`${base}/chat/completions`, {
           method: 'POST',
           headers: {
@@ -258,6 +258,11 @@ const createOpenAICompatClient = ({
           },
           body,
         });
+
+        logger.info(
+          { provider: label, status: response.status, durationMs: Date.now() - startedAt },
+          'LLM request completed'
+        );
 
         if (!response.ok) {
           const text = await response.text();
@@ -307,10 +312,7 @@ const createSarvamClient = ({ apiKey, baseURL }) => {
         };
 
         const body = JSON.stringify(payload);
-        logger.info(
-          { provider: 'sarvam', chars: body.length, msgs: payload.messages.length, max_tokens },
-          '[Sarvam] chat completion request'
-        );
+        const startedAt = Date.now();
         const response = await fetch(`${base}/v1/chat/completions`, {
           method: 'POST',
           headers: {
@@ -323,13 +325,18 @@ const createSarvamClient = ({ apiKey, baseURL }) => {
           body,
         });
 
+        logger.info(
+          { provider: 'sarvam', status: response.status, durationMs: Date.now() - startedAt },
+          'LLM request completed'
+        );
+
         if (!response.ok) {
           // Error body is {error:{message, code, request_id}}; the code
           // distinguishes e.g. invalid_api_key_error (403) from
           // rate_limit_exceeded_error (429). Logged without the key.
           const text = await Promise.resolve(response.text()).catch(() => '');
           logger.warn(
-            { provider: 'sarvam', status: response.status, body: text.slice(0, 300) },
+            { provider: 'sarvam', status: response.status },
             '[Sarvam] chat completion failed'
           );
           throw new Error(`Sarvam error (${response.status}): ${text.slice(0, 500)}`);
@@ -459,6 +466,11 @@ const getAIProvider = () => {
   if (explicit === 'local' || explicit === 'lmstudio') {
     return 'local';
   }
+  if (explicit) {
+    throw new Error(
+      `Unsupported LLM_PROVIDER=${explicit}. Use anthropic|local|mistral|openrouter|sarvam`
+    );
+  }
 
   // Backward compat when LLM_PROVIDER unset
   if (process.env.USE_LOCAL_LLM === 'true' || process.env.NODE_ENV === 'test') {
@@ -497,6 +509,9 @@ export const getAIClient = () => {
       console.log('[AI] Initializing Mock AI Client...');
       clientInstance = createMockAIClient();
     } else if (aiProvider === 'openrouter') {
+      if (!process.env.OPENROUTER_API_KEY) {
+        throw new Error('LLM_PROVIDER=openrouter requires OPENROUTER_API_KEY');
+      }
       console.log('[AI] Initializing OpenRouter client...');
       const baseURL = normalizeOpenRouterBaseURL(process.env.OPENROUTER_BASE_URL);
       clientInstance = createOpenRouterCompatClient({
@@ -505,10 +520,13 @@ export const getAIClient = () => {
       });
       console.log(
         `[AI] ✅ OpenRouter initialized - Model: ${
-          process.env.OPENROUTER_MODEL || 'openai/gpt-3.5-turbo'
+          process.env.OPENROUTER_MODEL || 'anthropic/claude-sonnet-4-6'
         } | Base URL: ${baseURL}`
       );
     } else if (aiProvider === 'anthropic') {
+      if (!process.env.ANTHROPIC_API_KEY) {
+        throw new Error('LLM_PROVIDER=anthropic requires ANTHROPIC_API_KEY');
+      }
       console.log('[AI] Initializing Anthropic Claude client...');
       clientInstance = new Anthropic({
         apiKey: process.env.ANTHROPIC_API_KEY,
@@ -582,16 +600,7 @@ export const getModelName = () => {
   const provider = getAIProviderName();
 
   if (provider === 'openrouter') {
-    const configuredModel = process.env.OPENROUTER_MODEL || 'anthropic/claude-sonnet-4';
-
-    if (!OPENROUTER_TOOL_MODELS.has(configuredModel)) {
-      console.warn(
-        `[AI] OPENROUTER_MODEL ${configuredModel} may not satisfy tool-calling constraints here. Falling back to anthropic/claude-sonnet-4`
-      );
-      return 'anthropic/claude-sonnet-4';
-    }
-
-    return configuredModel;
+    return process.env.OPENROUTER_MODEL || 'anthropic/claude-sonnet-4-6';
   }
 
   if (provider === 'local') {
@@ -606,8 +615,7 @@ export const getModelName = () => {
     return process.env.SARVAM_MODEL || 'sarvam-105b-conversations';
   }
 
-  // Anthropic uses claude-3-sonnet by default
-  return 'claude-3-sonnet-20240229';
+  return 'claude-sonnet-4-6';
 };
 
 /** Reset singleton — tests / hot env switches only. */

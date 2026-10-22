@@ -472,6 +472,7 @@ export default function IncidentDetailPage() {
 
           <SecHead index="07" title="Agent Reasoning" />
           <AgentReasoning
+            analysis={evidenceGraph?.agentReasoning || null}
             reasoning={evidenceGraph?.classification?.reasoning || "No reasoning attached by agent."}
             uncertainties={evidenceGraph?.classification?.uncertainties || []}
             confidence={evidenceGraph?.classification?.confidence || 0}

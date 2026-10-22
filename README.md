@@ -569,6 +569,39 @@ docker compose --env-file server/.env up -d --build
 
 ---
 
+## Code Quality and Maintenance
+
+### Duplicate Code Audit
+
+A comprehensive duplicate-code audit was performed on the client application (`client/src`
+and `client/tests`). The audit identified and removed **406 lines of unused code**
+across 7 duplicate/unused component files:
+
+**Removed Files:**
+- `client/src/components/shared/Button.jsx` (35 lines)
+- `client/src/components/shared/Card.jsx` (7 lines)
+- `client/src/components/shared/FormInput.js` (89 lines)
+- `client/src/components/shared/LoadingSpinner.jsx` (59 lines)
+- `client/src/components/ui/Alert.jsx` (70 lines)
+- `client/src/components/ui/Card.jsx` (41 lines)
+- `client/src/components/ui/Input.jsx` (78 lines)
+
+**Updated Files:**
+- `client/src/components/ui/index.js` - cleaned exports to only include actively used components
+
+**Test Coverage:**
+- Added `client/tests/duplicate-code-audit.test.js` with 14 regression tests
+- All 63 existing tests continue to pass
+
+**Intentionally Retained:**
+- `/settings/api-key/page.jsx` and `/settings/api-keys/page.jsx` - different implementations
+  (single key legacy vs. multi-key management)
+- Authentication pages (`/login`, `/register`, `/forgot-password`, `/reset-password`) -
+  distinct purposes and flows
+- Active components: `ui/Button.jsx` (used by NavMobile), `ui/Spinner.jsx`
+
+---
+
 ## Not in Sentinel (yet)
 
 Briefing, work packages, investigation-by-default (the overnight investigation agent

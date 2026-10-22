@@ -31,6 +31,8 @@ const explanationSchema = new mongoose.Schema(
     },
     /** Deterministic fallback text for the last failed LLM attempt, if any. */
     error: { type: String, default: null },
+    /** Manual regeneration token; prevents an older job winning a race. */
+    jobId: { type: String, default: null },
   },
   { _id: false }
 );

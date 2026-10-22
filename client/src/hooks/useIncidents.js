@@ -38,14 +38,13 @@ function bucket(incidents) {
 }
 
 /**
- * @param {object} filters — nightDate, severity, status
+ * Query params for GET /incidents from filter state.
  *
- * nightDate is a client-side concept ("the night being viewed"); the server's
- * incident list filters on createdAt from/to, so it is converted here. Passing
- * nightDate as a raw query param would be silently ignored server-side and
- * the "overnight" counts would silently be all-time counts instead.
+ * nightDate is optional: when set, the server filters on createdAt from/to.
+ * The main incidents table omits it so open incidents match the dashboard;
+ * overnight investigation and EventPanel pass nightDate explicitly.
  */
-export function useIncidents(filters = {}, options = {}) {
+export function buildIncidentsListParams(filters = {}) {
   const key = incidentQueryKey(filters);
 
   const nightWindow = key.nightDate
@@ -59,14 +58,19 @@ export function useIncidents(filters = {}, options = {}) {
       })()
     : {};
 
+  return {
+    severity: key.severity || undefined,
+    status: key.status || undefined,
+    ...nightWindow,
+  };
+}
+
+export function useIncidents(filters = {}, options = {}) {
+  const key = incidentQueryKey(filters);
+
   return useQuery({
     queryKey: ["incidents", key],
-    queryFn: () =>
-      getIncidents({
-        severity: key.severity || undefined,
-        status: key.status || undefined,
-        ...nightWindow,
-      }),
+    queryFn: () => getIncidents(buildIncidentsListParams(filters)),
     select: (data) => bucket(normalizeList(data)),
     staleTime: 15 * 1000,
     retry: (failureCount, error) => {

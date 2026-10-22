@@ -20,3 +20,11 @@ export function previousReportingDate(now = new Date()) {
   date.setUTCDate(date.getUTCDate() - 1);
   return date.toISOString().slice(0, 10);
 }
+
+/** Night label for UI and investigation — matches NEXT_PUBLIC_SEED_NIGHT_DATE when set. */
+export function defaultNightDate(now = new Date()) {
+  if (process.env.NEXT_PUBLIC_SEED_NIGHT_DATE) {
+    return process.env.NEXT_PUBLIC_SEED_NIGHT_DATE;
+  }
+  return previousReportingDate(now);
+}

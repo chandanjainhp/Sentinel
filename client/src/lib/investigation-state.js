@@ -88,6 +88,7 @@ export function buildInvestigationFeedItems(docs = []) {
           severity: doc.classification.severity,
           confidence: doc.classification.confidence,
           reasoning: doc.classification.reasoning,
+          resultSource: doc.resultSource,
         },
         isNew: false,
       });

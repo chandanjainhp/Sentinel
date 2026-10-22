@@ -36,6 +36,16 @@ const investigationSchema = new mongoose.Schema(
       description: 'Claude model version used, e.g. "claude-sonnet-4-20250514"',
     },
 
+    resultSource: {
+      type: String,
+      enum: ['llm', 'fallback'],
+      description: 'How the completed investigation result was generated',
+    },
+    provider: String,
+    executiveSummary: String,
+    dataLimitations: [String],
+    unresolvedQuestions: [String],
+
     // Tool calls sequence
     toolCallSequence: [
       {

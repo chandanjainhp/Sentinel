@@ -85,7 +85,15 @@ export const dispatchInvestigation = async (
       jobOptions.jobId = jobId;
     }
 
-    const job = await queue.add('investigate', jobData, jobOptions);
+    let job;
+    if (jobId) {
+      const existing = await queue.getJob(jobId);
+      if (existing && (await existing.getState()) === 'failed') {
+        await existing.retry();
+        job = existing;
+      }
+    }
+    job ||= await queue.add('investigate', jobData, jobOptions);
 
     console.log(
       `[InvestigationQueue] Job dispatched: ${job.id} | Incident: ${incidentId} | Priority: ${priority}`

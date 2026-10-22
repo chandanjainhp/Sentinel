@@ -32,6 +32,7 @@ const {
   explainIncident,
   buildExplanationPrompt,
   buildFallbackExplanation,
+  writeExplanation,
   stripCodeFences,
   _setLLMDriverForTests,
   SEVERITY_RANK,
@@ -221,6 +222,46 @@ describe("argus-explain (Fix A)", () => {
     // The incident body itself is untouched.
     expect(doc.severity).toBe("critical");
     expect(doc.status).toBe("open");
+  });
+
+  it("does not let a stale job overwrite a newer prediction", async () => {
+    const result = await writeExplanation(
+      seeded.incident._id,
+      {
+        summary: "stale",
+        likelyCause: "stale",
+        recommendedAction: "stale",
+        urgency: "now",
+        source: "fallback",
+        status: "ready",
+      },
+      { predictionId: new mongoose.Types.ObjectId(), severity: seeded.incident.severity },
+    );
+
+    expect(result).toBeNull();
+    expect((await Incident.findById(seeded.incident._id)).explanation.summary).toContain(
+      "Vibration trending up",
+    );
+  });
+
+  it("does not let an older manual regeneration overwrite a newer request", async () => {
+    await Incident.updateOne(
+      { _id: seeded.incident._id },
+      { $set: { "explanation.jobId": "manual-new" } },
+    );
+    const stale = await writeExplanation(
+      seeded.incident._id,
+      { ...JSON.parse(validLLMReply()), source: "llm", provider: "mock", model: "old", status: "ready", jobId: "manual-old" },
+      { predictionId: seeded.prediction._id, severity: seeded.incident.severity, jobId: "manual-old" },
+    );
+    expect(stale).toBeNull();
+
+    const current = await writeExplanation(
+      seeded.incident._id,
+      { ...JSON.parse(validLLMReply()), source: "llm", provider: "mock", model: "new", status: "ready", jobId: "manual-new" },
+      { predictionId: seeded.prediction._id, severity: seeded.incident.severity, jobId: "manual-new" },
+    );
+    expect(current.explanation.model).toBe("new");
   });
 
   it("malformed LLM reply retries once, then falls back deterministically", async () => {

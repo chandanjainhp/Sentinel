@@ -166,16 +166,49 @@ export const getIncidentEvidenceGraph = async (incidentIdParam, userFilter = {})
     ? { ...userFilter, $or: [{ incidentId: incidentIdParam }, { _id: incidentIdParam }] }
     : { ...userFilter, incidentId: incidentIdParam };
 
-  const incident = await Incident.findOne(query).select("_id").lean();
+  const incident = await Incident.findOne(query).select("_id explanation").lean();
   if (!incident) {
     throw new ApiError(404, "Incident not found");
   }
 
   const investigation = await getLatestInvestigationForIncident(incident._id);
+  const argus = incident.explanation?.source === "llm" ? incident.explanation : null;
+  const generatedAnalysis = investigation?.resultSource === "llm" ? investigation : argus;
 
   return {
     steps: investigation?.evidenceChain ?? [],
     classification: investigation?.classification ?? null,
+    resultSource: generatedAnalysis?.resultSource ?? generatedAnalysis?.source ?? null,
+    provider: generatedAnalysis?.provider ?? null,
+    agentModel: generatedAnalysis?.agentModel ?? generatedAnalysis?.model ?? null,
+    generatedAt: generatedAnalysis?.updatedAt ?? generatedAnalysis?.generatedAt ?? null,
+    agentReasoning: generatedAnalysis
+      ? {
+          assessment: generatedAnalysis.executiveSummary ?? generatedAnalysis.summary ?? null,
+          findings: investigation?.findings?.length ? investigation.findings : generatedAnalysis.findings ?? [],
+          likelyCause: generatedAnalysis.rootCause ?? generatedAnalysis.likelyCause ?? null,
+          recommendedActions: generatedAnalysis.recommendedActions ?? (generatedAnalysis.recommendedAction ? [generatedAnalysis.recommendedAction] : []),
+          uncertainties: [
+            ...(generatedAnalysis.dataLimitations ?? []),
+            ...(generatedAnalysis.unresolvedQuestions ?? []),
+            ...(generatedAnalysis.classification?.uncertainties ?? []),
+            ...(investigation?.resultSource === "fallback" && investigation.failureReason
+              ? [`Overnight investigation fallback: ${investigation.failureReason}`]
+              : []),
+          ],
+          source: generatedAnalysis.resultSource ?? generatedAnalysis.source,
+          provider: generatedAnalysis.provider ?? null,
+          model: generatedAnalysis.agentModel ?? generatedAnalysis.model ?? null,
+          generatedAt: generatedAnalysis.updatedAt ?? generatedAnalysis.generatedAt ?? null,
+          failureReason: generatedAnalysis?.resultSource === "fallback" ? generatedAnalysis.failureReason ?? generatedAnalysis.error ?? null : null,
+        }
+      : null,
+    executiveSummary: investigation?.executiveSummary ?? null,
+    findings: investigation?.findings ?? [],
+    rootCause: investigation?.rootCause ?? null,
+    recommendedActions: investigation?.recommendedActions ?? [],
+    dataLimitations: investigation?.dataLimitations ?? [],
+    unresolvedQuestions: investigation?.unresolvedQuestions ?? [],
   };
 };
 
@@ -259,10 +292,22 @@ export const requestIncidentExplanation = async (incidentIdParam, userFilter = {
     throw new ApiError(404, "Incident not found");
   }
 
+  const jobId = argusRegenerateJobId(incident.incidentId, incident.severity);
+  const pendingExplanation = {
+    ...(incident.explanation?.toObject?.() || incident.explanation || {}),
+    source: incident.explanation?.source || "fallback",
+    status: "pending",
+    jobId,
+  };
+  await Incident.updateOne(
+    { _id: incident._id },
+    { $set: { explanation: pendingExplanation } },
+  );
+
   await dispatchArgusExplain({
     incidentId: incident.incidentId,
     severity: incident.severity,
-    jobId: argusRegenerateJobId(incident.incidentId, incident.severity),
+    jobId,
   });
 
   return {

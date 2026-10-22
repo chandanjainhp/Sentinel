@@ -12,16 +12,13 @@ import AgentFeed from "@/components/agent/AgentFeed";
 import EventPanel from "@/components/events/EventPanel";
 import SeverityBadge from "@/components/events/SeverityBadge";
 import { Activity, ShieldAlert, Calendar, Play } from "lucide-react";
-import { previousReportingDate } from "@/lib/reporting-window";
+import { defaultNightDate } from "@/lib/reporting-window";
 
 const MONO = "var(--font-mono)";
 const SANS = "var(--font-sans)";
 
 function useNightDate() {
-  return useMemo(() => {
-    if (process.env.NEXT_PUBLIC_SEED_NIGHT_DATE) return process.env.NEXT_PUBLIC_SEED_NIGHT_DATE;
-    return previousReportingDate();
-  }, []);
+  return useMemo(() => defaultNightDate(), []);
 }
 
 const getIncidentId = (inc) => inc?.id || inc?._id;
@@ -35,6 +32,15 @@ const IncidentRow = memo(function IncidentRow({
   return (
     <tr
       onClick={() => onSelect(incidentId)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect(incidentId);
+        }
+      }}
+      tabIndex={0}
+      aria-selected={selected}
+      aria-label={`Select incident ${incident.incidentId || incidentId}`}
       style={{
         borderBottom: "1px solid var(--border-hairline)",
         cursor: "pointer",
@@ -95,11 +101,13 @@ function IncidentsWorkspace({ nightDate }) {
   const [selectedIncidentId, setSelectedIncidentId] = useState(null);
   const [activeRightTab, setActiveRightTab] = useState("activity"); // 'activity' | 'events'
 
-  const { data: incidentsData, isLoading } = useIncidents({
-    nightDate,
-    severity: severityFilter,
-    status: statusFilter,
-  });
+  const { data: incidentsData, isLoading, isError, error } = useIncidents(
+    {
+      severity: severityFilter,
+      status: statusFilter,
+    },
+    { refetchInterval: 60 * 1000 },
+  );
   const incidents = incidentsData?.incidents ?? [];
 
   const filteredIncidents = useMemo(() => {
@@ -116,6 +124,7 @@ function IncidentsWorkspace({ nightDate }) {
   const jobIds = useInvestigationStore((s) => s.jobIds);
   const jobStatus = useInvestigationStore((s) => s.jobStatus);
   const stats = useInvestigationStore((s) => s.investigationStats);
+  const investigationError = useInvestigationStore((s) => s.error);
   const { mutate: startInvestigation, isPending: isStarting } = useStartInvestigation();
 
   // One poll per queued investigation job; the same docs feed the panel.
@@ -155,6 +164,11 @@ function IncidentsWorkspace({ nightDate }) {
   const persistedConfidence = persistedClassification.confidence ?? 0;
   const persistedUncertainties = persistedClassification.uncertainties || [];
   const evidenceSteps = evidenceGraph?.steps || [];
+  const resultSource = evidenceGraph?.resultSource || persistedInvestigation?.resultSource;
+  const executiveSummary = evidenceGraph?.executiveSummary || persistedInvestigation?.executiveSummary;
+  const findings = evidenceGraph?.findings || persistedInvestigation?.findings || [];
+  const recommendedActions = evidenceGraph?.recommendedActions || persistedInvestigation?.recommendedActions || [];
+  const dataLimitations = evidenceGraph?.dataLimitations || persistedInvestigation?.dataLimitations || [];
 
   // If selectedIncidentId is not set, select the first matching incident if available
   useEffect(() => {
@@ -290,6 +304,12 @@ function IncidentsWorkspace({ nightDate }) {
                 <tr>
                   <td colSpan="5" style={{ padding: "32px", textAlign: "center", fontFamily: SANS, color: "var(--fg-4)", fontSize: "13px" }}>
                     Loading incidents data…
+                  </td>
+                </tr>
+              ) : isError ? (
+                <tr>
+                  <td colSpan="5" style={{ padding: "32px", textAlign: "center", fontFamily: SANS, color: "var(--health-critical)", fontSize: "13px" }}>
+                    Could not load incidents{error?.message ? `: ${error.message}` : "."}
                   </td>
                 </tr>
               ) : filteredIncidents.length === 0 ? (
@@ -482,6 +502,34 @@ function IncidentsWorkspace({ nightDate }) {
             </div>
           )}
 
+          {jobStatus === "failed" && (
+            <div style={{
+              padding: "12px 16px",
+              borderBottom: "1px solid var(--border-default)",
+              color: "var(--health-critical)",
+              fontFamily: MONO,
+              fontSize: "11px",
+            }}>
+              <div>{investigationError || "Investigation failed."}</div>
+              <button
+                onClick={() => startInvestigation({ nightDate })}
+                disabled={isStarting}
+                style={{
+                  marginTop: "8px",
+                  background: "transparent",
+                  color: "var(--accent)",
+                  border: "1px solid var(--accent)",
+                  borderRadius: "2px",
+                  padding: "6px 10px",
+                  font: "inherit",
+                  cursor: isStarting ? "not-allowed" : "pointer",
+                }}
+              >
+                {isStarting ? "Retrying…" : "Retry Investigation"}
+              </button>
+            </div>
+          )}
+
           {/* Tab Selection */}
           {showPanelWorkspace && (
             <div style={{
@@ -554,11 +602,22 @@ function IncidentsWorkspace({ nightDate }) {
                       </div>
                     ) : (
                       <>
+                        <div style={{ fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                          Result provenance: <span style={{ color: resultSource === "llm" ? "var(--accent)" : "var(--sev-minor)" }}>{resultSource || "unknown"}</span>
+                        </div>
+                        {executiveSummary && <p style={{ margin: 0, fontSize: "14px", lineHeight: 1.5, color: "var(--fg-1)" }}>{executiveSummary}</p>}
                         <AgentReasoning
                           reasoning={persistedReasoning}
                           uncertainties={persistedUncertainties}
                           confidence={persistedConfidence}
                         />
+                        {(findings.length > 0 || recommendedActions.length > 0 || dataLimitations.length > 0) && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "12px", color: "var(--fg-2)" }}>
+                            {findings.length > 0 && <div><strong>Findings</strong>{findings.map((finding, index) => <p key={index} style={{ margin: "6px 0" }}>{finding.detail || finding}</p>)}</div>}
+                            {recommendedActions.length > 0 && <div><strong>Recommended actions</strong>{recommendedActions.map((action, index) => <p key={index} style={{ margin: "6px 0" }}>• {action}</p>)}</div>}
+                            {dataLimitations.length > 0 && <div><strong>Data limitations</strong>{dataLimitations.map((limitation, index) => <p key={index} style={{ margin: "6px 0" }}>• {limitation}</p>)}</div>}
+                          </div>
+                        )}
                         <EvidenceChain
                           steps={evidenceSteps}
                           classification={persistedClassification}

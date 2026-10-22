@@ -8,17 +8,13 @@ import { useAuthStore } from "@/store/authStore";
 import { getDashboardSummary } from "@/lib/api";
 import HealthDot from "@/components/brand/HealthDot";
 import { healthMeta } from "@/lib/health";
+import { defaultNightDate } from "@/lib/reporting-window";
 
 const MONO = "var(--font-mono)";
 const DISPLAY = "var(--font-display)";
 
 function useNightDate() {
-  return useMemo(() => {
-    if (process.env.NEXT_PUBLIC_SEED_NIGHT_DATE) return process.env.NEXT_PUBLIC_SEED_NIGHT_DATE;
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
+  return useMemo(() => defaultNightDate(), []);
 }
 
 /* ── Stat tile: mono uppercase label, huge Archivo value, state dot ── */

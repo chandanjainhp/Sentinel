@@ -123,6 +123,34 @@ describe("investigation start durability", () => {
     expect(recovered.jobIds).toHaveLength(2);
     expect(await Investigation.countDocuments({ incidentId: { $in: [incident._id, second._id] }, nightDate: retryNight })).toBe(2);
   });
+
+  it("re-queues a failed investigation document on a safe retry", async () => {
+    const retryNight = "2026-01-04";
+    const incident = await makeIncident("2026-01-04T13:00:00.000Z");
+    const failed = await Investigation.create({
+      incidentId: incident._id,
+      nightDate: retryNight,
+      status: "failed",
+      failureReason: "temporary worker failure",
+    });
+    let dispatched = 0;
+
+    const result = await startInvestigation({
+      userId: seeded.user._id,
+      nightDate: retryNight,
+      dispatch: async (_incidentId, _priority, jobId) => {
+        dispatched += 1;
+        expect(jobId).toBe(String(failed._id));
+      },
+    });
+
+    expect(result.status).toBe("started");
+    expect(dispatched).toBe(1);
+    expect(await Investigation.findById(failed._id)).toMatchObject({
+      status: "queued",
+      failureReason: undefined,
+    });
+  });
 });
 
 describe("investigation worker evidence", () => {

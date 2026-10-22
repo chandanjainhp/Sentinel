@@ -25,7 +25,8 @@ const AgentFeedItem = memo(({ item }) => {
   } else if (type === "classification") {
     const sev = data?.severity || "unknown";
     const conf = data?.confidence ? ` · conf ${data.confidence.toFixed(2)}` : "";
-    message = `${sev.toUpperCase()}${conf} — ${truncateText(data?.reasoning || item.summary, 80)}`;
+    const source = data?.resultSource ? ` · ${data.resultSource}` : "";
+    message = `${sev.toUpperCase()}${conf}${source} — ${truncateText(data?.reasoning || item.summary, 80)}`;
   } else {
     message = truncateText(item.summary, 100) || "";
   }

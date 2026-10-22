@@ -32,6 +32,10 @@ export const CHANNEL_MAX_AGE_SEC = Number(process.env.CHANNEL_MAX_AGE_SEC || 300
 export const ML_TIMEOUT_MS = Number(process.env.ML_TIMEOUT_MS || 5000);
 export const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://localhost:9000";
 
+// Read at call time so workers started through a dotenv/Infisical wrapper use
+// the configured value even when this module was imported earlier.
+export const getMlTimeoutMs = () => Number(process.env.ML_TIMEOUT_MS || ML_TIMEOUT_MS);
+
 /**
  * ML base URL at call time. Tests (and deployments) may set ML_SERVICE_URL
  * after modules have loaded — the constant above is captured at import time,

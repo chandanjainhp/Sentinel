@@ -62,7 +62,7 @@ export const BRIEFING_SECTION_VALUES = Object.values(BRIEFING_SECTIONS);
 
 // ========== AI CONFIGURATION ==========
 export const AI_CONFIG = {
-  CLAUDE_MODEL: 'claude-sonnet-4-20250514',
+  CLAUDE_MODEL: 'claude-sonnet-4-6',
   MAX_TOOL_CALLS: 12,
   MAX_TOKENS_PER_CALL: 2000,
   INVESTIGATION_CONCURRENCY: 3,
