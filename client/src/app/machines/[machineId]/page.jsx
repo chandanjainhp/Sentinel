@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getMachineDetail } from "@/lib/api";
 import { healthMeta } from "@/lib/health";
 import HealthDot from "@/components/brand/HealthDot";
+import PageContainer from "@/components/layout/PageContainer";
 
 const MONO = "var(--font-mono)";
 const DISPLAY = "var(--font-display)";
@@ -289,15 +290,7 @@ export default function MachineDetailPage() {
 
   if (isError) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "var(--night)",
-          padding: "32px 24px 64px",
-          maxWidth: "1080px",
-          margin: "0 auto",
-        }}
-      >
+      <PageContainer>
         <div className="empty-state">MACHINE NOT FOUND — OR NOT VISIBLE TO THIS ACCOUNT</div>
         <div style={{ textAlign: "center", marginTop: 16 }}>
           <Link
@@ -313,20 +306,12 @@ export default function MachineDetailPage() {
             ← BACK TO FLEET
           </Link>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "var(--night)",
-        padding: "32px 24px 64px",
-        maxWidth: "1080px",
-        margin: "0 auto",
-      }}
-    >
+    <PageContainer>
       {/* ── Header: breadcrumb, name, type, health pill ── */}
       <div style={{ marginBottom: 28 }}>
         <div
@@ -518,6 +503,7 @@ export default function MachineDetailPage() {
             index="02"
             title="Sensor Trends"
             note={trends.length ? `LAST ${windowMin}M · ${trends.length} SENSOR${trends.length === 1 ? "" : "S"}` : undefined}
+            action={<Link href={`/sensors/trends?machineId=${encodeURIComponent(machineId)}`} style={{ marginLeft: "auto", fontFamily: MONO, fontSize: 10, letterSpacing: ".14em", color: "var(--amber)", textDecoration: "none" }}>OPEN TRENDS WORKSPACE →</Link>}
           />
           {trends.length === 0 ? (
             <div className="empty-state" style={{ marginBottom: 40 }}>
@@ -748,6 +734,6 @@ export default function MachineDetailPage() {
           )}
         </>
       )}
-    </div>
+    </PageContainer>
   );
 }

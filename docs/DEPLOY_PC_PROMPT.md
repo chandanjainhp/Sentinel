@@ -41,7 +41,7 @@ Fill it with exactly these variables.
 
 - `ACCESS_TOKEN_SECRET=` — JWT access tokens
 - `REFRESH_TOKEN_SECRET=` — JWT refresh tokens
-- `WEBHOOK_SECRET=` — drone/webhook ingestion signing
+- `WEBHOOK_SECRET=` — webhook ingestion signing
 
 Note: `MONGODB_URL` / `REDIS_URL` in the file are ignored by compose — it
 computes Docker-network URLs itself.

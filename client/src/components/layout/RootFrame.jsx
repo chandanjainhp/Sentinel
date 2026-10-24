@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import TopBar from "@/components/layout/TopBar";
+import Sidebar from "@/components/layout/Sidebar";
 
 const PUBLIC_ROUTES = new Set([
   "/",
@@ -20,22 +20,15 @@ export default function RootFrame({ children }) {
     PUBLIC_ROUTES.has(path) ||
     path.startsWith("/reset-password");
 
-  const suppressTopBar = isPublicRoute;
+  const suppressSidebar = isPublicRoute;
 
   return (
     <>
-      {!suppressTopBar && <a href="#main" className="skip-to-content">Skip to content</a>}
-      {!suppressTopBar ? <TopBar /> : null}
-      {/* ≤640px the TopBar wraps to two rows (~100px); desktop stays 56px. */}
-      {!suppressTopBar && (
-        <style dangerouslySetInnerHTML={{ __html: `
-          .app-main-offset { padding-top: 56px; }
-          @media (max-width: 640px) {
-            .app-main-offset { padding-top: 100px; }
-          }
-        ` }} />
-      )}
-      <div id={suppressTopBar ? undefined : "main"} className={suppressTopBar ? undefined : "app-main-offset"} style={{ paddingTop: suppressTopBar ? "0" : undefined }}>{children}</div>
+      {!suppressSidebar && <a href="#main" className="skip-to-content">Skip to content</a>}
+      {!suppressSidebar && <Sidebar />}
+      <main id={suppressSidebar ? undefined : "main"} className={suppressSidebar ? undefined : "app-layout-main"}>
+        {children}
+      </main>
     </>
   );
 }

@@ -63,6 +63,17 @@ export const ingestEvent = async ({
     throw new ApiError(400, "Resource hierarchy mismatch for site, machine, and sensor");
   }
 
+  const valueChannels = Object.keys(values || {});
+  const mismatchedChannels = valueChannels.filter(
+    (channel) => channel !== sensor.type
+  );
+  if (mismatchedChannels.length > 0) {
+    throw new ApiError(
+      400,
+      `Sensor ${sensor.sensorId} is registered as ${sensor.type}; it cannot report ${mismatchedChannels.join(", ")}`
+    );
+  }
+
   const idempotencyKey =
     idempotencyHeader ||
     createEventHash({

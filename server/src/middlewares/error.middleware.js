@@ -1,10 +1,37 @@
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
+import { filterSensitiveData } from "../utils/sensitive-data-filter.js";
+
+/**
+ * Filter error for client response.
+ * Removes sensitive data from error messages and stack traces.
+ */
+const filterErrorForResponse = (error) => {
+  const message = error instanceof ApiError
+    ? error.message
+    : "Internal server error";
+
+  // Filter sensitive data from the message
+  const filteredMessage = filterSensitiveData(message);
+
+  // For non-ApiError, also filter any potential sensitive data
+  // Don't expose internal details in production
+  if (!(error instanceof ApiError) && process.env.NODE_ENV === 'production') {
+    return {
+      message: filteredMessage,
+      errors: [],
+    };
+  }
+
+  return {
+    message: filteredMessage,
+    errors: error.errors || [],
+  };
+};
 
 export const errorHandler = (error, _req, res, _next) => {
   let statusCode = error.statusCode || 500;
-  let message = error instanceof ApiError ? error.message : "Internal server error";
-  let errors = error.errors || [];
+  let { message, errors } = filterErrorForResponse(error);
 
   if (!(error instanceof ApiError)) {
     if (error.name === "CastError") {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Checkbox from '@radix-ui/react-checkbox';
@@ -10,7 +11,7 @@ import {
   AlertTriangle, Check, ChevronRight, Copy, Loader2, Plus, Radio, X,
 } from 'lucide-react';
 import {
-  getApiKeyMeta, createUserApiKey, getSites, createSite,
+  listApiKeys, createNamedApiKey, getSites, createSite,
   getMachinesForSite, createMachine, listSensors, createSensor,
 } from '@/lib/api';
 
@@ -81,7 +82,7 @@ function relative(iso) {
   return iso ? formatDistanceToNow(new Date(iso), { addSuffix: true }) : 'never';
 }
 
-/* Reveal-once key modal — same pattern as the settings/api-key page. */
+/* Reveal-once key modal — same pattern as the settings/api-keys page. */
 function RevealSecretModal({ open, secret, onClose }) {
   const [copied, setCopied] = useState(false);
   const [acked, setAcked] = useState(false);
@@ -324,11 +325,12 @@ export default function AddSensorModal({ open, onOpenChange, summary }) {
     enabled: open && step === 1 && Boolean(siteId),
   });
 
-  const { data: keyMeta } = useQuery({
-    queryKey: ['api-key'],
-    queryFn: getApiKeyMeta,
+  const { data: apiKeys } = useQuery({
+    queryKey: ['api-keys'],
+    queryFn: listApiKeys,
     enabled: open && step === 3,
   });
+  const latestKey = apiKeys?.[0] ?? null;
 
   const { data: sensors } = useQuery({
     queryKey: ['sensors'],
@@ -414,8 +416,10 @@ export default function AddSensorModal({ open, onOpenChange, summary }) {
     });
   }
 
+  // Named keys keep every earlier gateway working; nothing is replaced here.
   const createKeyMutation = useMutation({
-    mutationFn: createUserApiKey,
+    mutationFn: () =>
+      createNamedApiKey(machine?.name ? `Gateway — ${machine.name}` : 'Sensor gateway'),
     onSuccess: (result) => {
       const secret = result?.secret;
       if (!secret) {
@@ -423,7 +427,7 @@ export default function AddSensorModal({ open, onOpenChange, summary }) {
         return;
       }
       setRevealSecret(secret);
-      queryClient.invalidateQueries({ queryKey: ['api-key'] });
+      queryClient.invalidateQueries({ queryKey: ['api-keys'] });
     },
     onError: (err) => toast.error(err?.message ?? 'Failed to create API key'),
   });
@@ -709,27 +713,36 @@ export default function AddSensorModal({ open, onOpenChange, summary }) {
                   {/* API key state */}
                   <div>
                     <div style={LABEL}>API key</div>
-                    {keyMeta ? (
+                    {latestKey ? (
                       <div style={{
                         padding: '12px 14px', background: 'var(--bg-surface-2)',
                         border: '1px solid var(--border-hairline)', borderRadius: '2px',
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
                       }}>
                         <div>
-                          <code style={{ fontFamily: MONO, fontSize: '12px', color: 'var(--fg-1)' }}>{keyMeta.keyPrefix}…</code>
+                          <code style={{ fontFamily: MONO, fontSize: '12px', color: 'var(--fg-1)' }}>{latestKey.keyPrefix}…</code>
                           <div style={{ fontFamily: SANS, fontSize: '11px', color: 'var(--fg-3)', marginTop: '2px' }}>
-                            created {relative(keyMeta.createdAt)} · last used {keyMeta.lastUsedAt ? relative(keyMeta.lastUsedAt) : 'never'}
+                            created {relative(latestKey.createdAt)} · last used {latestKey.lastUsedAt ? relative(latestKey.lastUsedAt) : 'never'}
+                            {apiKeys.length > 1 ? ` · ${apiKeys.length} keys configured` : ''}
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => { if (window.confirm('Generate a new key? The current key stops working immediately.')) createKeyMutation.mutate(); }}
-                          disabled={createKeyMutation.isPending}
-                          style={{ ...SECONDARY_BTN, flexShrink: 0, padding: '5px 10px', fontSize: '10px' }}
-                        >
-                          {createKeyMutation.isPending ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}
-                          Regenerate
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                          <Link
+                            href="/settings/api-keys"
+                            style={{ ...SECONDARY_BTN, padding: '5px 10px', fontSize: '10px', textDecoration: 'none' }}
+                          >
+                            Manage
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => createKeyMutation.mutate()}
+                            disabled={createKeyMutation.isPending}
+                            style={{ ...SECONDARY_BTN, padding: '5px 10px', fontSize: '10px' }}
+                          >
+                            {createKeyMutation.isPending ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}
+                            New key
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <div style={{

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
+import ConfirmDialog from '@/components/shared/ConfirmDialog';
 
 const MONO = 'var(--font-mono)';
 
@@ -96,6 +97,10 @@ export default function TestDashboard() {
   const [nightDate, setNightDate] = useState(toISODate());
   const pollRef = useRef(null);
 
+  // ConfirmDialog state for the cleanup destructive action.
+  const [cleanupOpen, setCleanupOpen] = useState(false);
+  const [cleanupError, setCleanupError] = useState('');
+
   const clearPoll = () => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   };
@@ -160,7 +165,7 @@ export default function TestDashboard() {
   }
 
   async function cleanup() {
-    if (!window.confirm(`Delete ALL test data for ${nightDate}? This cannot be undone.`)) return;
+    setCleanupError('');
     const data = await call(
       () => api.post('/test/cleanup', { nightDate }),
       'cleanup'
@@ -169,6 +174,10 @@ export default function TestDashboard() {
       setCleanupResult(data);
       setEvents(null); setInvestigation(null); setStatusPoll(null); setBriefing(null);
       setStep(null);
+      setCleanupOpen(false);
+    } else {
+      // `call` already pushed the message to `error`; surface it in the dialog too.
+      setCleanupError(error || 'Cleanup failed. Check the console.');
     }
   }
 
@@ -346,7 +355,7 @@ export default function TestDashboard() {
             Delete all events, incidents, investigations, and briefings for the selected night.
             Requires confirmation.
           </p>
-          <Btn onClick={cleanup} disabled={loading === 'cleanup'} danger>
+          <Btn onClick={() => setCleanupOpen(true)} disabled={loading === 'cleanup'} danger>
             {loading === 'cleanup' ? 'Deleting…' : `Cleanup ${nightDate} →`}
           </Btn>
           {cleanupResult && <Pre value={cleanupResult.deleted} />}
@@ -393,6 +402,25 @@ curl -X POST http://localhost:8000/api/v1/test/cleanup \\
         </Card>
 
       </div>
+
+      {/* Cleanup confirmation — replaces window.confirm() */}
+      <ConfirmDialog
+        open={cleanupOpen}
+        onOpenChange={(v) => {
+          if (!v && loading !== 'cleanup') {
+            setCleanupOpen(false);
+            setCleanupError('');
+          }
+        }}
+        title={`Delete ALL test data for ${nightDate}?`}
+        description="This will permanently delete every event, incident, investigation, and briefing for the selected night. This action cannot be undone."
+        resourceLabel={`nightDate: ${nightDate}`}
+        confirmLabel="Delete test data"
+        tone="danger"
+        onConfirm={cleanup}
+        isLoading={loading === 'cleanup'}
+        error={cleanupError || undefined}
+      />
     </div>
   );
 }

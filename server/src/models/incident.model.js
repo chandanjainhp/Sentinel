@@ -65,7 +65,6 @@ const incidentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Machine",
       required: true,
-      index: true,
     },
 
     predictionId: {
@@ -176,6 +175,29 @@ incidentSchema.index({
   status: 1,
   createdAt: -1,
 });
+
+// For multi-instance reliability: ensure only one open/reviewed incident per machine
+// This prevents race conditions where multiple replicas create duplicate incidents
+// for the same machine. Uses partial filter to only apply uniqueness to open/reviewed
+// incidents (closed incidents are historical and don't need to be unique).
+//
+// IMPORTANT: Before creating this index in production, run:
+//   db.incidents.aggregate([
+//     { $match: { status: { $in: ["open", "reviewed"] } } },
+//     { $group: { _id: "$machineId", n: { $sum: 1 }, ids: { $push: "$_id" } } },
+//     { $match: { n: { $gt: 1 } } },
+//   ])
+// And resolve any duplicates by closing or merging them.
+incidentSchema.index(
+  { machineId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: { $in: ["open", "reviewed"] },
+      userId: { $exists: true },
+    },
+  }
+);
 
 export const Incident = mongoose.model(
   "Incident",

@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useIncidents } from "@/hooks/useIncidents";
 import EventCard from "./EventCard";
+import { useQuery } from "@tanstack/react-query";
+import { getOvernightHealthCurrent } from "@/lib/api";
 
 // Server severity vocabulary (Incident model enum): critical | warning |
 // minor | unknown — matched 1:1 to the buckets built by useIncidents().
@@ -151,6 +153,11 @@ export default function EventPanel({ nightDate: nightDateProp }) {
     })();
 
   const { data, isLoading, isError, error } = useIncidents({ nightDate });
+  const { data: healthRun } = useQuery({
+    queryKey: ["overnight-health", "current"],
+    queryFn: () => getOvernightHealthCurrent(),
+    refetchInterval: 60 * 1000,
+  });
   const [activeSeverityFilters, setActiveSeverityFilters] = useState([
     "critical",
     "warning",
@@ -249,6 +256,24 @@ export default function EventPanel({ nightDate: nightDateProp }) {
       }}
     >
       {/* ── Filter pills ──────────────────────────────── */}
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-hairline)", background: "var(--bg-surface-1)" }}>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--fg-2)" }}>
+          Overnight Health Checker · {healthRun?.reportingDate || "not run"}
+        </div>
+        <div style={{ marginTop: 5, fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--fg-3)" }}>
+          {healthRun
+            ? `${healthRun.status.replaceAll("_", " ")} · ${healthRun.timezone} · ${new Date(healthRun.windowStartAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZone: healthRun.timezone })}–${new Date(healthRun.windowEndAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZone: healthRun.timezone })} · ${healthRun.assessedMachines}/${healthRun.expectedMachines} assessed`
+            : "No overnight run has been recorded for this reporting date."}
+        </div>
+        {healthRun?.reportGeneratedAt && (
+          <div style={{ marginTop: 4, fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--fg-3)" }}>
+            Report generated {new Date(healthRun.reportGeneratedAt).toLocaleString([], { timeZone: healthRun.timezone })}
+            {healthRun.unassessedMachines > 0 ? ` · ${healthRun.unassessedMachines} unassessed` : ""}
+          </div>
+        )}
+      </div>
+
+      {/* ── Filter pills ──────────────────────────────── */}
       <div
         style={{
           display: "flex",
@@ -337,7 +362,7 @@ export default function EventPanel({ nightDate: nightDateProp }) {
                 lineHeight: 1.5,
               }}
             >
-              Patrol either did not run or did not detect anything reportable.
+              The checker found no reportable incidents, or has not completed assessment yet.
             </span>
           </div>
         )}

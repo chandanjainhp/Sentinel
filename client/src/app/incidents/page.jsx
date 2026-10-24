@@ -1,642 +1,423 @@
 "use client";
 
-import { memo, useMemo, useState, useEffect, Suspense } from "react";
+import { memo, useMemo, useState } from "react";
 import Link from "next/link";
-import { useIncidents, useIncidentById, useIncidentEvidenceGraph } from "@/hooks/useIncidents";
-import AgentReasoning from "@/components/incident/AgentReasoning";
-import EvidenceChain from "@/components/incident/EvidenceChain";
-import { useStartInvestigation, useNightInvestigations } from "@/hooks/useInvestigation";
-import { useInvestigationStore } from "@/store/investigationStore";
+import { AlertTriangle, Calendar, Filter, Search, X } from "lucide-react";
+import { useIncidents } from "@/hooks/useIncidents";
 import { useIncidentFilterStore } from "@/store/incidentFilterStore";
-import AgentFeed from "@/components/agent/AgentFeed";
-import EventPanel from "@/components/events/EventPanel";
 import SeverityBadge from "@/components/events/SeverityBadge";
-import { Activity, ShieldAlert, Calendar, Play } from "lucide-react";
-import { defaultNightDate } from "@/lib/reporting-window";
+import StatusBadge from "@/components/incident/StatusBadge";
+import LoadingState from "@/components/shared/LoadingState";
+import EmptyState from "@/components/shared/EmptyState";
+import ErrorState from "@/components/shared/ErrorState";
+import { SEVERITY_OPTIONS, SEV_TOKENS, FALLBACK_SEVERITY } from "@/lib/severity";
+import { INCIDENT_STATUSES, STATUS_LABELS, FALLBACK_STATUS } from "@/lib/status";
+import { defaultNightDate, REPORTING_TIMEZONE } from "@/lib/reporting-window";
+import PageContainer from "@/components/layout/PageContainer";
+import styles from "./incidents.module.css";
 
-const MONO = "var(--font-mono)";
-const SANS = "var(--font-sans)";
+const getIncidentId = (incident) =>
+  incident?.id || incident?._id || incident?.incidentId;
 
-function useNightDate() {
-  return useMemo(() => defaultNightDate(), []);
-}
+// Full ids are UUID-shaped and blow up the first column; keep them readable
+// and expose the full value as a tooltip.
+const shortId = (incident) => {
+  const value = String(incident.incidentId || getIncidentId(incident) || "");
+  return value.length > 15 ? `${value.slice(0, 13)}…` : value;
+};
 
-const getIncidentId = (inc) => inc?.id || inc?._id;
+const formatTimestamp = (value) => {
+  if (!value) return "—";
+  try {
+    return new Date(value).toLocaleString([], {
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: REPORTING_TIMEZONE,
+    });
+  } catch {
+    return "—";
+  }
+};
 
-const IncidentRow = memo(function IncidentRow({
-  incident,
-  selected,
-  onSelect,
-}) {
+const IncidentRow = memo(function IncidentRow({ incident }) {
   const incidentId = getIncidentId(incident);
+  const machineId = incident.machineId || incident.machine?._id;
+  const sensorId = incident.sensorId || incident.evidence?.sensorId;
+  const severity = incident.severity || FALLBACK_SEVERITY;
+  const status = incident.status || FALLBACK_STATUS;
+
   return (
-    <tr
-      onClick={() => onSelect(incidentId)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onSelect(incidentId);
-        }
-      }}
-      tabIndex={0}
-      aria-selected={selected}
-      aria-label={`Select incident ${incident.incidentId || incidentId}`}
-      style={{
-        borderBottom: "1px solid var(--border-hairline)",
-        cursor: "pointer",
-        background: selected ? "rgba(184,212,232,0.06)" : "transparent",
-        transition: "background 150ms ease",
-      }}
-      onMouseEnter={(e) => {
-        if (!selected) e.currentTarget.style.background = "var(--bg-surface-2)";
-      }}
-      onMouseLeave={(e) => {
-        if (!selected) e.currentTarget.style.background = "transparent";
-      }}
-    >
-      <td style={{ padding: "12px 16px", fontFamily: MONO, fontSize: "11px" }}>
+    // Non-interactive row: the title link is the single primary target, so
+    // keyboard users get one stop per row instead of an overlapping
+    // tr tabIndex + nested links.
+    <tr className={styles.row}>
+      <td className={styles.cellId} title={incident.incidentId || String(incidentId)}>
+        {shortId(incident)}
+      </td>
+      <td className={styles.cellTitle}>
         <Link
           href={`/incidents/${incidentId}`}
-          onClick={(e) => e.stopPropagation()}
-          style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 600 }}
+          className={styles.titleLink}
+          title={incident.title || "Unnamed Incident"}
         >
-          {incident.incidentId || String(incidentId).substring(0, 8)}
+          {incident.title || "Unnamed Incident"}
         </Link>
       </td>
-      <td style={{ padding: "12px 16px", fontFamily: SANS, fontSize: "13px", color: "var(--fg-1)", fontWeight: 500 }}>
-        {incident.title || "Unnamed Incident"}
-      </td>
-      <td style={{ padding: "12px 16px", fontFamily: MONO, fontSize: "12px", color: "var(--fg-2)" }}>
+      <td className={styles.cellMachine}>
         {incident.machine?.name || incident.machineId || "—"}
       </td>
-      <td style={{ padding: "12px 16px", fontFamily: MONO, fontSize: "12px", color: "var(--fg-2)" }}>
-        P{incident.priority}
+      <td>
+        <SeverityBadge severity={severity} />
       </td>
-      <td style={{ padding: "12px 16px" }}>
-        <SeverityBadge severity={incident.severity || "uncertain"} />
+      <td>
+        <StatusBadge status={status} />
+      </td>
+      <td className={styles.mono}>{formatTimestamp(incident.createdAt)}</td>
+      <td className={styles.mono}>
+        {formatTimestamp(incident.lastSeenAt || incident.updatedAt || incident.createdAt)}
+      </td>
+      <td>
+        <div className={styles.actions}>
+          {machineId && (
+            <Link
+              href={`/machines/${machineId}`}
+              className={styles.actionLink}
+              title="View Machine"
+            >
+              MACHINE
+            </Link>
+          )}
+          {sensorId && machineId && (
+            <Link
+              href={`/sensors/trends?machineId=${encodeURIComponent(machineId)}&sensorId=${encodeURIComponent(sensorId)}`}
+              className={`${styles.actionLink} ${styles.actionLinkAccent}`}
+              title="View Sensor Trends"
+            >
+              SENSOR
+            </Link>
+          )}
+        </div>
       </td>
     </tr>
   );
 });
 
-export default function IncidentsPage() {
-  const nightDate = useNightDate();
+function Metric({ label, value, tone }) {
   return (
-    <Suspense fallback={
-      <div style={{ padding: "40px", color: "var(--fg-3)", fontSize: "12px", fontFamily: MONO }}>
-        Loading incidents workspace…
-      </div>
-    }>
-      <IncidentsWorkspace nightDate={nightDate} />
-    </Suspense>
+    <div className={`${styles.metric}${tone ? ` ${styles[tone]}` : ""}`}>
+      <span className={styles.metricLabel}>{label}</span>
+      <span className={styles.metricValue}>{value}</span>
+    </div>
   );
 }
 
-function IncidentsWorkspace({ nightDate }) {
+function MetricsSummary({ incidents, isLoading, isError }) {
+  const counts = useMemo(
+    () => ({
+      critical: incidents.filter((i) => i.severity === "critical").length,
+      warning: incidents.filter((i) => i.severity === "warning").length,
+      open: incidents.filter((i) => (i.status || FALLBACK_STATUS) === "open").length,
+      total: incidents.length,
+    }),
+    [incidents],
+  );
+
+  if (isError) return null;
+
+  if (isLoading) {
+    return (
+      <div className={styles.metrics} aria-busy="true">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className={styles.metric}>
+            <span className={styles.skeleton} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.metrics}>
+      <Metric label="Critical" value={counts.critical} tone={counts.critical > 0 ? "critical" : null} />
+      <Metric label="Warning" value={counts.warning} tone={counts.warning > 0 ? "warning" : null} />
+      <Metric label="Open" value={counts.open} tone={counts.open > 0 ? "open" : null} />
+      <Metric label="Total" value={counts.total} />
+    </div>
+  );
+}
+
+function FilterControls({ filters, setFilter, onClear, onSearch, searchQuery }) {
+  const [localSearch, setLocalSearch] = useState(searchQuery || "");
+
+  const activeFilters = useMemo(() => {
+    const active = [];
+    if (filters.severity) active.push(`Severity: ${SEV_TOKENS[filters.severity]?.label ?? filters.severity}`);
+    if (filters.status) active.push(`Status: ${STATUS_LABELS[filters.status] ?? filters.status}`);
+    if (filters.priority) active.push(`Priority: P${filters.priority}`);
+    if (localSearch) active.push(`Search: "${localSearch}"`);
+    return active;
+  }, [filters.severity, filters.status, filters.priority, localSearch]);
+
+  const submitSearch = (event) => {
+    event.preventDefault();
+    onSearch(localSearch);
+  };
+
+  return (
+    <div className={styles.filters}>
+      <form className={styles.searchField} onSubmit={submitSearch} role="search">
+        <label className={styles.fieldLabel} htmlFor="incident-search">Search</label>
+        <div className={styles.fieldRow}>
+          <input
+            id="incident-search"
+            className={`${styles.input} tap-target`}
+            type="text"
+            value={localSearch}
+            onChange={(event) => setLocalSearch(event.target.value)}
+            placeholder="Incident or machine name..."
+          />
+          <button type="submit" className={styles.iconButton} title="Search" aria-label="Search incidents">
+            <Search size={14} aria-hidden="true" />
+          </button>
+          {localSearch && (
+            <button
+              type="button"
+              className={styles.iconButton}
+              title="Clear search"
+              aria-label="Clear search"
+              onClick={() => {
+                setLocalSearch("");
+                onSearch("");
+              }}
+            >
+              <X size={14} aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      </form>
+
+      <div className={styles.field}>
+        <label className={styles.fieldLabel} htmlFor="incident-priority">Priority</label>
+        <select
+          id="incident-priority"
+          className={`${styles.select} tap-target`}
+          value={filters.priority || "all"}
+          onChange={(event) => setFilter("priority", event.target.value)}
+        >
+          <option value="all">All Priorities</option>
+          <option value="1">Priority 1 (High)</option>
+          <option value="2">Priority 2</option>
+          <option value="3">Priority 3</option>
+          <option value="4">Priority 4</option>
+          <option value="5">Priority 5 (Low)</option>
+        </select>
+      </div>
+
+      <div className={styles.field}>
+        <label className={styles.fieldLabel} htmlFor="incident-severity">Severity</label>
+        <select
+          id="incident-severity"
+          className={`${styles.select} tap-target`}
+          value={filters.severity || "all"}
+          onChange={(event) => setFilter("severity", event.target.value)}
+        >
+          <option value="all">All Severities</option>
+          {SEVERITY_OPTIONS.map((value) => (
+            <option key={value} value={value}>{SEV_TOKENS[value].label}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className={styles.field}>
+        <label className={styles.fieldLabel} htmlFor="incident-status">Status</label>
+        <select
+          id="incident-status"
+          className={`${styles.select} tap-target`}
+          value={filters.status || "all"}
+          onChange={(event) => setFilter("status", event.target.value)}
+        >
+          <option value="all">All Statuses</option>
+          {INCIDENT_STATUSES.map((value) => (
+            <option key={value} value={value}>{STATUS_LABELS[value]}</option>
+          ))}
+        </select>
+      </div>
+
+      {activeFilters.length > 0 && (
+        <button
+          className={styles.chipButton}
+          onClick={onClear}
+          title={`Clear filters: ${activeFilters.join(", ")}`}
+        >
+          <Filter size={14} aria-hidden="true" />
+          Clear filters
+        </button>
+      )}
+
+      {activeFilters.length > 0 && (
+        <div className={styles.activeFilters}>
+          {activeFilters.map((filter) => (
+            <span key={filter} className={styles.chip}>{filter}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function IncidentsPage() {
+  const nightDate = useMemo(() => defaultNightDate(), []);
   const severityFilter = useIncidentFilterStore((s) => s.severity);
   const statusFilter = useIncidentFilterStore((s) => s.status);
   const priorityFilter = useIncidentFilterStore((s) => s.priority);
   const setFilter = useIncidentFilterStore((s) => s.setFilter);
+  const clearFilters = useIncidentFilterStore((s) => s.clearFilters);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const [selectedIncidentId, setSelectedIncidentId] = useState(null);
-  const [activeRightTab, setActiveRightTab] = useState("activity"); // 'activity' | 'events'
+  const filters = useMemo(
+    () => ({ severity: severityFilter, status: statusFilter, priority: priorityFilter }),
+    [severityFilter, statusFilter, priorityFilter],
+  );
 
-  const { data: incidentsData, isLoading, isError, error } = useIncidents(
-    {
-      severity: severityFilter,
-      status: statusFilter,
-    },
+  const { data, isLoading, isError, error, refetch } = useIncidents(
+    { severity: severityFilter, status: statusFilter },
     { refetchInterval: 60 * 1000 },
   );
-  const incidents = incidentsData?.incidents ?? [];
 
+  const incidents = useMemo(() => data?.incidents ?? [], [data]);
+
+  // Priority and free-text search are client-side; the server only filters
+  // severity / status / date window.
   const filteredIncidents = useMemo(() => {
-    return incidents.filter((inc) => {
-      const priMatch = !priorityFilter || String(inc.priority) === String(priorityFilter);
-      return priMatch;
+    const query = searchQuery.toLowerCase();
+    return incidents.filter((incident) => {
+      const matchesPriority =
+        !priorityFilter || String(incident.priority) === String(priorityFilter);
+      const matchesSearch =
+        !query ||
+        [incident.title, incident.incidentId, incident.machine?.name, incident.machineId]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(query));
+      return matchesPriority && matchesSearch;
     });
-  }, [incidents, priorityFilter]);
+  }, [incidents, priorityFilter, searchQuery]);
 
-  const selectedIncident = useMemo(() => {
-    return incidents.find((i) => getIncidentId(i) === selectedIncidentId);
-  }, [incidents, selectedIncidentId]);
-  // Connect to investigation store and polling
-  const jobIds = useInvestigationStore((s) => s.jobIds);
-  const jobStatus = useInvestigationStore((s) => s.jobStatus);
-  const stats = useInvestigationStore((s) => s.investigationStats);
-  const investigationError = useInvestigationStore((s) => s.error);
-  const { mutate: startInvestigation, isPending: isStarting } = useStartInvestigation();
-
-  // One poll per queued investigation job; the same docs feed the panel.
-  const { docs: investigations } = useNightInvestigations(jobIds);
-
-  const { data: selectedDetail, isLoading: detailLoading } = useIncidentById(
-    selectedIncidentId,
-    { enabled: !!selectedIncidentId },
-  );
-  const { data: evidenceGraph, isLoading: graphLoading } = useIncidentEvidenceGraph(
-    selectedIncidentId,
-    { enabled: !!selectedIncidentId },
-  );
-
-  const isNightJobActive = jobStatus !== "idle" || jobIds.length > 0;
-  const persistedInvestigation = selectedDetail?.investigationId;
-  // The detail read attaches the latest complete investigation; the evidence
-  // graph is the same document, so either one proves results exist.
-  const hasCompletedInvestigation =
-    persistedInvestigation?.status === "complete" ||
-    Boolean(persistedInvestigation?.classification?.reasoning) ||
-    Boolean(evidenceGraph?.steps?.length) ||
-    Boolean(evidenceGraph?.classification);
-  const showPersistedResults =
-    !!selectedIncidentId && hasCompletedInvestigation && !isNightJobActive;
-  const showPanelWorkspace = isNightJobActive || showPersistedResults;
-
-  const persistedClassification = {
-    ...(evidenceGraph?.classification || {}),
-    ...(persistedInvestigation?.classification || {}),
+  const hasFilters = Boolean(severityFilter || statusFilter || priorityFilter || searchQuery);
+  const resetAll = () => {
+    clearFilters();
+    setSearchQuery("");
   };
-  const persistedReasoning =
-    persistedClassification.reasoning ||
-    selectedDetail?.classification?.reasoning ||
-    selectedIncident?.agentSummary ||
-    "No investigation reasoning was recorded for this incident.";
-  const persistedConfidence = persistedClassification.confidence ?? 0;
-  const persistedUncertainties = persistedClassification.uncertainties || [];
-  const evidenceSteps = evidenceGraph?.steps || [];
-  const resultSource = evidenceGraph?.resultSource || persistedInvestigation?.resultSource;
-  const executiveSummary = evidenceGraph?.executiveSummary || persistedInvestigation?.executiveSummary;
-  const findings = evidenceGraph?.findings || persistedInvestigation?.findings || [];
-  const recommendedActions = evidenceGraph?.recommendedActions || persistedInvestigation?.recommendedActions || [];
-  const dataLimitations = evidenceGraph?.dataLimitations || persistedInvestigation?.dataLimitations || [];
-
-  // If selectedIncidentId is not set, select the first matching incident if available
-  useEffect(() => {
-    if (!selectedIncidentId && filteredIncidents.length > 0) {
-      setSelectedIncidentId(getIncidentId(filteredIncidents[0]));
-    }
-  }, [filteredIncidents, selectedIncidentId]);
 
   return (
-    <div className="incidents-page" style={{
-      minHeight: "100vh",
-      background: "var(--bg-base)",
-      padding: "24px",
-      maxWidth: "1400px",
-      margin: "0 auto",
-    }}>
-      <style dangerouslySetInnerHTML={{ __html: `
-        .incidents-workspace {
-          display: grid;
-          grid-template-columns: 1fr 460px;
-          gap: 24px;
-          align-items: start;
-        }
-        @media (max-width: 1100px) {
-          .incidents-workspace {
-            grid-template-columns: 1fr;
-          }
-          .incidents-panel {
-            position: relative !important;
-            top: 0 !important;
-            height: auto !important;
-            max-height: none !important;
-          }
-        }
-        /* Phones: horizontal scroll container for the incidents table so the
-           UUID/title columns keep readable widths instead of crushing. */
-        @media (max-width: 640px) {
-          .incidents-page { padding: 16px 12px; }
-          .incidents-table { min-width: 640px; }
-        }
-      ` }} />
-
-      {/* Header section */}
-      <div style={{ marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "16px" }}>
-        <div>
-          <h1 style={{ fontFamily: SANS, fontSize: "24px", color: "var(--fg-1)", margin: "0 0 8px", fontWeight: 500 }}>
-            Incidents Workspace
-          </h1>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontFamily: MONO, fontSize: "11px", color: "var(--fg-4)", textTransform: "uppercase" }}>
-            <Calendar size={12} style={{ color: "var(--accent)" }} />
-            <span>Night of {nightDate}</span>
+    <PageContainer wide>
+      <header className={styles.header}>
+        <div className={styles.headerTop}>
+          <div className={styles.headerText}>
+            <div className={styles.eyebrow}>Operations · Incident register</div>
+            <h1 className={styles.title}>
+              <AlertTriangle size={24} aria-hidden="true" />
+              Incidents
+            </h1>
+            <p className={styles.description}>
+              Monitor, investigate, and resolve machine anomalies and fault predictions. Open an
+              incident for its evidence; the Argus agent workspace lives under Investigations.
+            </p>
+            <p className={styles.window}>
+              <Calendar size={12} aria-hidden="true" />
+              <span>Reporting date {nightDate}</span>
+              <span aria-hidden="true" className={styles.dot}>·</span>
+              <span>Timezone: {REPORTING_TIMEZONE}</span>
+            </p>
           </div>
+
+          <Link href="/investigations" className={styles.headerAction}>
+            <Search size={12} aria-hidden="true" />
+            Open investigations
+          </Link>
         </div>
 
-        {/* Filters */}
-        <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Priority</label>
-            <select
-              className="tap-target"
-              value={priorityFilter || "all"}
-              onChange={(e) => setFilter("priority", e.target.value)}
-              style={{
-                background: "var(--bg-surface-1)",
-                color: "var(--fg-1)",
-                border: "1px solid var(--border-default)",
-                borderRadius: "2px",
-                padding: "6px 12px",
-                fontFamily: SANS,
-                fontSize: "13px",
-                cursor: "pointer",
-                outline: "none",
-              }}
-            >
-              <option value="all">All Priorities</option>
-              <option value="1">Priority 1 (High)</option>
-              <option value="2">Priority 2</option>
-              <option value="3">Priority 3</option>
-              <option value="4">Priority 4</option>
-              <option value="5">Priority 5 (Low)</option>
-            </select>
-          </div>
+        <MetricsSummary incidents={filteredIncidents} isLoading={isLoading} isError={isError} />
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <label style={{ fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Severity</label>
-            <select
-              className="tap-target"
-              value={severityFilter || "all"}
-              onChange={(e) => setFilter("severity", e.target.value)}
-              style={{
-                background: "var(--bg-surface-1)",
-                color: "var(--fg-1)",
-                border: "1px solid var(--border-default)",
-                borderRadius: "2px",
-                padding: "6px 12px",
-                fontFamily: SANS,
-                fontSize: "13px",
-                cursor: "pointer",
-                outline: "none",
-              }}
-            >
-              <option value="all">All Severities</option>
-              <option value="critical">Critical</option>
-              <option value="warning">Warning</option>
-              <option value="minor">Minor</option>
-            </select>
-          </div>
-        </div>
-      </div>
+        <FilterControls
+          filters={filters}
+          setFilter={setFilter}
+          onClear={resetAll}
+          onSearch={setSearchQuery}
+          searchQuery={searchQuery}
+        />
+      </header>
 
-      {/* Main Grid Workspace */}
-      <div className="incidents-workspace">
-        {/* Left Side: Table */}
-        <div style={{
-          background: "var(--bg-surface-1)",
-          border: "1px solid var(--border-default)",
-          borderRadius: "4px",
-          overflow: "hidden"
-        }}>
-          <div className="table-scroll">
-          <table className="incidents-table" style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+      <div className={styles.tableCard}>
+        <div className={`${styles.tableScroll} table-scroll`}>
+          <table className={styles.table}>
             <thead>
-              <tr style={{ background: "var(--bg-surface-2)", borderBottom: "1px solid var(--border-default)" }}>
-                <th style={{ padding: "12px 16px", fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)", textTransform: "uppercase" }}>ID</th>
-                <th style={{ padding: "12px 16px", fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)", textTransform: "uppercase" }}>Title</th>
-                <th style={{ padding: "12px 16px", fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)", textTransform: "uppercase" }}>Machine</th>
-                <th style={{ padding: "12px 16px", fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)", textTransform: "uppercase" }}>Priority</th>
-                <th style={{ padding: "12px 16px", fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)", textTransform: "uppercase" }}>Severity</th>
+              <tr>
+                <th className={styles.columnId} scope="col">ID</th>
+                <th className={styles.columnTitle} scope="col">Title</th>
+                <th className={styles.columnMachine} scope="col">Machine</th>
+                <th className={styles.columnBadge} scope="col">Severity</th>
+                <th className={styles.columnBadge} scope="col">Status</th>
+                <th className={styles.columnTime} scope="col">Created</th>
+                <th className={styles.columnTime} scope="col">Last Seen</th>
+                <th className={styles.columnActions} scope="col">Actions</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan="5" style={{ padding: "32px", textAlign: "center", fontFamily: SANS, color: "var(--fg-4)", fontSize: "13px" }}>
-                    Loading incidents data…
+                  <td className={styles.stateCell} colSpan={8}>
+                    <LoadingState
+                      label="Loading incidents…"
+                      variant="skeleton"
+                      rows={5}
+                    />
                   </td>
                 </tr>
               ) : isError ? (
                 <tr>
-                  <td colSpan="5" style={{ padding: "32px", textAlign: "center", fontFamily: SANS, color: "var(--health-critical)", fontSize: "13px" }}>
-                    Could not load incidents{error?.message ? `: ${error.message}` : "."}
+                  <td className={styles.stateCell} colSpan={8}>
+                    <ErrorState
+                      title="Could not load incidents"
+                      error={error}
+                      onRetry={() => refetch()}
+                      retryLabel="Retry"
+                    />
                   </td>
                 </tr>
               ) : filteredIncidents.length === 0 ? (
                 <tr>
-                  <td colSpan="5" style={{ padding: "32px", textAlign: "center", fontFamily: SANS, color: "var(--fg-4)", fontSize: "13px" }}>
-                    No incidents match the selected filters.
+                  <td className={styles.stateCell} colSpan={8}>
+                    {hasFilters ? (
+                      <EmptyState
+                        icon="search"
+                        title="No incidents match the current filters"
+                        description="Try clearing filters to see all incidents, or refine your search."
+                        action={{
+                          label: "Clear filters",
+                          onClick: resetAll,
+                        }}
+                      />
+                    ) : (
+                      <EmptyState
+                        icon="inbox"
+                        title="No incidents to display"
+                        description="Incidents will appear here once the overnight pipeline has processed them."
+                      />
+                    )}
                   </td>
                 </tr>
               ) : (
-                filteredIncidents.map((inc) => {
-                  const incidentId = getIncidentId(inc);
-                  return (
-                    <IncidentRow
-                      key={incidentId}
-                      incident={inc}
-                      selected={selectedIncidentId === incidentId}
-                      onSelect={setSelectedIncidentId}
-                    />
-                  );
-                })
+                filteredIncidents.map((incident) => (
+                  <IncidentRow key={getIncidentId(incident)} incident={incident} />
+                ))
               )}
             </tbody>
           </table>
-          </div>
-        </div>
-
-        {/* Right Side: Panel */}
-        <div
-          className="incidents-panel"
-          style={{
-            background: "var(--bg-surface-1)",
-            border: "1px solid var(--border-default)",
-            borderRadius: "4px",
-            height: "calc(100vh - 140px)",
-            position: "sticky",
-            top: "88px",
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
-          {/* Panel Header */}
-          <div style={{
-            padding: "16px",
-            borderBottom: "1px solid var(--border-default)",
-            background: "var(--bg-surface-2)",
-          }}>
-            {selectedIncident ? (
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
-                  <span style={{ fontFamily: MONO, fontSize: "11px", color: "var(--accent)", fontWeight: 600 }}>
-                    INCIDENT: {selectedIncident.incidentId || String(getIncidentId(selectedIncident)).substring(0, 8)}
-                  </span>
-                  <button
-                    onClick={() => setSelectedIncidentId(null)}
-                    style={{
-                      background: "transparent",
-                      border: "none",
-                      color: "var(--fg-4)",
-                      fontSize: "11px",
-                      fontFamily: MONO,
-                      cursor: "pointer",
-                      padding: 0,
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.color = "var(--fg-1)"}
-                    onMouseLeave={(e) => e.currentTarget.style.color = "var(--fg-4)"}
-                  >
-                    [DESELECT]
-                  </button>
-                </div>
-                <h3 style={{ fontFamily: SANS, fontSize: "15px", fontWeight: 600, color: "var(--fg-1)", margin: "0 0 8px" }}>
-                  {selectedIncident.title || "Unnamed Incident"}
-                </h3>
-                <div style={{ display: "flex", gap: "12px", alignItems: "center", fontFamily: MONO, fontSize: "11px", color: "var(--fg-3)" }}>
-                  <span>P{selectedIncident.priority}</span>
-                  <span>·</span>
-                  <SeverityBadge severity={selectedIncident.severity || "uncertain"} />
-                </div>
-              </div>
-            ) : (
-              <div>
-                <span style={{ fontFamily: MONO, fontSize: "11px", color: "var(--fg-4)", fontWeight: 600 }}>
-                  SYSTEM INTELLIGENCE
-                </span>
-                <h3 style={{ fontFamily: SANS, fontSize: "15px", fontWeight: 600, color: "var(--fg-1)", margin: "4px 0 0" }}>
-                  Active Investigation Shell
-                </h3>
-              </div>
-            )}
-          </div>
-
-          {/* Investigation Trigger / Progress Banner */}
-          {showPersistedResults ? (
-            <div style={{
-              padding: "12px 16px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              background: "rgba(184,212,232,0.02)",
-              borderBottom: "1px solid var(--border-default)",
-              fontSize: "11px",
-              fontFamily: MONO,
-              color: "var(--fg-2)",
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{
-                  width: "6px", height: "6px", borderRadius: "50%",
-                  background: "var(--sev-harmless)",
-                }} />
-                <span style={{ textTransform: "uppercase" }}>Investigation complete</span>
-              </div>
-              <SeverityBadge severity={persistedClassification.severity || selectedIncident?.severity || "uncertain"} />
-            </div>
-          ) : !isNightJobActive ? (
-            <div style={{
-              padding: "24px 16px",
-              textAlign: "center",
-              borderBottom: "1px solid var(--border-default)",
-              background: "rgba(184,212,232,0.02)",
-            }}>
-              <ShieldAlert size={20} style={{ color: "var(--fg-3)", margin: "0 auto 8px" }} />
-              <p style={{ fontFamily: MONO, fontSize: "11px", color: "var(--fg-3)", margin: "0 0 16px", lineHeight: 1.5 }}>
-                No active investigation running for {nightDate}. Start the AI agent protocol to analyse overnight events.
-              </p>
-              <button
-                onClick={() => startInvestigation({ nightDate })}
-                disabled={isStarting}
-                style={{
-                  background: "transparent",
-                  color: "var(--accent)",
-                  border: "1px solid var(--accent)",
-                  borderRadius: "2px",
-                  padding: "8px 18px",
-                  fontSize: "11px",
-                  fontFamily: MONO,
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                  cursor: isStarting ? "not-allowed" : "pointer",
-                  opacity: isStarting ? 0.6 : 1,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  transition: "all 120ms ease",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isStarting) {
-                    e.currentTarget.style.background = "var(--accent)";
-                    e.currentTarget.style.color = "var(--bg-base)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isStarting) {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.color = "var(--accent)";
-                  }
-                }}
-              >
-                <Play size={12} fill="currentColor" />
-                {isStarting ? "Initiating…" : "Start Investigation"}
-              </button>
-            </div>
-          ) : (
-            /* System active stats */
-            <div style={{
-              padding: "12px 16px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              background: "rgba(184,212,232,0.02)",
-              borderBottom: "1px solid var(--border-default)",
-              fontSize: "11px",
-              fontFamily: MONO,
-              color: "var(--fg-2)",
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{
-                  width: "6px", height: "6px", borderRadius: "50%",
-                  background: jobStatus === "running" ? "var(--accent)"
-                    : jobStatus === "complete" ? "var(--sev-harmless)"
-                    : jobStatus === "failed" ? "var(--sev-serious)"
-                    : "var(--fg-4)",
-                  boxShadow: jobStatus === "running" ? "0 0 6px var(--accent)" : "none",
-                  animation: jobStatus === "running" ? "status-pulse 1.6s ease-in-out infinite" : "none",
-                }} />
-                <span style={{ textTransform: "uppercase" }}>{jobStatus}</span>
-              </div>
-              <div>
-                {stats.resolvedIncidents}/{stats.totalIncidents} Resolved
-              </div>
-            </div>
-          )}
-
-          {jobStatus === "failed" && (
-            <div style={{
-              padding: "12px 16px",
-              borderBottom: "1px solid var(--border-default)",
-              color: "var(--health-critical)",
-              fontFamily: MONO,
-              fontSize: "11px",
-            }}>
-              <div>{investigationError || "Investigation failed."}</div>
-              <button
-                onClick={() => startInvestigation({ nightDate })}
-                disabled={isStarting}
-                style={{
-                  marginTop: "8px",
-                  background: "transparent",
-                  color: "var(--accent)",
-                  border: "1px solid var(--accent)",
-                  borderRadius: "2px",
-                  padding: "6px 10px",
-                  font: "inherit",
-                  cursor: isStarting ? "not-allowed" : "pointer",
-                }}
-              >
-                {isStarting ? "Retrying…" : "Retry Investigation"}
-              </button>
-            </div>
-          )}
-
-          {/* Tab Selection */}
-          {showPanelWorkspace && (
-            <div style={{
-              display: "flex",
-              borderBottom: "1px solid var(--border-default)",
-              background: "var(--bg-surface-2)",
-            }}>
-              <button
-                onClick={() => setActiveRightTab("activity")}
-                style={{
-                  flex: 1,
-                  padding: "10px",
-                  fontFamily: MONO,
-                  fontSize: "11px",
-                  textTransform: "uppercase",
-                  fontWeight: 600,
-                  background: activeRightTab === "activity" ? "var(--bg-surface-1)" : "transparent",
-                  color: activeRightTab === "activity" ? "var(--accent)" : "var(--fg-3)",
-                  border: "none",
-                  borderBottom: activeRightTab === "activity" ? "2px solid var(--accent)" : "2px solid transparent",
-                  cursor: "pointer",
-                  outline: "none",
-                  transition: "all 120ms ease",
-                }}
-              >
-                Argus Activity
-              </button>
-              <button
-                onClick={() => setActiveRightTab("events")}
-                style={{
-                  flex: 1,
-                  padding: "10px",
-                  fontFamily: MONO,
-                  fontSize: "11px",
-                  textTransform: "uppercase",
-                  fontWeight: 600,
-                  background: activeRightTab === "events" ? "var(--bg-surface-1)" : "transparent",
-                  color: activeRightTab === "events" ? "var(--accent)" : "var(--fg-3)",
-                  border: "none",
-                  borderBottom: activeRightTab === "events" ? "2px solid var(--accent)" : "2px solid transparent",
-                  cursor: "pointer",
-                  outline: "none",
-                  transition: "all 120ms ease",
-                }}
-              >
-                Events Timeline
-              </button>
-            </div>
-          )}
-
-          {/* Panel Body / Tab Contents */}
-          <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-            {!showPanelWorkspace ? (
-              <div style={{
-                padding: "48px 24px",
-                textAlign: "center",
-                color: "var(--fg-4)",
-                fontFamily: MONO,
-                fontSize: "12px",
-              }}>
-                Please start the investigation to activate the live feed and events logs.
-              </div>
-            ) : activeRightTab === "activity" ? (
-              <div style={{ height: "100%" }}>
-                {showPersistedResults ? (
-                  <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
-                    {(detailLoading || graphLoading) ? (
-                      <div style={{ fontFamily: MONO, fontSize: "11px", color: "var(--fg-4)" }}>
-                        Loading Argus investigation results…
-                      </div>
-                    ) : (
-                      <>
-                        <div style={{ fontFamily: MONO, fontSize: "10px", color: "var(--fg-3)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
-                          Result provenance: <span style={{ color: resultSource === "llm" ? "var(--accent)" : "var(--sev-minor)" }}>{resultSource || "unknown"}</span>
-                        </div>
-                        {executiveSummary && <p style={{ margin: 0, fontSize: "14px", lineHeight: 1.5, color: "var(--fg-1)" }}>{executiveSummary}</p>}
-                        <AgentReasoning
-                          reasoning={persistedReasoning}
-                          uncertainties={persistedUncertainties}
-                          confidence={persistedConfidence}
-                        />
-                        {(findings.length > 0 || recommendedActions.length > 0 || dataLimitations.length > 0) && (
-                          <div style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "12px", color: "var(--fg-2)" }}>
-                            {findings.length > 0 && <div><strong>Findings</strong>{findings.map((finding, index) => <p key={index} style={{ margin: "6px 0" }}>{finding.detail || finding}</p>)}</div>}
-                            {recommendedActions.length > 0 && <div><strong>Recommended actions</strong>{recommendedActions.map((action, index) => <p key={index} style={{ margin: "6px 0" }}>• {action}</p>)}</div>}
-                            {dataLimitations.length > 0 && <div><strong>Data limitations</strong>{dataLimitations.map((limitation, index) => <p key={index} style={{ margin: "6px 0" }}>• {limitation}</p>)}</div>}
-                          </div>
-                        )}
-                        <EvidenceChain
-                          steps={evidenceSteps}
-                          classification={persistedClassification}
-                        />
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <AgentFeed investigations={investigations} />
-                )}
-              </div>
-            ) : (
-              <div style={{ height: "100%" }}>
-                <EventPanel nightDate={nightDate} />
-              </div>
-            )}
-          </div>
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }

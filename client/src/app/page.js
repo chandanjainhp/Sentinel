@@ -733,7 +733,7 @@ export default function LandingPage() {
           zIndex: 100,
         }}
       >
-        {/* Brand lockup — Night Watch mark + wordmark (matches app TopBar) */}
+        {/* Brand lockup — Night Watch mark + wordmark */}
         <Link
           href="/"
           aria-label="Sentinel home"

@@ -11,6 +11,7 @@ import {
   mapMachineType,
   parseMlResponse,
   ML_RECOMMENDED_WINDOW,
+  REQUIRED_CHANNELS,
   getMlServiceUrl,
   getMlApiKey,
 } from "./ml-contract.service.js";
@@ -72,13 +73,17 @@ const checkCoverageGate = async (machine) => {
   try {
     return await getMachineCoverage(String(machine._id));
   } catch (err) {
-    // The gate must never wedge the pipeline: on failure, open it and let
-    // the existing window checks in buildMachineWindow decide scoreability.
+    // Coverage is a safety gate: if it cannot be evaluated, fail closed
+    // rather than scoring a machine whose required channels may be absent.
     console.error(
-      `[PredictionService] Coverage check failed for machine ${machine._id}, proceeding:`,
+      `[PredictionService] Coverage check failed for machine ${machine._id}, prediction gated:`,
       err.message
     );
-    return { isReady: true };
+    return {
+      isReady: false,
+      missing: ["coverage_unavailable"],
+      reason: "Coverage unavailable",
+    };
   }
 };
 
@@ -134,9 +139,13 @@ export const runPrediction = async ({ eventId, machineId }) => {
 const predictForMachine = async ({ event, machine }) => {
   // ── Build the per-machine window from the machine's events ──
   // Newest first for the fetch, oldest first for the ML payload.
+  // One-event-per-sensor gateways produce one event per channel per sample.
+  // Fetch enough events for a complete 60-row window instead of truncating
+  // those streams to 15 rows at the four-channel baseline.
+  const eventWindowLimit = ML_RECOMMENDED_WINDOW * REQUIRED_CHANNELS.length;
   const recentEvents = await Event.find({ machineId: machine._id })
     .sort({ timestamp: -1 })
-    .limit(ML_RECOMMENDED_WINDOW)
+    .limit(eventWindowLimit)
     .lean();
 
   const built = buildMachineWindow(recentEvents);

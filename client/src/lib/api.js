@@ -295,6 +295,10 @@ export const refreshAccessToken = async () =>
 // aggregation (fleet health counts, open incidents, predicted risk). The
 // client never computes or mocks these values.
 export const getDashboardSummary = async () => api.get("/dashboard");
+export const getOvernightHealthCurrent = async (siteId) =>
+  api.get("/overnight-health/current", { params: siteId ? { siteId } : undefined });
+export const getOvernightHealthHistory = async (siteId) =>
+  api.get("/overnight-health/history", { params: siteId ? { siteId } : undefined });
 
 // Machine detail — one aggregation for the machine signature page:
 // machine + site breadcrumb, latest prediction, per-sensor trend series,
@@ -350,10 +354,6 @@ export const createNamedApiKey = (name) =>
   api.post("/settings/api-keys", { name });
 export const revokeApiKeyByKeyId = (keyId) =>
   api.delete(`/settings/api-keys/${keyId}`);
-// Legacy single-key surface (AddSensorModal / sensors page still use these)
-export const getApiKeyMeta = () => api.get("/settings/api-key");
-export const createUserApiKey = () => api.post("/settings/api-key");
-export const revokeUserApiKey = () => api.delete("/settings/api-key");
 
 // Sensors
 export const getSites = () => api.get("/sites");
@@ -378,7 +378,7 @@ export const testWebhook = () => api.post("/site/webhooks/test");
 export const rotateWebhookSecret = () => api.post("/site/webhooks/rotate-secret");
 export const retryWebhookDelivery = (id) => api.post(`/site/webhooks/deliveries/${id}/retry`);
 
-// Legacy single-site helpers used by the settings pages. The org config they
+// Single-site helpers used by the settings pages. The org config they
 // originally targeted was removed in the single-user pivot; they now resolve
 // the user's first site and split webhook fields onto the webhook config API.
 export const getSite = async () => {
@@ -388,9 +388,9 @@ export const getSite = async () => {
 };
 
 export const updateSiteConfig = async (payload = {}) => {
-  const { name, timezone, webhookUrl, webhookActive } = payload;
+  const { name, timezone, locationLabel } = payload;
   const updates = [];
-  if (name !== undefined || timezone !== undefined) {
+  if (name !== undefined || timezone !== undefined || locationLabel !== undefined) {
     const sites = await api.get("/sites");
     const site = Array.isArray(sites) ? sites[0] : null;
     if (site) {
@@ -398,17 +398,14 @@ export const updateSiteConfig = async (payload = {}) => {
         api.patch(`/sites/${site._id}`, {
           ...(name !== undefined ? { name } : {}),
           ...(timezone !== undefined ? { timezone } : {}),
+          // The Site model has no locationLabel field (and the update schema
+          // is strict), so the label persists as the site description.
+          // shortcut: label === description, upgrade when the backend models
+          // a dedicated location field.
+          ...(locationLabel !== undefined ? { description: locationLabel } : {}),
         })
       );
     }
-  }
-  if (webhookUrl !== undefined || webhookActive !== undefined) {
-    updates.push(
-      updateWebhookConfig({
-        ...(webhookUrl !== undefined ? { webhookUrl } : {}),
-        ...(webhookActive !== undefined ? { webhookActive } : {}),
-      })
-    );
   }
   await Promise.all(updates);
   return null;

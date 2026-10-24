@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { Toaster } from "sonner";
 import { ERROR_TYPES } from "@/lib/api";
+import AppErrorBoundary from "@/components/shared/AppErrorBoundary";
 
 export default function Providers({ children }) {
   // Create QueryClient instance once per session
@@ -42,7 +43,9 @@ export default function Providers({ children }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      <AppErrorBoundary>
+        {children}
+      </AppErrorBoundary>
       {/* Sonner toaster for notifications */}
       <Toaster
         theme="dark"

@@ -9,13 +9,30 @@ import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
 import SentinelMark, { SentinelLockup } from '@/components/brand/SentinelMark';
 import { initTheme } from '@/lib/theme';
 import { useAuthStore } from '@/store/authStore';
+import AuthShell, {
+  AuthAlert,
+  AuthFooterLink,
+  OrDivider,
+} from '@/components/shared/AuthShell';
+import FormField from '@/components/shared/FormField';
+import PasswordInput from '@/components/shared/PasswordInput';
+import SubmitButton from '@/components/shared/SubmitButton';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const SYSTEM_FEATURES = [
-  { color: 'var(--dim)', label: 'Sensor Watch', desc: 'Sensors stream machine readings overnight; Sentinel scores every reading with predictive models.' },
-  { color: 'var(--dim)', label: 'AI Investigation', desc: 'Argus correlates events, investigates anomalies, and classifies each incident before morning.' },
-  { color: 'var(--dim)', label: 'Morning Briefing', desc: 'Review structured findings, approve the briefing, and act before the next shift starts.' },
+  {
+    label: 'Sensor Watch',
+    desc: 'Sensors stream machine readings overnight; Sentinel scores every reading with predictive models.',
+  },
+  {
+    label: 'AI Investigation',
+    desc: 'Argus correlates events, investigates anomalies, and classifies each incident before morning.',
+  },
+  {
+    label: 'Morning Briefing',
+    desc: 'Review structured findings, approve the briefing, and act before the next shift starts.',
+  },
 ];
 
 function LoginPageInner() {
@@ -23,21 +40,25 @@ function LoginPageInner() {
   const searchParams = useSearchParams();
   const reason = searchParams.get('reason');
   const [formData, setFormData] = useState({ email: '', password: '' });
-  const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({ email: '', password: '' });
   const [serverError, setServerError] = useState('');
   const [loginSuccess, setLoginSuccess] = useState(false);
 
-  // Mark state machine for the boot/auth animation above the form:
-  // idle (amber) -> auth (warning pulse) -> success (healthy + ping)
-  // or error (critical) -> back to idle. Purely cosmetic; form logic unchanged.
+  // Mark state machine for the boot/auth animation above the form.
   const [markPhase, setMarkPhase] = useState('idle');
-  const MARK_STATE = { idle: 'idle', auth: 'warning', success: 'healthy', error: 'critical' };
+  const MARK_STATE = {
+    idle: 'idle',
+    auth: 'warning',
+    success: 'healthy',
+    error: 'critical',
+  };
 
   useEffect(() => {
     initTheme();
     if (reason === 'session_ended') {
       setServerError('Your session has ended. Please log in again.');
+    } else if (reason === 'expired') {
+      setServerError('Your session has expired. Please log in again.');
     }
   }, [reason]);
 
@@ -69,11 +90,23 @@ function LoginPageInner() {
       setLoginSuccess(false);
       setMarkPhase('error');
       setTimeout(() => setMarkPhase('idle'), 1000);
-      const msg = error?.message || '';
-      if (msg.toLowerCase().includes('suspend') || error?.code === 'ORG_SUSPENDED') {
+      const msg = (error?.message || '').toLowerCase();
+      if (msg.includes('suspend') || error?.code === 'ORG_SUSPENDED') {
         setServerError('__suspended__');
+      } else if (
+        error?.type === 'NETWORK_ERROR' ||
+        msg.includes('network error')
+      ) {
+        setServerError(
+          'Connection lost. Check your network and try again.',
+        );
+      } else if (
+        msg.includes('invalid') &&
+        (msg.includes('credential') || msg.includes('email') || msg.includes('password'))
+      ) {
+        setServerError('Incorrect email or password.');
       } else {
-        setServerError(msg || 'Unable to sign in. Please try again.');
+        setServerError(error?.message || 'Unable to sign in. Please try again.');
       }
     },
   });
@@ -81,9 +114,11 @@ function LoginPageInner() {
   const validateForm = () => {
     const errors = { email: '', password: '' };
     if (!formData.email.trim()) errors.email = 'Email is required.';
-    else if (!emailPattern.test(formData.email)) errors.email = 'Enter a valid email address.';
+    else if (!emailPattern.test(formData.email))
+      errors.email = 'Enter a valid email address.';
     if (!formData.password) errors.password = 'Password is required.';
-    else if (formData.password.length < 8) errors.password = 'Min 8 characters required.';
+    else if (formData.password.length < 8)
+      errors.password = 'Min 8 characters required.';
     setFieldErrors(errors);
     return !errors.email && !errors.password;
   };
@@ -102,387 +137,183 @@ function LoginPageInner() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex' }}>
-
-      {/* ── LEFT CONTEXT PANEL ────────────────────────── */}
-      <aside className="auth-side" style={{
-        width: '360px', flexShrink: 0,
-        background: 'var(--bg-surface-1)',
-        borderRight: '1px solid var(--border-default)',
-        display: 'flex', flexDirection: 'column',
-        padding: '40px 32px',
-        position: 'relative', overflow: 'hidden',
-      }}>
-        {/* Dot grid texture */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          backgroundImage: 'radial-gradient(circle, rgba(35,43,56,0.7) 1px, transparent 1px)',
-          backgroundSize: '24px 24px', pointerEvents: 'none',
-        }} />
-        {/* Bottom gradient fade */}
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, height: '120px',
-          background: 'linear-gradient(to bottom, transparent, var(--bg-surface-1))',
-          pointerEvents: 'none', zIndex: 2,
-        }} />
-
-        <div style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column' }}>
-
+    <AuthShell
+      asideChildren={
+        <>
           {/* Logo */}
-          <div style={{ marginBottom: '40px' }}>
+          <div className="mb-10">
             <SentinelLockup markSize={22} fontSize={13} />
           </div>
 
-          <div style={{ height: '1px', background: 'var(--border-default)', marginBottom: '28px', marginTop: '28px' }} />
+          <div className="mb-7 mt-7 h-px bg-[var(--border-default)]" />
 
           {/* How it works */}
-          <div style={{
-            fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600,
-            letterSpacing: '0.14em', textTransform: 'uppercase',
-            color: 'var(--fg-4)', marginBottom: '16px',
-          }}>How It Works</div>
+          <div className="mb-4 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--fg-4)]">
+            How It Works
+          </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+          <div className="flex flex-col">
             {SYSTEM_FEATURES.map((f, i) => (
-              <div key={i} style={{
-                display: 'grid', gridTemplateColumns: '8px 1fr',
-                alignItems: 'start', gap: '10px',
-                padding: '10px 0',
-                borderTop: i > 0 ? '1px solid var(--border-hairline)' : 'none',
-              }}>
-                <span style={{
-                  width: '7px', height: '7px', borderRadius: '50%',
-                  background: f.color, flexShrink: 0, marginTop: '3px',
-                }} />
+              <div
+                key={f.label}
+                className="grid grid-cols-[8px_1fr] items-start gap-[10px] border-t border-[var(--border-hairline)] py-[10px] first:border-t-0"
+              >
+                <span
+                  aria-hidden="true"
+                  className="mt-[3px] inline-block h-[7px] w-[7px] shrink-0 rounded-full bg-[var(--dim)]"
+                />
                 <div>
-                  <div style={{
-                    fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600,
-                    letterSpacing: '0.1em', textTransform: 'uppercase',
-                    color: 'var(--fg-2)', marginBottom: '3px',
-                  }}>{f.label}</div>
-                  <div style={{
-                    fontSize: '11px', color: 'var(--fg-3)', lineHeight: 1.5,
-                  }}>{f.desc}</div>
+                  <div className="mb-[3px] font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--fg-2)]">
+                    {f.label}
+                  </div>
+                  <div className="text-[11px] leading-[1.5] text-[var(--fg-3)]">
+                    {f.desc}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
 
           {/* Footer */}
-          <div style={{
-            marginTop: 'auto', paddingTop: '32px',
-            fontFamily: 'var(--font-mono)', fontSize: '10px',
-            color: 'var(--fg-4)', letterSpacing: '0.06em',
-          }}>v0.1 · restricted system</div>
-        </div>
-      </aside>
-
-      {/* ── RIGHT FORM PANEL ──────────────────────────── */}
-      <main style={{
-        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '40px 24px', minHeight: '100vh',
-      }}>
-        <div style={{ width: '100%', maxWidth: '380px' }}>
-
-          {/* Sentinel mark — boots (draw-on) on load, reflects auth phase.
-              Fixed 96px box so nothing shifts when states change. */}
-          <div style={{
-            width: '96px', height: '96px',
-            margin: '0 auto 28px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <SentinelMark boot size={88} state={MARK_STATE[markPhase]} />
+          <div className="mt-auto pt-8 font-mono text-[10px] tracking-[0.06em] text-[var(--fg-4)]">
+            v0.1 · restricted system
           </div>
-
-          {/* Header */}
-          <div style={{ marginBottom: '36px' }}>
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600,
-              letterSpacing: '0.14em', textTransform: 'uppercase',
-              color: 'var(--fg-4)', marginBottom: '10px',
-            }}>Project Access</div>
-            <h1 style={{
-              fontFamily: 'var(--font-sans)', fontSize: '30px', fontWeight: 500,
-              lineHeight: 1.05, letterSpacing: '-0.02em',
-              color: 'var(--fg-1)', margin: '0 0 8px',
-            }}>Sign in</h1>
-            <p style={{
-              fontFamily: 'var(--font-sans)', fontSize: '13px',
-              color: 'var(--fg-3)', lineHeight: 1.5, margin: 0,
-            }}>Enter your credentials to access the platform.</p>
-          </div>
-
-          {/* Account disabled banner */}
-          {serverError === '__disabled__' && (
-            <div style={{
-              display: 'flex', alignItems: 'flex-start', gap: '8px',
-              padding: '10px 14px', marginBottom: '20px',
-              background: 'rgba(245,158,11,0.08)',
-              border: '1px solid rgba(245,158,11,0.3)',
-            }}>
-              <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#f59e0b', flexShrink: 0, marginTop: '4px' }} />
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: '#f59e0b' }}>
-                Your account is disabled. Contact your administrator.
-              </span>
-            </div>
-          )}
-
-          {/* Org suspended banner */}
-          {serverError === '__suspended__' && (
-            <div style={{
-              display: 'flex', alignItems: 'flex-start', gap: '8px',
-              padding: '10px 14px', marginBottom: '20px',
-              background: 'var(--sev-serious-bg)',
-              border: '1px solid var(--sev-serious-dim)',
-            }}>
-              <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--sev-serious)', flexShrink: 0, marginTop: '4px' }} />
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--sev-serious)' }}>
-                This site has been suspended. Contact support at support@sentinel.io.
-              </span>
-            </div>
-          )}
-
-          {/* Server error */}
-          {serverError && serverError !== '__disabled__' && serverError !== '__suspended__' && (
-            <div role="alert" aria-live="polite" style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              padding: '10px 14px', marginBottom: '20px',
-              background: 'var(--sev-serious-bg)',
-              border: '1px solid var(--sev-serious-dim)',
-            }}>
-              <span style={{
-                width: '5px', height: '5px', borderRadius: '50%',
-                background: 'var(--sev-serious)', flexShrink: 0,
-              }} />
-              <span style={{
-                fontFamily: 'var(--font-mono)', fontSize: '11px',
-                color: 'var(--sev-serious)',
-              }}>{serverError}</span>
-            </div>
-          )}
-
-          {/* Success */}
-          {loginSuccess && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              padding: '10px 14px', marginBottom: '20px',
-              background: 'var(--sev-harmless-bg)',
-              border: '1px solid var(--sev-harmless-dim)',
-            }}>
-              <span style={{
-                width: '5px', height: '5px', borderRadius: '50%',
-                background: 'var(--success)', flexShrink: 0,
-              }} />
-              <span style={{
-                fontFamily: 'var(--font-mono)', fontSize: '11px',
-                color: 'var(--success-text)',
-              }}>Authenticated — redirecting to ops…</span>
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-
-            <div>
-              <label htmlFor="login-email" style={{
-                display: 'block',
-                fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600,
-                letterSpacing: '0.12em', textTransform: 'uppercase',
-                color: fieldErrors.email ? 'var(--sev-serious)' : 'var(--fg-3)',
-                marginBottom: '7px',
-              }}>Email Address</label>
-              <input
-                id="login-email"
-                type="email"
-                autoComplete="email"
-                value={formData.email}
-                onChange={(e) => handleFieldChange('email', e.target.value)}
-                required
-                placeholder="operator@example.com"
-                className={`auth-field${fieldErrors.email ? ' auth-field-err' : ''}`}
-              />
-              {fieldErrors.email && (
-                <div style={{
-                  fontFamily: 'var(--font-mono)', fontSize: '10px',
-                  color: 'var(--sev-serious)', marginTop: '5px',
-                }}>{fieldErrors.email}</div>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="login-password" style={{
-                display: 'block',
-                fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600,
-                letterSpacing: '0.12em', textTransform: 'uppercase',
-                color: fieldErrors.password ? 'var(--sev-serious)' : 'var(--fg-3)',
-                marginBottom: '7px',
-              }}>Password</label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  id="login-password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  value={formData.password}
-                  onChange={(e) => handleFieldChange('password', e.target.value)}
-                  required
-                  className={`auth-field${fieldErrors.password ? ' auth-field-err' : ''}`}
-                  style={{ paddingRight: '44px' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((p) => !p)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  style={{
-                    position: 'absolute', right: 0, top: 0, bottom: 0,
-                    width: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-4)',
-                  }}
-                >
-                  {showPassword ? (
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M3 3l18 18m-3.5-3.5A10.5 10.5 0 0 1 12 19c-6 0-10-7-10-7a19.2 19.2 0 0 1 5.2-5.6M9.9 5.3A9.8 9.8 0 0 1 12 5c6 0 10 7 10 7a19 19 0 0 1-2.6 3.6M14.1 14.1a3 3 0 0 1-4.2-4.2" />
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Zm10 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-              {fieldErrors.password && (
-                <div style={{
-                  fontFamily: 'var(--font-mono)', fontSize: '10px',
-                  color: 'var(--sev-serious)', marginTop: '5px',
-                }}>{fieldErrors.password}</div>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              disabled={mutation.isPending}
-              aria-busy={mutation.isPending}
-              className="auth-submit"
-              style={{ marginTop: '4px' }}
+        </>
+      }
+      footerChildren={
+        <div className="flex flex-col gap-[10px]">
+          <AuthFooterLink href="/forgot-password">
+            Forgot your password?
+          </AuthFooterLink>
+          <AuthFooterLink href="/docs">Documentation</AuthFooterLink>
+          <div className="font-mono text-[10px] tracking-[0.06em] text-[var(--fg-4)]">
+            No account?{' '}
+            <Link
+              href="/register"
+              className="text-[var(--accent)] no-underline hover:underline focus-visible:outline-none"
             >
-              {mutation.isPending ? (
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                  <span className="auth-spinner" />
-                  Authenticating…
-                </span>
-              ) : 'Sign In →'}
-            </button>
-          </form>
-
-          {/* Divider + Google Identity Services sign-in */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '12px',
-            margin: '22px 0 16px',
-          }}>
-            <div style={{ flex: 1, height: '1px', background: 'var(--border-hairline)' }} />
-            <span style={{
-              fontFamily: 'var(--font-mono)', fontSize: '9px', fontWeight: 600,
-              letterSpacing: '0.14em', textTransform: 'uppercase',
-              color: 'var(--fg-4)',
-            }}>or</span>
-            <div style={{ flex: 1, height: '1px', background: 'var(--border-hairline)' }} />
-          </div>
-          <GoogleSignInButton />
-
-          {/* Footer links */}
-          <div style={{
-            marginTop: '28px', paddingTop: '20px',
-            borderTop: '1px solid var(--border-hairline)',
-            display: 'flex', flexDirection: 'column', gap: '10px',
-          }}>
-            <Link href="/forgot-password" style={{
-              fontFamily: 'var(--font-mono)', fontSize: '10px',
-              color: 'var(--fg-3)', background: 'none', border: 'none',
-              cursor: 'pointer', textAlign: 'left',
-              letterSpacing: '0.06em', padding: 0, textDecoration: 'none',
-            }}>
-              Forgot your password?
+              Request access →
             </Link>
-            <Link href="/docs" style={{
-              fontFamily: 'var(--font-mono)', fontSize: '10px',
-              color: 'var(--fg-3)', background: 'none', border: 'none',
-              cursor: 'pointer', textAlign: 'left',
-              letterSpacing: '0.06em', padding: 0, textDecoration: 'none',
-            }}>
-              Documentation
-            </Link>
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: '10px',
-              color: 'var(--fg-4)', letterSpacing: '0.06em',
-            }}>
-              No account?{' '}
-              <Link href="/register" style={{ color: 'var(--accent)', textDecoration: 'none' }}>
-                Request access →
-              </Link>
-            </div>
           </div>
         </div>
-      </main>
+      }
+    >
+      {/* Sentinel mark — fixed 96px box so nothing shifts when state changes */}
+      <div className="mx-auto mb-7 flex h-24 w-24 items-center justify-center">
+        <SentinelMark boot size={88} state={MARK_STATE[markPhase]} />
+      </div>
 
-      <style>{`
-        .auth-field {
-          width: 100%; box-sizing: border-box; height: 44px;
-          padding: 0 14px;
-          background: var(--bg-surface-2);
-          border: 1px solid var(--border-default);
-          color: var(--fg-1);
-          font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.02em;
-          border-radius: 0;
-          transition: border-color 120ms, box-shadow 120ms;
-        }
-        .auth-field::placeholder { color: var(--fg-4); font-size: 12px; }
-        .auth-field:focus {
-          border-color: var(--border-focus);
-          box-shadow: 0 0 0 1px var(--border-focus), 0 0 14px rgba(184,212,232,0.07);
-        }
-        .auth-field-err { border-color: var(--sev-serious-dim) !important; }
-        .auth-field-err:focus {
-          border-color: var(--sev-serious) !important;
-          box-shadow: 0 0 0 1px var(--sev-serious), 0 0 8px rgba(255,56,56,0.08) !important;
-        }
-        .auth-submit {
-          width: 100%; height: 46px;
-          background: var(--accent); color: var(--bg-base);
-          border: none;
-          font-family: var(--font-mono); font-size: 11px; font-weight: 600;
-          letter-spacing: 0.12em; text-transform: uppercase;
-          cursor: pointer; transition: opacity 150ms; border-radius: 0;
-        }
-        .auth-submit:hover:not(:disabled) { opacity: 0.85; }
-        .auth-submit:active:not(:disabled) { opacity: 0.7; }
-        .auth-submit:disabled { opacity: 0.4; cursor: not-allowed; }
-        .auth-spinner {
-          display: inline-block; width: 10px; height: 10px;
-          border: 1.5px solid rgba(7,9,12,0.3);
-          border-top-color: var(--bg-base);
-          border-radius: 50%;
-          animation: auth-spin 0.7s linear infinite;
-        }
-        @keyframes auth-spin { to { transform: rotate(360deg); } }
-        @media (max-width: 768px) {
-          .auth-side { display: none !important; }
-        }
-      `}</style>
-    </div>
+      {/* Header */}
+      <div className="mb-9">
+        <div className="mb-[10px] font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--fg-4)]">
+          Project Access
+        </div>
+        <h1 className="m-0 mb-2 font-sans text-[30px] font-medium leading-[1.05] tracking-[-0.02em] text-[var(--fg-1)]">
+          Sign in
+        </h1>
+        <p className="m-0 text-[13px] leading-[1.5] text-[var(--fg-3)]">
+          Enter your credentials to access the platform.
+        </p>
+      </div>
+
+      {/* Account disabled banner */}
+      {serverError === '__disabled__' && (
+        <AuthAlert tone="warning">
+          Your account is disabled. Contact your administrator.
+        </AuthAlert>
+      )}
+
+      {/* Org suspended banner */}
+      {serverError === '__suspended__' && (
+        <AuthAlert tone="error">
+          This site has been suspended. Contact support at support@sentinel.io.
+        </AuthAlert>
+      )}
+
+      {/* Generic server error */}
+      {serverError &&
+        serverError !== '__disabled__' &&
+        serverError !== '__suspended__' && (
+          <AuthAlert tone="error">{serverError}</AuthAlert>
+        )}
+
+      {/* Success */}
+      {loginSuccess && (
+        <AuthAlert tone="success">Authenticated — redirecting to ops…</AuthAlert>
+      )}
+
+      {/* Form */}
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        className="flex flex-col gap-[18px]"
+      >
+        <FormField
+          label="Email Address"
+          htmlFor="login-email"
+          error={fieldErrors.email}
+          required
+        >
+          <input
+            id="login-email"
+            type="email"
+            autoComplete="email"
+            value={formData.email}
+            onChange={(e) => handleFieldChange('email', e.target.value)}
+            required
+            placeholder="operator@example.com"
+            aria-invalid={Boolean(fieldErrors.email)}
+            aria-describedby={fieldErrors.email ? 'login-email-error' : undefined}
+            className="h-11 w-full px-[14px] bg-[var(--bg-surface-2)] text-[var(--fg-1)] border font-mono text-[13px] tracking-[0.02em] transition-colors rounded-none placeholder:text-[var(--fg-4)] placeholder:text-[12px] focus:outline-none focus:border-[var(--border-focus)] focus:shadow-[0_0_0_1px_var(--border-focus)]"
+            style={{
+              borderColor: fieldErrors.email
+                ? 'var(--sev-serious-dim)'
+                : 'var(--border-default)',
+            }}
+          />
+        </FormField>
+
+        <FormField
+          label="Password"
+          htmlFor="login-password"
+          error={fieldErrors.password}
+          required
+        >
+          <PasswordInput
+            id="login-password"
+            autoComplete="current-password"
+            value={formData.password}
+            onChange={(e) => handleFieldChange('password', e.target.value)}
+            required
+            placeholder="Enter your password"
+            error={Boolean(fieldErrors.password)}
+            aria-invalid={Boolean(fieldErrors.password)}
+            aria-describedby={
+              fieldErrors.password ? 'login-password-error' : undefined
+            }
+          />
+        </FormField>
+
+        <SubmitButton
+          isLoading={mutation.isPending}
+          loadingLabel="Authenticating…"
+          className="mt-1"
+        >
+          Sign In →
+        </SubmitButton>
+      </form>
+
+      <OrDivider />
+
+      <GoogleSignInButton />
+    </AuthShell>
   );
 }
 
 function LoginFallback() {
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "var(--bg-base)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-    }}>
-      <span style={{
-        fontFamily: "var(--font-mono)", fontSize: "10px",
-        letterSpacing: "0.14em", textTransform: "uppercase",
-        color: "var(--fg-4)",
-      }}>
+    <div className="flex min-h-screen items-center justify-center bg-[var(--bg-base)]">
+      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--fg-4)]">
         Loading…
       </span>
     </div>

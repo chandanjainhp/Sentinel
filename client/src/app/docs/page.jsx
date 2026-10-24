@@ -924,7 +924,7 @@ export default function DocsPage() {
               The briefing lives at <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px", color: "var(--fg-1)" }}>/briefing</span> as a formatted document ready for day-shift handover. You can edit individual sections before approving.
             </Body>
             <Body>
-              Approving the briefing triggers a webhook POST to your configured endpoint — typically Slack, PagerDuty, or a custom integration. The webhook carries an HMAC-SHA256 signature you can verify (see Webhooks below).
+              Approving the briefing will trigger a webhook POST to your configured endpoint once webhooks ship — typically Slack, PagerDuty, or a custom integration. The webhook carries an HMAC-SHA256 signature you can verify (see Webhooks below).
             </Body>
           </SectionBody>
         </SectionWrapper>
@@ -975,10 +975,14 @@ export default function DocsPage() {
 
         {/* ══ Webhooks ══ */}
         <SectionWrapper id="webhooks">
-          <SectionHead>Webhooks</SectionHead>
+          <SectionHead>
+            Webhooks
+            <span style={{ marginLeft: "8px", fontWeight: 500, color: "var(--fg-4)" }}>(coming soon)</span>
+          </SectionHead>
           <SectionBody>
             <Body>
-              Configure receivers under Settings → Webhooks. Every delivery carries an
+              Webhook delivery is not live yet. Once it ships, receivers will be configured under
+              Settings → Webhooks. Every delivery carries an
               {" "}<code style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--accent)" }}>X-Sentinel-Signature</code>{" "}
               HMAC-SHA256 header computed over the raw JSON body. Use cases: shift handoff alerts, Slack posts, downstream automation.
             </Body>

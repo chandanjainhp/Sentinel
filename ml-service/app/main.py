@@ -9,9 +9,10 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.routes import predict
 from app.schemas.prediction import HealthResponse, ModelInfo
@@ -19,6 +20,32 @@ from app.services.predictor import ModelRegistry
 from app.vendor_path import ROOT
 
 logging.basicConfig(level=os.environ.get("ML_LOG_LEVEL", "INFO"))
+
+# ML service authentication: expected API key from server
+ML_API_KEY_EXPECTED = os.environ.get("ML_API_KEY")
+
+
+class ApiKeyMiddleware(BaseHTTPMiddleware):
+    """Validates X-ML-API-Key header for service-to-service authentication."""
+
+    async def dispatch(self, request: Request, call_next):
+        # Skip auth for health check and models endpoint
+        if request.url.path in ("/health", "/models"):
+            return await call_next(request)
+
+        # Skip auth if no API key is configured (dev/test mode)
+        if not ML_API_KEY_EXPECTED:
+            return await call_next(request)
+
+        # Validate the API key from header
+        provided_key = request.headers.get("X-ML-API-Key")
+        if not provided_key or provided_key != ML_API_KEY_EXPECTED:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid or missing ML API key",
+            )
+
+        return await call_next(request)
 
 
 def create_app(models_dir: Optional[Path] = None) -> FastAPI:
@@ -30,6 +57,7 @@ def create_app(models_dir: Optional[Path] = None) -> FastAPI:
         yield
 
     app = FastAPI(title="Sentinel ML service", version="1.0.0", lifespan=lifespan)
+    app.add_middleware(ApiKeyMiddleware)
     app.include_router(predict.router)
 
     @app.exception_handler(RequestValidationError)

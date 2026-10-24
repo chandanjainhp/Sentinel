@@ -6,11 +6,11 @@ services:
     container_name: ridgeway-mongodb
     restart: unless-stopped
     environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: StrongMongoPass@123
-      MONGO_INITDB_DATABASE: ridgeway
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-sentinel}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in server/.env}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-sentinel}
     ports:
-      - "27017:27017"
+      - "28017:27017"
     volumes:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
@@ -22,9 +22,9 @@ services:
     command: >
       redis-server
       --appendonly yes
-      --requirepass StrongRedisPass@123
+      --requirepass ${REDIS_PASSWORD:?set REDIS_PASSWORD in server/.env}
     ports:
-      - "6379:6379"
+      - "26379:6379"
     volumes:
       - redis_data:/data
 

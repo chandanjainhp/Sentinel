@@ -6,6 +6,7 @@ import {
   explainIncident,
 } from "@/lib/api";
 import { normalizeIncident } from "@/lib/projectContext";
+import { FALLBACK_SEVERITY } from "@/lib/severity";
 import { incidentQueryKey } from "@/store/incidentFilterStore";
 import { reportingWindow } from "@/lib/reporting-window";
 
@@ -25,15 +26,19 @@ function bucket(incidents) {
   // critical | warning | minor | unknown. The old client-side
   // serious/minor/harmless/uncertain buckets never matched what the
   // pipeline emits, which left the Events Timeline empty.
+  // Statuses are the same enum the badges and filters use (lib/status.js):
+  // open | reviewed | closed.
   return {
     incidents,
     critical: incidents.filter((i) => i.severity === "critical"),
     warning: incidents.filter((i) => i.severity === "warning"),
     minor: incidents.filter((i) => i.severity === "minor"),
-    unknown: incidents.filter((i) => !i.severity || i.severity === "unknown"),
-    pending: incidents.filter(
-      (i) => i.status !== "resolved" && i.status !== "complete" && i.status !== "closed",
-    ),
+    unknown: incidents.filter((i) => i.severity === FALLBACK_SEVERITY),
+    open: incidents.filter((i) => i.status === "open"),
+    reviewed: incidents.filter((i) => i.status === "reviewed"),
+    closed: incidents.filter((i) => i.status === "closed"),
+    // Anything still on the lifecycle — reviewed incidents are not done.
+    unresolved: incidents.filter((i) => i.status !== "closed"),
   };
 }
 

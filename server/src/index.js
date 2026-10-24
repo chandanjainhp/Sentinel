@@ -10,6 +10,7 @@ import { assertSecretsConfigured } from './config/secrets.js';
 import app from './app.js';
 import { connectDatabases, disconnectDatabases } from './db/index.js';
 import { startWorker, stopWorker } from './queues/worker.js';
+import { startOvernightHealthScheduler, stopOvernightHealthScheduler } from './services/overnight-health.service.js';
 
 try {
   assertSecretsConfigured();
@@ -32,6 +33,7 @@ connectDatabases()
   .then(async () => {
     // Step 1: Start background workers
     await startWorker();
+    startOvernightHealthScheduler();
 
     // Step 2: Open server port
     const startServer = (attemptNumber = 1) => {
@@ -80,6 +82,7 @@ const shutdown = async (signal) => {
     server.close(async () => {
       try {
         await stopWorker();
+        stopOvernightHealthScheduler();
         await disconnectDatabases();
         clearTimeout(safetyTimeout);
         logger.info('All connections closed, exiting');
@@ -93,6 +96,7 @@ const shutdown = async (signal) => {
   } else {
     try {
       await stopWorker();
+      stopOvernightHealthScheduler();
       await disconnectDatabases();
       clearTimeout(safetyTimeout);
       logger.info('All connections closed, exiting');

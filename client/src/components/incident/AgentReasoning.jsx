@@ -79,7 +79,7 @@ export default function AgentReasoning({ analysis, reasoning, uncertainties = []
           </div>
           <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "12px" }}>
             {modelUncertainties.map((unc, idx) => {
-              const isDroneGap = unc.startsWith("Drone did not cover");
+              const isCoverageGap = unc.startsWith("Telemetry did not cover");
               return (
                 <li key={idx} style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
                   <span style={{
@@ -88,8 +88,8 @@ export default function AgentReasoning({ analysis, reasoning, uncertainties = []
                   }} />
                   <span style={{
                     fontSize: "13px", lineHeight: "var(--lh-snug)",
-                    color: isDroneGap ? "var(--sev-minor)" : "var(--fg-2)",
-                    fontWeight: isDroneGap ? 500 : 400,
+                    color: isCoverageGap ? "var(--sev-minor)" : "var(--fg-2)",
+                    fontWeight: isCoverageGap ? 500 : 400,
                   }}>
                     {unc}
                   </span>

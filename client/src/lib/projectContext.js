@@ -1,3 +1,6 @@
+import { FALLBACK_SEVERITY } from './severity';
+import { FALLBACK_STATUS } from './status';
+
 /** Incident normalization helpers. */
 
 export function normalizeIncident(incident) {
@@ -23,8 +26,9 @@ export function normalizeIncident(incident) {
     incidentId: incident.incidentId || id,
     title: incident.title,
     description: incident.description,
-    severity: incident.severity || 'uncertain',
-    status: incident.status,
+    // Server enum fallbacks; see lib/severity.js and lib/status.js.
+    severity: incident.severity || FALLBACK_SEVERITY,
+    status: incident.status || FALLBACK_STATUS,
     priority: incident.priority,
     nightDate: incident.nightDate,
     machineId: incident.machineId || null,

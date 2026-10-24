@@ -44,7 +44,12 @@ const wrapLimiter = (name, windowMs, maxRequests, prefix, keyGenerator) => (req,
 // minutes of browsing. Env-overridable for stricter deployments.
 const API_RATE_LIMIT_MAX = Number(process.env.API_RATE_LIMIT_MAX || 1000);
 const apiLimiter = wrapLimiter('api', 15 * 60 * 1000, API_RATE_LIMIT_MAX, 'api');
-const authLimiter = wrapLimiter('auth', 15 * 60 * 1000, 5, 'auth');
+const authLimiter = wrapLimiter(
+  'auth',
+  15 * 60 * 1000,
+  Number(process.env.AUTH_RATE_LIMIT_MAX || 5),
+  'auth',
+);
 
 // Ingest is authenticated by API key before this limiter runs, so keying by
 // user keeps one site's gateway from throttling another site behind the same

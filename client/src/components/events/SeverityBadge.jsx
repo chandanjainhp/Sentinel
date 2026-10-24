@@ -19,6 +19,7 @@ function SeverityBadge({ severity }) {
       display: "inline-flex",
       alignItems: "center",
       gap: "4px",
+      whiteSpace: "nowrap",
     }}>
       <Icon size={12} aria-hidden="true" />
       {s.label.toUpperCase()}

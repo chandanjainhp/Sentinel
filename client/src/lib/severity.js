@@ -64,4 +64,11 @@ export const SEV_TOKENS = {
   },
 };
 
-export const getSeverity = (value) => SEV_TOKENS[value] ?? SEV_TOKENS.uncertain;
+/** Server enum (Incident model) — the only values the pipeline emits. */
+export const SEVERITY_OPTIONS = ["critical", "warning", "minor", "unknown"];
+
+/** Canonical fallback; keep normalizeIncident() and the filters on this. */
+export const FALLBACK_SEVERITY = "unknown";
+
+export const getSeverity = (value) =>
+  SEV_TOKENS[value] ?? SEV_TOKENS[FALLBACK_SEVERITY];
