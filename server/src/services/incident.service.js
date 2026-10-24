@@ -10,6 +10,9 @@ import {
 } from "../queues/argus-explain.queue.js";
 import { SEVERITY_RANK } from "./argus-explain.service.js";
 import mongoose from "mongoose";
+import { recordIncidentAction } from "../utils/metrics.js";
+import { withLock, machineLocks } from "../utils/locking.js";
+import logger from "../utils/logger.js";
 
 /**
  * One live incident per machine (Fix B).
@@ -31,13 +34,19 @@ import mongoose from "mongoose";
  * createIncidentIfEligible is check-then-act: two concurrent predictions for
  * the same machine could both see "no open incident" and both create one.
  * The embedded worker runs jobs for a machine's events concurrently, so the
- * race is real (proven by adversarial-incidents.test.js). Chaining per-machine
- * promises closes it within this process. NOTE: a multi-replica deployment
- * needs a Mongo partial unique index instead — see docs/audit-fixes.md.
+ * race is real (proven by adversarial-incidents.test.js).
+ *
+ * For multi-replica deployments, we now use Redis-based distributed locking
+ * which works across all instances. Falls back to process-local locking if
+ * Redis is unavailable (with warning).
  */
 const machineChains = new Map();
 
-const withMachineLock = (machineId, fn) => {
+/**
+ * Fallback to process-local locking when Redis is unavailable.
+ * This only works within a single process, not across replicas.
+ */
+const withFallbackLock = (machineId, fn) => {
   const key = String(machineId);
   const previous = machineChains.get(key) ?? Promise.resolve();
   const next = previous.then(fn, fn);
@@ -47,6 +56,29 @@ const withMachineLock = (machineId, fn) => {
   );
   return next;
 };
+
+/**
+ * Execute incident creation with proper locking for multi-instance safety.
+ * Uses Redis-based distributed locking by default, falls back to process-local
+ * locking if Redis is unavailable (with warning).
+ */
+const withMachineLock = async (machineId, fn) => {
+  const machineIdStr = String(machineId);
+  const lockKey = `incident:machine:${machineIdStr}`;
+
+  try {
+    // Try distributed locking first
+    return await withLock(lockKey, fn, 5000, { maxRetries: 1, retryDelay: 100 });
+  } catch (lockError) {
+    // Fall back to process-local locking with warning
+    logger.warn(
+      `[IncidentService] Redis locking unavailable for machine ${machineIdStr}, ` +
+      `falling back to process-local locking: ${lockError.message}`
+    );
+    return withFallbackLock(machineId, fn);
+  }
+};
+
 export const createIncidentIfEligible = async (params) =>
   withMachineLock(params.machine?._id ?? params.machine?.machineId, () =>
     createIncidentIfEligibleUnsafe(params)
@@ -119,20 +151,81 @@ const createIncidentIfEligibleUnsafe = async ({
     ? "fault_risk"
     : (anomalyScore >= 0.75 ? "anomaly" : "machine_health");
 
-  const incident = await Incident.create({
-    userId: machine.userId,
-    siteId: machine.siteId,
-    machineId: machine._id,
-    predictionId: prediction._id,
-    type,
-    severity,
-    title: buildTitle(),
-    reason: buildReason(),
-    evidence: buildEvidence(),
-    status: "open",
-    occurrenceCount: 1,
-    lastSeenAt: new Date(),
-  });
+  let incident;
+  try {
+    incident = await Incident.create({
+      userId: machine.userId,
+      siteId: machine.siteId,
+      machineId: machine._id,
+      predictionId: prediction._id,
+      type,
+      severity,
+      title: buildTitle(),
+      reason: buildReason(),
+      evidence: buildEvidence(),
+      status: "open",
+      occurrenceCount: 1,
+      lastSeenAt: new Date(),
+    });
+  } catch (error) {
+    // Handle duplicate key error (E11000) from MongoDB unique index
+    // This can happen if another replica acquired the lock and created the incident
+    // between our lock acquisition and our create attempt
+    if (error.code === 11000) {
+      // Find the existing incident that caused the duplicate
+      const existing = await Incident.findOne({
+        userId: machine.userId,
+        machineId: machine._id,
+        status: { $in: ["open", "reviewed"] },
+      }).sort({ createdAt: -1 });
+
+      if (existing) {
+        // Another replica created the incident - update it instead
+        logger.info(
+          `[IncidentService] Duplicate key on incident create for machine ${machine._id}, ` +
+          `updating existing incident ${existing.incidentId}`
+        );
+
+        // Update the existing incident with the new prediction data
+        const escalated =
+          (SEVERITY_RANK[severity] ?? 0) > (SEVERITY_RANK[existing.severity] ?? 0);
+
+        existing.predictionId = prediction._id;
+        existing.reason = buildReason();
+        existing.evidence = buildEvidence();
+        existing.occurrenceCount = (existing.occurrenceCount || 1) + 1;
+        existing.lastSeenAt = new Date();
+
+        if (escalated) {
+          existing.severity = severity;
+          existing.title = buildTitle();
+          existing.type =
+            prediction.faultType && prediction.faultType !== "none"
+              ? "fault_risk"
+              : "anomaly";
+        }
+
+        await existing.save();
+
+        // Re-explain on escalation
+        if (escalated) {
+          await dispatchArgusExplain({
+            incidentId: existing.incidentId,
+            severity,
+            jobId: argusExplainJobId(existing.incidentId, severity),
+          });
+        }
+
+        return existing;
+      }
+      // If we can't find the existing incident, re-throw
+      throw error;
+    }
+    throw error;
+  }
+
+  // Record incident creation
+  recordIncidentAction('created');
 
   // Argus explanation for the NEW incident. jobId deduplicates: the same
   // incident+severity never re-runs automatically (see argus-explain.queue.js).
@@ -166,16 +259,49 @@ export const getIncidentEvidenceGraph = async (incidentIdParam, userFilter = {})
     ? { ...userFilter, $or: [{ incidentId: incidentIdParam }, { _id: incidentIdParam }] }
     : { ...userFilter, incidentId: incidentIdParam };
 
-  const incident = await Incident.findOne(query).select("_id").lean();
+  const incident = await Incident.findOne(query).select("_id explanation").lean();
   if (!incident) {
     throw new ApiError(404, "Incident not found");
   }
 
   const investigation = await getLatestInvestigationForIncident(incident._id);
+  const argus = incident.explanation?.source === "llm" ? incident.explanation : null;
+  const generatedAnalysis = investigation?.resultSource === "llm" ? investigation : argus;
 
   return {
     steps: investigation?.evidenceChain ?? [],
     classification: investigation?.classification ?? null,
+    resultSource: generatedAnalysis?.resultSource ?? generatedAnalysis?.source ?? null,
+    provider: generatedAnalysis?.provider ?? null,
+    agentModel: generatedAnalysis?.agentModel ?? generatedAnalysis?.model ?? null,
+    generatedAt: generatedAnalysis?.updatedAt ?? generatedAnalysis?.generatedAt ?? null,
+    agentReasoning: generatedAnalysis
+      ? {
+          assessment: generatedAnalysis.executiveSummary ?? generatedAnalysis.summary ?? null,
+          findings: investigation?.findings?.length ? investigation.findings : generatedAnalysis.findings ?? [],
+          likelyCause: generatedAnalysis.rootCause ?? generatedAnalysis.likelyCause ?? null,
+          recommendedActions: generatedAnalysis.recommendedActions ?? (generatedAnalysis.recommendedAction ? [generatedAnalysis.recommendedAction] : []),
+          uncertainties: [
+            ...(generatedAnalysis.dataLimitations ?? []),
+            ...(generatedAnalysis.unresolvedQuestions ?? []),
+            ...(generatedAnalysis.classification?.uncertainties ?? []),
+            ...(investigation?.resultSource === "fallback" && investigation.failureReason
+              ? [`Overnight investigation fallback: ${investigation.failureReason}`]
+              : []),
+          ],
+          source: generatedAnalysis.resultSource ?? generatedAnalysis.source,
+          provider: generatedAnalysis.provider ?? null,
+          model: generatedAnalysis.agentModel ?? generatedAnalysis.model ?? null,
+          generatedAt: generatedAnalysis.updatedAt ?? generatedAnalysis.generatedAt ?? null,
+          failureReason: generatedAnalysis?.resultSource === "fallback" ? generatedAnalysis.failureReason ?? generatedAnalysis.error ?? null : null,
+        }
+      : null,
+    executiveSummary: investigation?.executiveSummary ?? null,
+    findings: investigation?.findings ?? [],
+    rootCause: investigation?.rootCause ?? null,
+    recommendedActions: investigation?.recommendedActions ?? [],
+    dataLimitations: investigation?.dataLimitations ?? [],
+    unresolvedQuestions: investigation?.unresolvedQuestions ?? [],
   };
 };
 
@@ -259,10 +385,22 @@ export const requestIncidentExplanation = async (incidentIdParam, userFilter = {
     throw new ApiError(404, "Incident not found");
   }
 
+  const jobId = argusRegenerateJobId(incident.incidentId, incident.severity);
+  const pendingExplanation = {
+    ...(incident.explanation?.toObject?.() || incident.explanation || {}),
+    source: incident.explanation?.source || "fallback",
+    status: "pending",
+    jobId,
+  };
+  await Incident.updateOne(
+    { _id: incident._id },
+    { $set: { explanation: pendingExplanation } },
+  );
+
   await dispatchArgusExplain({
     incidentId: incident.incidentId,
     severity: incident.severity,
-    jobId: argusRegenerateJobId(incident.incidentId, incident.severity),
+    jobId,
   });
 
   return {

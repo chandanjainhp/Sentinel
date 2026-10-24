@@ -318,7 +318,7 @@ All routes are prefixed `/api/v1`. Interactive routes require JWT auth
 | **Incidents** | `GET /incidents` · `GET /incidents/:incidentId[/detail][/graph]` · `PATCH /incidents/:incidentId/status` · `POST /incidents/:incidentId/explain` |
 | **Investigations** | `POST /investigations/start` · `GET /investigations/:investigationId` |
 | **Dashboard** | `GET /dashboard` |
-| **API keys** | `GET/POST /settings/api-keys` · `DELETE|PUT /settings/api-keys/:keyId` — legacy single-key surface: `/settings/api-key` |
+| **API keys** | `GET/POST /settings/api-keys` · `DELETE|PUT /settings/api-keys/:keyId` — the UI uses only these; the legacy single-key `/settings/api-key` routes stay mounted for existing gateways |
 | **Health** | `GET /health` · `GET /health/full` |
 | **Dev only** | `POST /api/v1/test/*` (seed helpers; never mounted in production) |
 
@@ -569,9 +569,305 @@ docker compose --env-file server/.env up -d --build
 
 ---
 
+## Code Quality and Maintenance
+
+### Duplicate Code Audit
+
+A comprehensive duplicate-code audit was performed on the client application (`client/src`
+and `client/tests`). The audit identified and removed **406 lines of unused code**
+across 7 duplicate/unused component files:
+
+**Removed Files:**
+- `client/src/components/shared/Button.jsx` (35 lines)
+- `client/src/components/shared/Card.jsx` (7 lines)
+- `client/src/components/shared/FormInput.js` (89 lines)
+- `client/src/components/shared/LoadingSpinner.jsx` (59 lines)
+- `client/src/components/ui/Alert.jsx` (70 lines)
+- `client/src/components/ui/Card.jsx` (41 lines)
+- `client/src/components/ui/Input.jsx` (78 lines)
+
+**Updated Files:**
+- `client/src/components/ui/index.js` - cleaned exports to only include actively used components
+
+**Test Coverage:**
+- Added `client/tests/duplicate-code-audit.test.js` with 14 regression tests
+- All 63 existing tests continue to pass
+
+**Intentionally Retained:**
+- Authentication pages (`/login`, `/register`, `/forgot-password`, `/reset-password`) -
+  distinct purposes and flows
+- Active components: `ui/Button.jsx` (used by NavMobile), `ui/Spinner.jsx`
+
+---
+
+## Database Schema
+
+Sentinel uses **MongoDB** with **Mongoose** for data modeling. All collections are
+scoped to a `userId` for single-user isolation (no multi-tenancy yet).
+
+### Entity Relationship Diagram
+
+```mermaid
+classDiagram
+    class User {
+        +_id: ObjectId
+        +username: String
+        +email: String
+        +password: String
+        +tokenVersion: Number
+        +isActive: Boolean
+        +refreshToken: String
+        +googleId: String
+        +authProvider: Enum[local, google]
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class Site {
+        +_id: ObjectId
+        +siteId: String
+        +userId: ObjectId
+        +name: String
+        +description: String
+        +timezone: String
+        +status: Enum[active, inactive, maintenance]
+        +coordinates: Object
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class Machine {
+        +_id: ObjectId
+        +machineId: String
+        +userId: ObjectId
+        +siteId: ObjectId
+        +assetId: String
+        +name: String
+        +machineType: String
+        +status: Enum[healthy, warning, critical, offline, maintenance, unknown]
+        +healthUnknownReason: String
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class Sensor {
+        +_id: ObjectId
+        +sensorId: String
+        +userId: ObjectId
+        +siteId: ObjectId
+        +machineId: ObjectId
+        +name: String
+        +type: Enum[temperature, vibration, pressure, current, voltage, rpm, flow]
+        +unit: String
+        +expectedIntervalSec: Number
+        +lastReadingAt: Date
+        +metadata: Object
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class Event {
+        +_id: ObjectId
+        +eventId: String
+        +userId: ObjectId
+        +siteId: ObjectId
+        +machineId: ObjectId
+        +sensorId: ObjectId
+        +type: Enum[sensor_reading, equipment_anomaly, machine_state_change]
+        +timestamp: Date
+        +values: Map~Number~
+        +rawData: Object
+        +source: Enum[api, edge, gateway, opcua, mqtt, manual]
+        +severity: Enum[critical, warning, minor, harmless, unknown]
+        +tags: Array~String~
+        +idempotencyKey: String
+        +payloadHash: String
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class Prediction {
+        +_id: ObjectId
+        +predictionId: String
+        +userId: ObjectId
+        +siteId: ObjectId
+        +machineId: ObjectId
+        +model: String
+        +modelVersion: String
+        +timestamp: Date
+        +rulValue: Number
+        +rulUnit: Enum[cycles, hours, days, null]
+        +anomalyScore: Number
+        +faultProbability: Number
+        +faultType: String
+        +confidence: Number
+        +evidence: Object
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class Incident {
+        +_id: ObjectId
+        +incidentId: String
+        +userId: ObjectId
+        +siteId: ObjectId
+        +machineId: ObjectId
+        +predictionId: ObjectId
+        +type: Enum[anomaly, fault_risk, rul_risk, machine_health]
+        +severity: Enum[critical, warning, minor, unknown]
+        +title: String
+        +reason: String
+        +evidence: Object
+        +status: Enum[open, reviewed, closed]
+        +occurrenceCount: Number
+        +lastSeenAt: Date
+        +reviewedBy: ObjectId
+        +reviewedAt: Date
+        +closedAt: Date
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class Investigation {
+        +_id: ObjectId
+        +userId: ObjectId
+        +incidentId: ObjectId
+        +nightDate: String
+        +status: Enum[queued, running, complete, failed]
+        +jobId: String
+        +resultSource: Enum[llm, fallback]
+        +provider: String
+        +agentModel: String
+        +executiveSummary: String
+        +rootCause: String
+        +recommendedActions: Array~String~
+        +classification: Object
+        +toolCallSequence: Array~Object~
+        +evidenceChain: Array~Object~
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    class ApiKey {
+        +_id: ObjectId
+        +keyId: String
+        +userId: ObjectId
+        +name: String
+        +keyPrefix: String
+        +hashedSecret: String
+        +lastUsedAt: Date
+        +createdAt: Date
+        +updatedAt: Date
+    }
+
+    User "1" *-- "0..*" Site
+    User "1" *-- "0..*" Machine
+    User "1" *-- "0..*" Sensor
+    User "1" *-- "0..*" Event
+    User "1" *-- "0..*" Prediction
+    User "1" *-- "0..*" Incident
+    User "1" *-- "0..*" Investigation
+    User "1" *-- "0..*" ApiKey
+
+    Site "1" *-- "0..*" Machine
+    Machine "1" *-- "0..*" Sensor
+    Sensor "1" *-- "0..*" Event
+    Machine "1" *-- "0..*" Event
+    Machine "1" *-- "0..*" Prediction
+    Prediction "1" -- "0..1" Incident
+    Machine "1" *-- "0..*" Incident
+    Incident "1" *-- "0..*" Investigation
+```
+
+### Collection Details
+
+| Collection | Purpose | Key Fields | Indexes | Notes |
+| --- | --- | --- | --- | --- |
+| **User** | User accounts and authentication | `username`, `email`, `password`, `tokenVersion`, `refreshToken` | `username` (unique), `email` (unique), `isActive` | Passwords hashed with bcrypt, Google auth supported |
+| **Site** | Physical locations / plants | `siteId`, `name`, `timezone`, `coordinates` | `siteId` (unique), `[userId, name]` (unique) | User can have multiple sites |
+| **Machine** | Industrial equipment | `machineId`, `assetId`, `name`, `machineType`, `status` | `machineId` (unique), `[userId, assetId]` (unique), `status` | Status: healthy, warning, critical, offline, maintenance, unknown |
+| **Sensor** | IoT sensors on machines | `sensorId`, `type`, `expectedIntervalSec`, `lastReadingAt` | `sensorId` (unique), `[userId, sensorId]` (unique), `lastReadingAt` | Type: temperature, vibration, pressure, current, voltage, rpm, flow |
+| **Event** | Raw sensor readings | `eventId`, `timestamp`, `values` (Map), `idempotencyKey`, `payloadHash` | `eventId` (unique), `[userId, idempotencyKey]` (unique), `[userId, machineId, timestamp]` | Idempotency prevents duplicate processing |
+| **Prediction** | ML model outputs | `predictionId`, `anomalyScore`, `faultProbability`, `faultType` | `predictionId` (unique), `[userId, machineId, timestamp]` | Scored by LSTM autoencoder |
+| **Incident** | Machine anomalies | `incidentId`, `severity`, `status`, `occurrenceCount` | `incidentId` (unique), `[userId, machineId, createdAt]`, `[machineId, status, createdAt]`, `[machineId]` (unique, partial: open/reviewed) | One open incident per machine |
+| **Investigation** | Overnight analysis | `incidentId`, `nightDate`, `status`, `resultSource`, `classification` | `[userId, incidentId, nightDate]` (unique), `[nightDate, status]`, `[userId, status, createdAt]` | LLM or deterministic fallback |
+| **ApiKey** | Gateway authentication | `keyId`, `hashedSecret`, `lastUsedAt` | `keyId` (unique), `hashedSecret` (unique), `userId` | Secrets hashed with SHA-256 |
+| **AuditLog** | Audit trail | `action`, `entityType`, `entityId`, `userId` | `[userId, createdAt]`, `[entityType, entityId]` | Tracks all mutations |
+
+### Data Flow Through Collections
+
+```
+Sensor Reading → Event → (Queue) → Prediction → Machine Health → Incident → (Queue) → Investigation
+                     ↑                                                                   ↑
+                Idempotency Check                                               Argus Explanation
+                     ↓                                                                   ↓
+                Event Stored                                              Classification & Evidence
+                     ↓                                                                   ↓
+                Prediction Stored                                          LLM or Fallback
+                     ↓
+                Health Recalculated
+                     ↓
+                If threshold crossed: Create/Update Incident
+                     ↓
+                Incident Stored/Updated
+                     ↓
+                (Optional) Argus Explain Queue
+                     ↓
+                Investigation Doc with Full Analysis
+```
+
+### Key Schema Design Decisions
+
+1. **Single-User Scope:** Every document contains a `userId` field; all queries filter by it
+2. **Public IDs:** All entities have human-readable IDs (`userId`, `siteId`, `machineId`, etc.)
+3. **Unique Constraints:** Critical fields have unique indexes to prevent duplicates
+4. **Idempotency:** Events use `idempotencyKey` + `payloadHash` for deduplication
+5. **Partial Unique Indexes:** Incident uniqueness only applies to open/reviewed status (Phase 3 addition)
+6. **Status Tracking:** All entities have `status` fields with explicit enum values
+7. **Timestamps:** All documents have `createdAt` and `updatedAt` (Mongoose default)
+
+### MongoDB Index Strategy
+
+| Collection | Index | Purpose | Phase 3 Notes |
+| --- | --- | --- | --- |
+| User | `username: 1` (unique) | Fast login by username | - |
+| User | `email: 1` (unique) | Fast login by email | - |
+| Site | `siteId: 1` (unique) | Lookup by public ID | - |
+| Site | `[userId: 1, name: 1]` (unique) | User-specific site names | - |
+| Machine | `machineId: 1` (unique) | Lookup by public ID | - |
+| Machine | `[userId: 1, assetId: 1]` (unique) | User-specific asset IDs | - |
+| Machine | `status: 1` | Filter by health status | - |
+| Sensor | `sensorId: 1` (unique) | Lookup by public ID | - |
+| Sensor | `[userId: 1, sensorId: 1]` (unique) | User-specific sensor IDs | - |
+| Sensor | `lastReadingAt: 1` | Find stale sensors | - |
+| Event | `eventId: 1` (unique) | Lookup by public ID | - |
+| Event | `[userId: 1, idempotencyKey: 1]` (unique) | Idempotency guarantee | - |
+| Event | `[userId: 1, machineId: 1, timestamp: -1]` | Query events by machine | - |
+| Prediction | `predictionId: 1` (unique) | Lookup by public ID | - |
+| Prediction | `[userId: 1, machineId: 1, timestamp: -1]` | Query predictions by machine | - |
+| Incident | `incidentId: 1` (unique) | Lookup by public ID | - |
+| Incident | `[userId: 1, machineId: 1, createdAt: -1]` | Query incidents by machine | - |
+| Incident | `[machineId: 1, status: 1, createdAt: -1]` | Query open incidents | - |
+| Incident | `{ machineId: 1 }` (unique, partial) | **Phase 3:** One open incident per machine across replicas | Only for open/reviewed status |
+| Investigation | `[userId: 1, incidentId: 1, nightDate: 1]` (unique) | One investigation per incident per night | - |
+| Investigation | `[nightDate: 1, status: 1]` | Query investigations by night | - |
+| Investigation | `[userId: 1, status: 1, createdAt: -1]` | Query user investigations | - |
+
+---
+
 ## Not in Sentinel (yet)
 
 Briefing, work packages, investigation-by-default (the overnight investigation agent
 exists but must be triggered explicitly), webhooks, notifications, RUL,
 multi-tenancy/organizations, billing, connectors (OPC-UA/MQTT), edge agents, and model
 drift monitoring.
+
+## Overnight Health Checker
+
+The server schedules one durable run per active site and reporting date. The default
+window is `00:00` through `09:00` in the site's IANA timezone (new sites default to
+`Asia/Kolkata`); set `OVERNIGHT_END_HOUR=8` for an 08:00 cutoff and
+`OVERNIGHT_TIMEZONE` for the deployment fallback. `OVERNIGHT_CHECK_INTERVAL_MS`
+defaults to 60000. Redis must be available for the distributed scheduler lock and
+BullMQ workers, and MongoDB must be shared by all server instances. The API exposes
+`GET /api/v1/overnight-health/current` and `/history`, both tenant-scoped.

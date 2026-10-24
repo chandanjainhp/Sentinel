@@ -1,0 +1,221 @@
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 48px 24px;
+  border: 1px dashed var(--border-default);
+  border-radius: 4px;
+  background: var(--bg-surface-1);
+  text-align: center;
+}
+
+.stateIcon {
+  color: var(--fg-3);
+}
+
+.stateTitle {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg-1);
+}
+
+.stateText {
+  max-width: 460px;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--fg-3);
+}
+
+/* ── Progress / status banner ───────────────────────── */
+.banner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: var(--bg-surface-2);
+}
+
+.bannerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.bannerLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bannerDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.bannerDotRunning {
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+  animation: status-pulse 1.6s ease-in-out infinite;
+}
+
+.bannerDotDone {
+  background: var(--sev-harmless);
+}
+
+.bannerDotIdle {
+  background: var(--fg-4);
+}
+
+.bannerStat {
+  font-variant-numeric: tabular-nums;
+}
+
+.progressTrack {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--bg-surface-3);
+  overflow: hidden;
+}
+
+.progressBar {
+  height: 100%;
+  background: var(--accent);
+  transition: width 300ms ease;
+}
+
+/* ── Failure banner ─────────────────────────────────── */
+.failBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border: 1px solid var(--sev-serious-dim);
+  border-radius: 4px;
+  background: var(--sev-serious-bg);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--sev-serious);
+}
+
+.retryButton {
+  padding: 6px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.retryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ── Persisted results ──────────────────────────────── */
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.sectionIndex {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg-1);
+}
+
+.provenance {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.provenanceLlm {
+  color: var(--accent);
+}
+
+.provenanceFallback {
+  color: var(--sev-minor);
+}
+
+.summary {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--fg-1);
+}
+
+.bodyText {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--fg-2);
+}
+
+.bodyList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--fg-2);
+}
+
+.loading {
+  padding: 24px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-4);
+}

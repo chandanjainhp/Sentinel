@@ -41,6 +41,291 @@ a:focus-visible,
   top: 8px;
 }
 
+.app-layout-main {
+  min-height: 100vh;
+  margin-left: 256px;
+  overflow-x: hidden;
+}
+
+.sentinel-sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 1000;
+  display: flex;
+  width: 256px;
+  flex-direction: column;
+  background: var(--bg-surface-1);
+  border-right: 1px solid var(--border-default);
+  color: var(--fg-1);
+}
+
+.sentinel-sidebar-brand {
+  display: flex;
+  align-items: center;
+  min-height: 76px;
+  padding: 0 22px;
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.sentinel-sidebar-brand a {
+  text-decoration: none;
+}
+
+.sentinel-sidebar-nav {
+  flex: 1;
+  padding: 22px 12px;
+  overflow-y: auto;
+}
+
+.sentinel-sidebar-section-label,
+.sentinel-sidebar-footer-label {
+  margin: 0 10px 9px;
+  color: var(--fg-4);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.sentinel-sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  margin: 2px 0;
+  padding: 0 11px;
+  border-left: 2px solid transparent;
+  border-radius: 2px;
+  color: var(--fg-3);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  text-decoration: none;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.sentinel-sidebar-link:hover {
+  background: var(--bg-surface-2);
+  color: var(--fg-1);
+}
+
+.sentinel-sidebar-link.is-active {
+  border-left-color: var(--accent);
+  background: var(--bg-surface-3);
+  color: var(--fg-1);
+}
+
+.sentinel-sidebar-link.is-active svg {
+  color: var(--accent);
+}
+
+.sentinel-sidebar-footer {
+  display: grid;
+  gap: 4px;
+  padding: 14px 12px 16px;
+  border-top: 1px solid var(--border-hairline);
+}
+
+.sentinel-sidebar-user,
+.sentinel-sidebar-logout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--fg-3);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.sentinel-sidebar-user:hover,
+.sentinel-sidebar-logout:hover {
+  color: var(--fg-1);
+}
+
+.sentinel-sidebar-logout:hover {
+  color: var(--sev-serious);
+}
+
+.sentinel-sidebar-menu-button,
+.sentinel-sidebar-overlay {
+  display: none;
+}
+
+@media (max-width: 1100px) and (min-width: 769px) {
+  .app-layout-main { margin-left: 76px; }
+  .sentinel-sidebar { width: 76px; }
+  .sentinel-sidebar-brand { justify-content: center; padding: 0; }
+  .sentinel-sidebar-brand span span,
+  .sentinel-sidebar-section-label,
+  .sentinel-sidebar-link span,
+  .sentinel-sidebar-user span,
+  .sentinel-sidebar-logout span { display: none; }
+  .sentinel-sidebar-link { justify-content: center; padding: 0; }
+  .sentinel-sidebar-footer { padding: 12px 8px; }
+  .sentinel-sidebar-user,
+  .sentinel-sidebar-logout { justify-content: center; padding: 0; }
+}
+
+@media (max-width: 768px) {
+  .app-layout-main {
+    min-height: 100vh;
+    margin-left: 0;
+    padding-top: 56px;
+  }
+
+  .sentinel-sidebar {
+    width: min(292px, 86vw);
+    transform: translateX(-100%);
+    transition: transform 180ms ease;
+    box-shadow: var(--shadow-deep);
+  }
+
+  .sentinel-sidebar.is-open { transform: translateX(0); }
+  .sentinel-sidebar-menu-button {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 1001;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 36px;
+    padding: 0 11px;
+    border: 1px solid var(--border-default);
+    background: var(--bg-surface-1);
+    color: var(--fg-1);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+
+  .sentinel-sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: rgba(0, 0, 0, .58);
+    cursor: pointer;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sentinel-sidebar,
+  .sentinel-sidebar-link { transition: none; }
+}
+
+/* =============================================
+   SETTINGS — expandable sub-nav inside main sidebar
+   Replaces the old 220px secondary settings sidebar so the app has
+   exactly one sidebar everywhere. Sub-items inherit the parent's
+   link styling but indent slightly and use a smaller icon.
+============================================= */
+.sentinel-sidebar-settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0;
+}
+
+.sentinel-sidebar-link--has-chevron {
+  position: relative;
+  /* Reserve space for the chevron button on the right. */
+  padding-right: 30px !important;
+}
+
+.sentinel-sidebar-chevron {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg-4);
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background 120ms ease, color 120ms ease;
+}
+.sentinel-sidebar-chevron:hover {
+  background: var(--bg-surface-2);
+  color: var(--fg-1);
+}
+.sentinel-sidebar-chevron:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+
+.sentinel-sidebar-subnav {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 4px 0;
+  /* Indent so sub-items visually nest under the parent Settings row. */
+  padding-left: 14px;
+}
+
+.sentinel-sidebar-sublink {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 0 11px;
+  margin: 2px 0;
+  border-left: 2px solid transparent;
+  border-radius: 2px;
+  color: var(--fg-3);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  text-decoration: none;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.sentinel-sidebar-sublink:hover {
+  background: var(--bg-surface-2);
+  color: var(--fg-1);
+}
+.sentinel-sidebar-sublink.is-active {
+  border-left-color: var(--accent);
+  background: var(--bg-surface-3);
+  color: var(--fg-1);
+}
+.sentinel-sidebar-sublink.is-active svg {
+  color: var(--accent);
+}
+.sentinel-sidebar-sublink svg {
+  color: var(--fg-4);
+  opacity: 0.85;
+}
+
+/* Collapsed (icon-only) sidebar at the 1100–769px breakpoint:
+   hide subnav text — Settings expands inline vertically. */
+@media (max-width: 1100px) and (min-width: 769px) {
+  .sentinel-sidebar-subnav {
+    /* Sub-items still render but text is hidden by the global collapse rule;
+       show the icon only to stay within the 76px rail. */
+    padding-left: 0;
+  }
+  .sentinel-sidebar-chevron {
+    display: none;
+  }
+  .sentinel-sidebar-link--has-chevron {
+    padding-right: 11px !important;
+  }
+}
+
 /* =============================================
    LIGHT MODE — CSS CUSTOM PROPERTIES
 ============================================= */
@@ -277,16 +562,61 @@ a:focus-visible,
   --color-info-light: var(--info-light);
   --color-info-text:  var(--info-text);
 
-  /* --- Severity --- */
-  --color-severity-harmless:  var(--severity-harmless);
-  --color-severity-monitor:   var(--severity-monitor);
-  --color-severity-escalate:  var(--severity-escalate);
+  /* --- Severity (mapped to Night Watch severity system) ---
+     We expose BOTH the original --severity-* names AND the canonical
+     Night Watch severity names as Tailwind tokens, so legacy components
+     that used `bg-severity-serious` / `text-severity-minor` resolve
+     correctly. */
+  --color-severity-harmless:   var(--severity-harmless);
+  --color-severity-monitor:    var(--severity-monitor);
+  --color-severity-escalate:   var(--severity-escalate);
   --color-severity-uncertain: var(--severity-uncertain);
-  --color-severity-unknown:   var(--severity-unknown);
+  --color-severity-unknown:    var(--severity-unknown);
+  /* Canonical Night Watch severity tokens (preferred in new code). */
+  --color-severity-serious:    var(--sev-serious);
+  --color-severity-serious-bg: var(--sev-serious-bg);
+  --color-severity-minor:      var(--sev-minor);
+  --color-severity-minor-bg:   var(--sev-minor-bg);
+  --color-severity-harmless-bg: var(--sev-harmless-bg);
+  --color-severity-unknown-bg: var(--sev-unknown-bg);
 
   /* --- Agent --- */
   --color-agent-blue:     var(--agent-blue);
   --color-agent-blue-dim: var(--agent-blue-dim);
+
+  /* --- Accent (Night Watch Signal Amber, theme-aware via --accent) ---
+     Exposed as --color-accent so `bg-accent`, `text-accent`, `border-accent`
+     Tailwind utilities resolve correctly. */
+  --color-accent:       var(--accent);
+  --color-accent-dim:   var(--accent-dim);
+  --color-accent-deep:  var(--accent-deep);
+
+  /* --- Night Watch surface aliases exposed to Tailwind ---
+     So `bg-base`, `bg-canvas`, `bg-surface-1/2/3`, `bg-terminal` work
+     without arbitrary-value escapes. */
+  --color-bg-base:      var(--bg-base);
+  --color-bg-canvas:    var(--bg-canvas);
+  --color-bg-surface-1: var(--bg-surface-1);
+  --color-bg-surface-2: var(--bg-surface-2);
+  --color-bg-surface-3: var(--bg-surface-3);
+  --color-bg-terminal:  var(--bg-terminal);
+
+  /* --- Night Watch text aliases --- */
+  --color-fg-1: var(--fg-1);
+  --color-fg-2: var(--fg-2);
+  --color-fg-3: var(--fg-3);
+  --color-fg-4: var(--fg-4);
+  --color-bone: var(--bone);
+  --color-muted: var(--muted);
+  --color-dim:   var(--dim);
+
+  /* --- Night Watch border aliases --- */
+  --color-line:        var(--line);
+  --color-line2:       var(--line2);
+  --color-border-hairline: var(--border-hairline);
+  --color-border-default:  var(--border-default);
+  --color-border-strong:   var(--border-strong);
+  --color-border-focus:    var(--border-focus);
 
   /* --- Shadows --- */
   --shadow-card: var(--shadow-card);
@@ -448,15 +778,16 @@ a:focus-visible,
    RESPONSIVE BREAKPOINTS (Night Watch)
 
    The app is styled with inline style objects, which cannot express
-   media queries; responsive behaviour lives in small <style> blocks
-   per page (see incidents, login, register, profile, landing) plus
-   the shared classes below.
+   media queries; page-level layout lives in <PageContainer> and the
+   remaining responsive rules sit in small <style> blocks or CSS
+   modules (incidents, investigations, login, register, profile,
+   landing) plus the shared classes below.
 
-   Canonical breakpoints — use these numbers everywhere, never
-   ad-hoc values:
-     mobile   ≤ 640px
-     tablet   641px – 1024px
-     desktop  > 1024px   (unchanged layout, no queries target it)
+   Canonical breakpoints live in src/lib/layout-tokens.js
+   (BREAKPOINT_MOBILE = 640, BREAKPOINT_TABLET = 768). Inline <style>
+   blocks use mediaMax() with those constants, never ad-hoc values.
+   Page padding and max width come from <PageContainer>; CSS modules may
+   only use those same two breakpoint values.
 ============================================= */
 
 /* Tables scroll inside their own section, never the page.

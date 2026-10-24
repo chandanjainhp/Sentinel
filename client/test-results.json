@@ -1,0 +1,1649 @@
+{
+  "config": {
+    "argv": [
+      "/usr/bin/node",
+      "/home/z/my-project/sentinel-client/node_modules/.bin/playwright",
+      "test",
+      "--list"
+    ],
+    "configFile": "/home/z/my-project/sentinel-client/playwright.config.js",
+    "rootDir": "/home/z/my-project/sentinel-client/tests",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/home/z/my-project/sentinel-client/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "mobile-375",
+        "name": "mobile-375",
+        "testDir": "/home/z/my-project/sentinel-client/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/home/z/my-project/sentinel-client/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "tablet-768",
+        "name": "tablet-768",
+        "testDir": "/home/z/my-project/sentinel-client/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/home/z/my-project/sentinel-client/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "desktop-1280",
+        "name": "desktop-1280",
+        "testDir": "/home/z/my-project/sentinel-client/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "filteredProjects": [
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/home/z/my-project/sentinel-client/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "name": "mobile-375",
+        "testDir": "/home/z/my-project/sentinel-client/tests",
+        "snapshotDir": "/home/z/my-project/sentinel-client/tests",
+        "testIgnore": [],
+        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
+        "timeout": 30000,
+        "use": {
+          "baseURL": "http://localhost:3001",
+          "trace": "retain-on-failure",
+          "screenshot": "only-on-failure",
+          "console": false,
+          "browserName": "chromium",
+          "viewport": {
+            "width": 375,
+            "height": 667
+          },
+          "isMobile": true,
+          "hasTouch": true
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "mobile-375"
+      },
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/home/z/my-project/sentinel-client/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "name": "tablet-768",
+        "testDir": "/home/z/my-project/sentinel-client/tests",
+        "snapshotDir": "/home/z/my-project/sentinel-client/tests",
+        "testIgnore": [],
+        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
+        "timeout": 30000,
+        "use": {
+          "baseURL": "http://localhost:3001",
+          "trace": "retain-on-failure",
+          "screenshot": "only-on-failure",
+          "console": false,
+          "browserName": "chromium",
+          "viewport": {
+            "width": 768,
+            "height": 1024
+          }
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "tablet-768"
+      },
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/home/z/my-project/sentinel-client/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "name": "desktop-1280",
+        "testDir": "/home/z/my-project/sentinel-client/tests",
+        "snapshotDir": "/home/z/my-project/sentinel-client/tests",
+        "testIgnore": [],
+        "testMatch": "**/*.@(spec|test).?(c|m)[jt]s?(x)",
+        "timeout": 30000,
+        "use": {
+          "baseURL": "http://localhost:3001",
+          "trace": "retain-on-failure",
+          "screenshot": "only-on-failure",
+          "console": false,
+          "browserName": "chromium",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          }
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "desktop-1280"
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results.json"
+        }
+      ],
+      [
+        "html",
+        {
+          "open": "never"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "default",
+    "updateSourceMethod": "patch",
+    "version": "1.64.1",
+    "workers": 1,
+    "webServer": {
+      "command": "PORT=3001 npm run start",
+      "url": "http://localhost:3001",
+      "timeout": 60000,
+      "reuseExistingServer": false
+    }
+  },
+  "suites": [
+    {
+      "title": "auth-and-public.spec.js",
+      "file": "auth-and-public.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Login @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-8e8b86e225eafea1bb55",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Login @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-b3a3b7d5a78dd660aed6",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Login @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-8933bb2cedf4257b6b55",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Register @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-4adfbebb89029f68a626",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Register @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-bbd2c6a83e12584bf6f1",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Register @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-318668875ba563ee9dcf",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Forgot Password @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-41b72d2fe3d9b66a91ff",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Forgot Password @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-d79e203851688f74f0b0",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Forgot Password @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-7a0d310c7fa200f28c72",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Reset Password @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-7f3f8b7984cd70b8d370",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Reset Password @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-a5ddc2fbc912c77565a6",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Reset Password @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-d0f52dd8aba3b03a9074",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "OTP @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-6e8302b10e3c83fb33cf",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "OTP @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-3ab9eb41f261279e5315",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "OTP @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-9b226669a741cbc0c37d",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Forbidden @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-983e2b0ebf09e930b01a",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Forbidden @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-4183b0404ba2139b3915",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Forbidden @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-233c770415b62ff9a6e6",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "404 @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-cdef01985af3f933fd0d",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "404 @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-6244c2cd8d42531f23ce",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "404 @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-501f11c1b69546566209",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Login — keyboard focus visible on email field",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-b71112b1d91dab3def49",
+          "file": "auth-and-public.spec.js",
+          "line": 141,
+          "column": 1
+        },
+        {
+          "title": "Login — password show/hide toggle works",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-aa1ec33becff1186cc47",
+          "file": "auth-and-public.spec.js",
+          "line": 155,
+          "column": 1
+        },
+        {
+          "title": "Login — empty submit shows validation errors",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-375",
+              "projectName": "mobile-375",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-b7c35fba275e9f09101b",
+          "file": "auth-and-public.spec.js",
+          "line": 174,
+          "column": 1
+        },
+        {
+          "title": "Login @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-34f20dd1b6e604bfa7f0",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Login @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-1dbc7ff1349e600f4082",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Login @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-b684febf32c7ca43983f",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Register @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-53f33e6a83eb18caebba",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Register @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-a8cc716afbf1f2a33703",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Register @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-684710e80202849d0c1c",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Forgot Password @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-db86eb82d639ead6466d",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Forgot Password @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-2f0274bb912c215b5be1",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Forgot Password @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-98c98b61d76936e05454",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Reset Password @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-52c979e303dc41b1673e",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Reset Password @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-3125915ef0d1a86d8dd0",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Reset Password @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-b799562479fe08b08895",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "OTP @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-8c1a39ad0f412277841b",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "OTP @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-b96a1aab50a669890c8c",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "OTP @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-9bb4e5d1e4f7f0fa92cd",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Forbidden @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-dbd8b12b6210f682170f",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Forbidden @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-2f63bfd6f8a0ac5138dd",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Forbidden @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-3b830f5908ee173cdd6d",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "404 @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-df695aa5612e207ca172",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "404 @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-4f12527478be207e5c4f",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "404 @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-608c182894c539605fd6",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Login — keyboard focus visible on email field",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-5dc61dfa241b1414b689",
+          "file": "auth-and-public.spec.js",
+          "line": 141,
+          "column": 1
+        },
+        {
+          "title": "Login — password show/hide toggle works",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-7f07cdc525043e5474d2",
+          "file": "auth-and-public.spec.js",
+          "line": 155,
+          "column": 1
+        },
+        {
+          "title": "Login — empty submit shows validation errors",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet-768",
+              "projectName": "tablet-768",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-635ce35dc9602dc26ca4",
+          "file": "auth-and-public.spec.js",
+          "line": 174,
+          "column": 1
+        },
+        {
+          "title": "Login @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-a8a726727e5219205dd2",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Login @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-88e3d4d29121c960ff91",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Login @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-d6e91ce0baf2cd162c85",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Register @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-a66c32fa572ea951aa0c",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Register @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-58dfdca5c5675e4526eb",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Register @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-7e11bcbfb58bca54a8d5",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Forgot Password @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-e7e221b745269d994e27",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Forgot Password @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-66a55166a83b31a09754",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Forgot Password @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-569ce05493894af68225",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Reset Password @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-cda159eecd435c3e3ff8",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Reset Password @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-17da9791c763e836e142",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Reset Password @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-cb98ff8c788fdcaa22fc",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "OTP @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-9431e4f9adbb3c457eab",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "OTP @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-959b911053244aa4402b",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "OTP @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-4c9956d9350238052852",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Forbidden @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-f878f898e9c3efc33a35",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Forbidden @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-ad175f43a445c279a169",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Forbidden @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-2705fd1044811b6f151c",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "404 @ mobile-375",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-eda0a65289f02659961e",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "404 @ tablet-768",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-2c1bb58e87e518c8ab87",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "404 @ desktop-1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-613acd509dd1b3224463",
+          "file": "auth-and-public.spec.js",
+          "line": 74,
+          "column": 5
+        },
+        {
+          "title": "Login — keyboard focus visible on email field",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-9dc323c618cd4a31b7ee",
+          "file": "auth-and-public.spec.js",
+          "line": 141,
+          "column": 1
+        },
+        {
+          "title": "Login — password show/hide toggle works",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-0ad4987d3bb91d0045c7",
+          "file": "auth-and-public.spec.js",
+          "line": 155,
+          "column": 1
+        },
+        {
+          "title": "Login — empty submit shows validation errors",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-1280",
+              "projectName": "desktop-1280",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "13b63e6529d4200fd5fe-47a1f9c2a4b49928aac6",
+          "file": "auth-and-public.spec.js",
+          "line": 174,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-23T12:38:39.247Z",
+    "duration": 23.838000000000022,
+    "expected": 0,
+    "skipped": 72,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

@@ -1,35 +1,46 @@
-import Link from "next/link";
+import Link from 'next/link';
+import { Lock } from 'lucide-react';
 
+/**
+ * 403 — access denied.
+ *
+ * Server component (no 'use client'). Uses the Night Watch design tokens
+ * via Tailwind utilities referencing CSS variables (e.g. `bg-[var(--bg-base)]`)
+ * — consistent with the rest of the app's auth/error surfaces.
+ */
 export default function ForbiddenPage() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-surface text-text-primary px-4">
-      <div className="max-w-md w-full bg-surface-2 border border-border rounded-lg p-8 shadow-sm">
-        <div className="flex justify-center mb-6">
-          <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
-              <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-          </div>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[var(--bg-base)] px-6 py-12 text-center">
+      <div className="w-full max-w-md border border-[var(--border-default)] bg-[var(--bg-surface-1)] p-8">
+        {/* Glyph — locked padlock on a tinted surface */}
+        <div className="mx-auto mb-6 inline-flex h-16 w-16 items-center justify-center border border-[var(--sev-serious-dim)] bg-[var(--sev-serious-bg)] text-[var(--sev-serious)]">
+          <Lock size={28} strokeWidth={1.5} aria-hidden="true" />
         </div>
-        
-        <h1 className="text-2xl font-semibold text-center mb-2 font-jetbrains tracking-tight">Access Denied</h1>
-        <p className="text-text-secondary text-center mb-8 text-sm">
-          You do not have permission to view this page. If you believe this is an error, please contact your platform administrator.
+
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--sev-serious)]">
+          Error 403
+        </p>
+        <h1 className="mt-3 font-sans text-[24px] font-semibold leading-tight text-[var(--fg-1)]">
+          Access denied
+        </h1>
+        <p className="mt-3 text-[13px] leading-relaxed text-[var(--fg-3)]">
+          You don&apos;t have permission to view this page. If you believe
+          this is an error, contact your platform administrator.
         </p>
 
-        <div className="flex flex-col gap-3">
-          <Link 
-            href="/incidents"
-            className="w-full text-center bg-accent text-white py-2 px-4 rounded font-medium text-sm transition-colors hover:bg-accent-hover"
+        {/* Actions */}
+        <div className="mt-7 flex flex-col items-stretch gap-2">
+          <Link
+            href="/overview"
+            className="inline-flex h-11 items-center justify-center gap-2 bg-[var(--accent)] px-4 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--bg-base)] transition-opacity hover:opacity-85 focus-visible:outline-none"
           >
-            Return to Dashboard
+            Return to overview
           </Link>
-          <a 
-            href="mailto:support@sentinel.io?subject=Access Request"
-            className="w-full text-center bg-transparent text-text-secondary py-2 px-4 rounded font-medium text-sm transition-colors border border-border hover:bg-surface-3 hover:text-text-primary"
+          <a
+            href="mailto:support@sentinel.io?subject=Access%20Request"
+            className="inline-flex h-11 items-center justify-center gap-2 border border-[var(--border-strong)] px-4 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--fg-2)] transition-colors hover:bg-[var(--bg-surface-2)] hover:text-[var(--fg-1)] focus-visible:outline-none"
           >
-            Request Access
+            Request access
           </a>
         </div>
       </div>

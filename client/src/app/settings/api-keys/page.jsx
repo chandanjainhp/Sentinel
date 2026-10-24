@@ -13,6 +13,7 @@ import {
   createNamedApiKey,
   revokeApiKeyByKeyId,
 } from '@/lib/api';
+import { BREAKPOINT_MOBILE, mediaMax } from '@/lib/layout-tokens';
 
 const MONO = 'var(--font-mono)';
 const SANS = 'var(--font-sans)';
@@ -298,7 +299,7 @@ export default function ApiKeysPage() {
     <div className="api-keys-page" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
       <style dangerouslySetInnerHTML={{ __html: `
         /* Phones: long keys must scroll inside their box instead of stretching the page. */
-        @media (max-width: 640px) {
+        ${mediaMax(BREAKPOINT_MOBILE)} {
           .api-keys-page code { display: inline-block; max-width: 100%; overflow-x: auto; vertical-align: bottom; }
         }
       ` }} />

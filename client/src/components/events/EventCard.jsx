@@ -32,7 +32,7 @@ const EventCard = memo(({ incident }) => {
 
   return (
     <div
-      onClick={() => router.push(`/incident/${id}`)}
+      onClick={() => router.push(`/incidents/${id}`)}
       style={{
         display: "grid",
         gridTemplateColumns: "54px 1fr auto",

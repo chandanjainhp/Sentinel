@@ -1,16 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getIncidentDetail, updateIncidentStatus } from "@/lib/api";
+import { useIncidentEvidenceGraph, useIncidentExplain } from "@/hooks/useIncidents";
 import { healthMeta } from "@/lib/health";
 import HealthDot from "@/components/brand/HealthDot";
 import ArgusExplanation from "@/components/incident/ArgusExplanation";
+import AgentReasoning from "@/components/incident/AgentReasoning";
+import SeverityBadge from "@/components/events/SeverityBadge";
+import StatusBadge from "@/components/incident/StatusBadge";
+import PageContainer from "@/components/layout/PageContainer";
+import { REPORTING_TIMEZONE } from "@/lib/reporting-window";
+import { INCIDENT_STATUSES } from "@/lib/status";
+import { Calendar, Clock, Activity, ExternalLink, RotateCcw, Search } from "lucide-react";
 
 const MONO = "var(--font-mono)";
 const DISPLAY = "var(--font-display)";
+const SANS = "var(--font-sans)";
 const LABEL = {
   fontFamily: MONO,
   fontSize: "10px",
@@ -22,7 +31,7 @@ const LABEL = {
 const DASH = "—";
 
 /* ── Section header: amber index + uppercase title + hairline rule ── */
-function SecHead({ index, title, note }) {
+function SecHead({ index, title, note, actions }) {
   return (
     <div
       style={{
@@ -32,6 +41,7 @@ function SecHead({ index, title, note }) {
         borderBottom: "1px solid var(--line)",
         paddingBottom: 12,
         marginBottom: 16,
+        flexWrap: "wrap",
       }}
     >
       <span
@@ -62,6 +72,7 @@ function SecHead({ index, title, note }) {
       {note && (
         <span style={{ ...LABEL, marginLeft: "auto", fontSize: "9.5px" }}>{note}</span>
       )}
+      {actions && <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}>{actions}</div>}
     </div>
   );
 }
@@ -81,10 +92,10 @@ function EvidenceBlock({ label, value }) {
   );
 }
 
-const LIFECYCLE = ["open", "reviewed", "closed"];
+const LIFECYCLE = INCIDENT_STATUSES;
 
 /* ── Status lifecycle: open → reviewed → closed, with the update control ── */
-function StatusLifecycle({ incidentId, status }) {
+function StatusLifecycle({ incidentId, status, onStatusUpdate, isUpdating }) {
   const queryClient = useQueryClient();
   const [error, setError] = useState(null);
 
@@ -94,13 +105,14 @@ function StatusLifecycle({ incidentId, status }) {
       setError(null);
       queryClient.invalidateQueries({ queryKey: ["incident-detail", incidentId] });
       queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      if (onStatusUpdate) onStatusUpdate();
     },
     onError: (e) => setError(e?.message || "Could not update status"),
   });
 
   const idx = LIFECYCLE.indexOf(status);
   const next = LIFECYCLE[idx + 1];
-  const advancing = mutation.isPending;
+  const advancing = mutation.isPending || isUpdating;
 
   return (
     <div
@@ -206,6 +218,35 @@ function StatusLifecycle({ incidentId, status }) {
   );
 }
 
+function MachineContext({ machine, event, incident }) {
+  const machineId = machine?._id || incident?.machineId;
+  const site = incident?.site || { name: DASH };
+
+  if (!machine && !machineId) return null;
+
+  return (
+    <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", alignItems: "center", fontFamily: MONO, fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--dim)" }}>
+      {machine && (
+        <Link href={`/machines/${machine._id}`} style={{ color: "var(--bone)", textDecoration: "none", borderBottom: "1px solid var(--line2)", paddingBottom: 1, display: "flex", alignItems: "center", gap: "4px" }}>
+          {machine.name} · {machine.assetId}
+        </Link>
+      )}
+      {machineId && !machine && (
+        <Link href={`/machines/${machineId}`} style={{ color: "var(--bone)", textDecoration: "none", borderBottom: "1px solid var(--line2)", paddingBottom: 1, display: "flex", alignItems: "center", gap: "4px" }}>
+          Machine: {machineId}
+        </Link>
+      )}
+      {machineId && (
+        <Link href={`/sensors/trends?machineId=${encodeURIComponent(machineId)}${event?.sensorId ? `&sensorId=${encodeURIComponent(event.sensorId)}` : ""}`}
+          style={{ color: "var(--amber)", textDecoration: "none", display: "flex", alignItems: "center", gap: "4px" }}>
+          VIEW SENSOR TRENDS <ExternalLink size={10} />
+        </Link>
+      )}
+      {site && site.name && <span>SITE · {site.name}</span>}
+    </div>
+  );
+}
+
 export default function IncidentDetailPage() {
   const params = useParams();
   const incidentId = params?.incidentId;
@@ -217,27 +258,42 @@ export default function IncidentDetailPage() {
     staleTime: 15 * 1000,
     retry: 1,
   });
+  const { data: evidenceGraph } = useIncidentEvidenceGraph(incidentId);
+  const queryClient = useQueryClient();
+  const {
+    mutate: regenerateExplanation,
+    isPending: isRegeneratingExplanation,
+  } = useIncidentExplain(incidentId, {
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["incident-detail", incidentId] }),
+  });
 
   const incident = data?.incident;
+  // The evidence graph and the attached investigation are the two places a
+  // finished overnight investigation can surface.
+  const hasInvestigation = Boolean(
+    evidenceGraph?.steps?.length ||
+      evidenceGraph?.classification?.reasoning ||
+      incident?.investigationId?.status === "complete",
+  );
   const machine = data?.machine;
   const event = data?.event;
   const prediction = data?.prediction;
+  const site = data?.site;
 
   const meta = incident ? healthMeta(incident.severity) : null;
   const fmt = (d) =>
-    d ? new Date(d).toLocaleString([], { month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : DASH;
+    d ? new Date(d).toLocaleString([], {
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: REPORTING_TIMEZONE,
+    }) : DASH;
 
   if (isError) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "var(--night)",
-          padding: "32px 24px 64px",
-          maxWidth: "1080px",
-          margin: "0 auto",
-        }}
-      >
+      <PageContainer>
         <div className="empty-state">INCIDENT NOT FOUND — OR NOT VISIBLE TO THIS ACCOUNT</div>
         <div style={{ textAlign: "center", marginTop: 16 }}>
           <Link
@@ -253,20 +309,12 @@ export default function IncidentDetailPage() {
             ← BACK TO INCIDENTS
           </Link>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "var(--night)",
-        padding: "32px 24px 64px",
-        maxWidth: "1080px",
-        margin: "0 auto",
-      }}
-    >
+    <PageContainer>
       {/* ── Header: breadcrumb, severity dot, title, machine link ── */}
       <div style={{ marginBottom: 28 }}>
         <div
@@ -290,7 +338,7 @@ export default function IncidentDetailPage() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          {/* Severity dot — the one amber-spend on this page is here and the CTA */}
+          {/* Severity dot */}
           {incident && <HealthDot status={incident.severity} size={10} />}
           <h1
             style={{
@@ -311,11 +359,6 @@ export default function IncidentDetailPage() {
 
         <div
           style={{
-            fontFamily: MONO,
-            fontSize: "10px",
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            color: "var(--dim)",
             marginTop: 12,
             display: "flex",
             gap: 14,
@@ -323,25 +366,28 @@ export default function IncidentDetailPage() {
             alignItems: "center",
           }}
         >
-          {machine && (
-            <Link
-              href={`/machines/${machine._id}`}
-              style={{
-                color: "var(--bone)",
-                textDecoration: "none",
-                borderBottom: "1px solid var(--line2)",
-                paddingBottom: 1,
-              }}
-            >
-              {machine.name} · {machine.assetId}
-            </Link>
-          )}
-          {data?.site && <span>SITE · {data.site.name}</span>}
-          <span>RAISED · {fmt(incident?.createdAt)}</span>
-          {incident?.lastSeenAt && <span>LAST SEEN · {fmt(incident.lastSeenAt)}</span>}
-          {incident && incident.occurrenceCount > 1 && (
-            <span>SEEN ×{incident.occurrenceCount}</span>
-          )}
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+            <span style={{ fontFamily: MONO, fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--dim)" }}>
+              <Calendar size={12} style={{ color: "var(--amber)" }} />
+              RAISED {fmt(incident?.createdAt)}
+            </span>
+            {incident?.lastSeenAt && (
+              <span style={{ fontFamily: MONO, fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--dim)" }}>
+                <Clock size={12} style={{ color: "var(--amber)" }} />
+                LAST SEEN {fmt(incident.lastSeenAt)}
+              </span>
+            )}
+            {incident?.occurrenceCount > 1 && (
+              <span style={{ fontFamily: MONO, fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--dim)" }}>
+                SEEN ×{incident.occurrenceCount}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Machine and Site Context */}
+        <div style={{ marginTop: 12 }}>
+          <MachineContext machine={machine} event={event} incident={incident} site={site} />
         </div>
       </div>
 
@@ -350,13 +396,83 @@ export default function IncidentDetailPage() {
       ) : (
         <>
           {/* ══ 01 · STATUS LIFECYCLE — open → reviewed → closed ══ */}
-          <SecHead index="01" title="Status" note={incident ? `TYPE · ${incident.type}` : undefined} />
+          <SecHead
+            index="01"
+            title="Status"
+            note={incident ? `TYPE · ${incident.type}` : undefined}
+            actions={incident && (
+              <Link
+                href={`/incidents`}
+                style={{
+                  background: "transparent",
+                  border: "1px solid var(--border-default)",
+                  color: "var(--fg-2)",
+                  padding: "4px 10px",
+                  fontFamily: MONO,
+                  fontSize: "10px",
+                  textDecoration: "none",
+                  borderRadius: "2px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-surface-2)"}
+                onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+              >
+                <Activity size={12} />
+                BACK TO LIST
+              </Link>
+            )}
+          />
           <div style={{ marginBottom: 40 }}>
             <StatusLifecycle incidentId={incidentId} status={incident?.status ?? "open"} />
           </div>
 
-          {/* ══ 02 · REASON — one deterministic sentence ══ */}
-          <SecHead index="02" title="Reason" />
+          {/* ══ 02 · SUMMARY METRICS ══ */}
+          <SecHead index="02" title="Summary Metrics" />
+          <div style={{ display: "flex", gap: "16px", marginBottom: 40, flexWrap: "wrap" }}>
+            <div style={{
+              flex: "1",
+              minWidth: "200px",
+              padding: "16px",
+              background: "var(--graphite)",
+              border: "1px solid var(--line)",
+            }}>
+              <div style={{ fontFamily: MONO, fontSize: "10px", color: "var(--dim)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "8px" }}>
+                Severity
+              </div>
+              <SeverityBadge severity={incident?.severity || "unknown"} />
+            </div>
+            <div style={{
+              flex: "1",
+              minWidth: "200px",
+              padding: "16px",
+              background: "var(--graphite)",
+              border: "1px solid var(--line)",
+            }}>
+              <div style={{ fontFamily: MONO, fontSize: "10px", color: "var(--dim)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "8px" }}>
+                Priority
+              </div>
+              <span style={{ fontFamily: MONO, fontSize: "18px", fontWeight: 600, color: "var(--fg-1)" }}>
+                P{incident?.priority || "—"}
+              </span>
+            </div>
+            <div style={{
+              flex: "1",
+              minWidth: "200px",
+              padding: "16px",
+              background: "var(--graphite)",
+              border: "1px solid var(--line)",
+            }}>
+              <div style={{ fontFamily: MONO, fontSize: "10px", color: "var(--dim)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "8px" }}>
+                Status
+              </div>
+              <StatusBadge status={incident?.status || "open"} />
+            </div>
+          </div>
+
+          {/* ══ 03 · REASON — one deterministic sentence ══ */}
+          <SecHead index="03" title="Reason" />
           <div
             style={{
               background: "var(--graphite)",
@@ -371,8 +487,8 @@ export default function IncidentDetailPage() {
             {incident?.reason || DASH}
           </div>
 
-          {/* ══ 03 · RECOMMENDED NEXT ACTION — plain checklist item ══ */}
-          <SecHead index="03" title="Recommended Next Action" />
+          {/* ══ 04 · RECOMMENDED NEXT ACTION — plain checklist item ══ */}
+          <SecHead index="04" title="Recommended Next Action" />
           <div style={{ marginBottom: 40 }}>
             <label
               style={{
@@ -402,9 +518,9 @@ export default function IncidentDetailPage() {
             </label>
           </div>
 
-          {/* ══ 04 · EVIDENCE — triggering event + prediction, verbatim JSON ══ */}
+          {/* ══ 05 · EVIDENCE — triggering event + prediction, verbatim JSON ══ */}
           <SecHead
-            index="04"
+            index="05"
             title="Evidence"
             note={event && prediction ? "EVENT → PREDICTION" : event ? "EVENT ONLY" : undefined}
           />
@@ -416,6 +532,7 @@ export default function IncidentDetailPage() {
                 display: "grid",
                 gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
                 gap: 10,
+                marginBottom: 40,
               }}
             >
               <EvidenceBlock
@@ -429,24 +546,109 @@ export default function IncidentDetailPage() {
             </div>
           )}
 
-          {/* ══ 05 · ARGUS EXPLANATION — plain-language root cause ══
+          {/* ══ 06 · ARGUS EXPLANATION — plain-language root cause ══
            * The explanation rides on the incident sub-document, which the
            * detail aggregation already includes. ArgusExplanation handles
            * pending / failed / missing / ready states on its own. */}
           <SecHead
-            index="05"
+            index="06"
             title="Argus Explanation"
             note={
               incident?.explanation?.source
                 ? `SOURCE · ${String(incident.explanation.source).toUpperCase()}`
                 : undefined
             }
+            actions={incident?.explanation && (
+              <button
+                onClick={() => regenerateExplanation()}
+                disabled={isRegeneratingExplanation}
+                style={{
+                  background: "transparent",
+                  border: "1px solid var(--amber)",
+                  color: "var(--amber)",
+                  padding: "4px 10px",
+                  fontFamily: MONO,
+                  fontSize: "10px",
+                  cursor: isRegeneratingExplanation ? "not-allowed" : "pointer",
+                  borderRadius: "2px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+                onMouseEnter={(e) => !isRegeneratingExplanation && (e.currentTarget.style.background = "var(--amber)", e.currentTarget.style.color = "var(--night)")}
+                onMouseLeave={(e) => !isRegeneratingExplanation && (e.currentTarget.style.background = "transparent", e.currentTarget.style.color = "var(--amber)")}
+              >
+                <RotateCcw size={12} />
+                {isRegeneratingExplanation ? "REGENERATING…" : "REGENERATE"}
+              </button>
+            )}
           />
-          <div>
-            <ArgusExplanation explanation={incident?.explanation ?? null} />
+          <div style={{ marginBottom: 40 }}>
+            <ArgusExplanation
+              explanation={incident?.explanation ?? null}
+              onRegenerate={() => regenerateExplanation()}
+              isRegenerating={isRegeneratingExplanation}
+            />
+          </div>
+
+          {/* ══ 07 · INVESTIGATION — the full agent workspace lives on
+           * /investigations. This page only shows a condensed read-only
+           * summary when stored results exist, and always links out. */}
+          <SecHead
+            index="07"
+            title="Investigation"
+            note={hasInvestigation ? "STORED RESULTS" : undefined}
+            actions={
+              <Link
+                href={`/investigations?incidentId=${encodeURIComponent(incidentId)}`}
+                style={{
+                  background: "transparent",
+                  border: "1px solid var(--amber)",
+                  color: "var(--amber)",
+                  padding: "4px 10px",
+                  fontFamily: MONO,
+                  fontSize: "10px",
+                  textDecoration: "none",
+                  borderRadius: "2px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-deep)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                <Search size={12} />
+                {hasInvestigation ? "FULL INVESTIGATION DETAILS" : "VIEW INVESTIGATION"}
+              </Link>
+            }
+          />
+          <div style={{ marginBottom: 40 }}>
+            {hasInvestigation ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {evidenceGraph?.executiveSummary && (
+                  <p style={{ margin: 0, fontSize: "15px", lineHeight: 1.6, color: "var(--fg-2)" }}>
+                    {evidenceGraph.executiveSummary}
+                  </p>
+                )}
+                <AgentReasoning
+                  reasoning={
+                    evidenceGraph?.classification?.reasoning ||
+                    incident?.agentSummary ||
+                    "No reasoning attached by agent."
+                  }
+                  uncertainties={evidenceGraph?.classification?.uncertainties || []}
+                  confidence={evidenceGraph?.classification?.confidence || 0}
+                />
+              </div>
+            ) : (
+              <div className="empty-state">
+                NO INVESTIGATION RESULTS RECORDED FOR THIS INCIDENT — OPEN THE INVESTIGATION
+                WORKSPACE TO START ONE
+              </div>
+            )}
           </div>
         </>
       )}
-    </div>
+    </PageContainer>
   );
 }

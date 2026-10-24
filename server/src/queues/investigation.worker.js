@@ -1,18 +1,15 @@
 import { Worker } from "bullmq";
 import Investigation from "../models/investigation.model.js";
-import { buildInvestigationTrace } from "../services/investigation.service.js";
+import { analyzeInvestigation } from "../services/investigation.service.js";
 import { resolveInvestigationQueueName } from "./investigation.queue.js";
+import { recordInvestigationOutcome } from "../utils/metrics.js";
 
 let workerInstance = null;
 
 /**
  * Investigation worker — consumes the legacy 'investigations' queue that had
- * no consumer. Each job investigates ONE incident: gathers overnight sensor
- * aggregates, builds a deterministic tool-call trace + evidence chain, and
- * persists the Investigation doc (status: running → complete/failed).
- *
- * Deterministic on purpose: same thresholds as the health pipeline, no LLM
- * dependency, so the Overnight Investigation always works, including offline.
+ * Each job investigates one incident, first using the configured LLM and then
+ * the deterministic trace/classification when the provider or response fails.
  */
 export const startInvestigationWorker = (connection) => {
   if (workerInstance) return workerInstance;
@@ -33,25 +30,49 @@ export const startInvestigationWorker = (connection) => {
         throw new Error(`Investigation doc ${investigationId} not found`);
       }
 
+      if (doc.status === "complete") {
+        return { investigationId, status: "complete", toolCalls: doc.totalToolCalls || 0 };
+      }
+
       doc.status = "running";
+      if (!doc.jobId) doc.jobId = String(job.id);
       await doc.save({ validateBeforeSave: false });
 
       try {
-        const trace = await buildInvestigationTrace({ incidentId, nightDate });
+        const result = await analyzeInvestigation({ incidentId, nightDate });
 
-        doc.toolCallSequence = trace.toolCallSequence;
-        doc.evidenceChain = trace.evidenceChain;
-        doc.classification = trace.classification;
-        doc.totalToolCalls = trace.toolCallSequence.length;
+        doc.toolCallSequence = result.toolCallSequence;
+        doc.evidenceChain = result.evidenceChain;
+        doc.classification = result.classification;
+        doc.resultSource = result.resultSource;
+        doc.provider = result.provider;
+        doc.agentModel = result.agentModel;
+        doc.executiveSummary = result.executiveSummary;
+        doc.findings = result.findings;
+        doc.rootCause = result.rootCause;
+        doc.recommendedActions = result.recommendedActions;
+        doc.dataLimitations = result.dataLimitations;
+        doc.unresolvedQuestions = result.unresolvedQuestions;
+        doc.failureReason = result.failureReason;
+        doc.totalToolCalls = result.toolCallSequence.length;
         doc.durationMs = Date.now() - new Date(job.data.dispatchedAt || Date.now()).getTime();
         doc.status = "complete";
-        await doc.save({ validateBeforeSave: false });
+        const update = doc.toObject();
+        delete update._id;
+        delete update.__v;
+        const saved = await Investigation.findOneAndUpdate(
+          { _id: doc._id, status: "running", jobId: String(job.id) },
+          { $set: update },
+          { new: true, runValidators: false },
+        );
+        if (!saved) return { investigationId, status: "stale", source: result.resultSource };
 
         return {
           investigationId,
           status: "complete",
-          severity: trace.classification.severity,
-          toolCalls: trace.toolCallSequence.length,
+          severity: result.classification.severity,
+          source: result.resultSource,
+          toolCalls: result.toolCallSequence.length,
         };
       } catch (err) {
         doc.status = "failed";
@@ -71,10 +92,16 @@ export const startInvestigationWorker = (connection) => {
     console.log(
       `[InvestigationWorker] ✓ Job completed: ${job.id} | incident=${job.data?.incidentId} severity=${result?.severity}`
     );
+    // Record successful investigation completion
+    if (result?.severity) {
+      recordInvestigationOutcome(result.severity);
+    }
   });
 
   workerInstance.on("failed", (job, error) => {
     console.error(`[InvestigationWorker] ✗ Job failed: ${job?.id} - ${error.message}`);
+    // Record failed investigation
+    recordInvestigationOutcome('failed');
   });
 
   return workerInstance;

@@ -2,14 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { toast } from 'sonner';
-import { Settings, Globe, AlertTriangle, Loader2, Save, ShieldCheck } from 'lucide-react';
+import { Settings, Globe, AlertTriangle, Loader2, Save, ShieldCheck, Webhook } from 'lucide-react';
 import { getSite, updateSiteConfig } from '@/lib/api';
 import {
   getRecordingConsent,
   setRecordingConsent,
   revokeRecordingConsent,
 } from '@/lib/consent';
+import { BREAKPOINT_MOBILE, mediaMax } from '@/lib/layout-tokens';
 
 
 const MONO = 'var(--font-mono)';
@@ -49,6 +51,22 @@ const CARD_STYLE = {
   overflow: 'hidden',
 };
 
+const LINK_STYLE = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '6px',
+  flexShrink: 0,
+  padding: '8px 12px',
+  border: '1px solid var(--accent)',
+  borderRadius: '2px',
+  color: 'var(--accent)',
+  fontFamily: MONO,
+  fontSize: '10px',
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  textDecoration: 'none',
+};
+
 const INPUT_BASE_STYLE = {
   width: '100%',
   padding: '8px 10px',
@@ -83,23 +101,13 @@ export default function GeneralSettingsPage() {
   const [name, setName] = useState('');
   const [timezone, setTimezone] = useState('UTC');
   const [locationLabel, setLocationLabel] = useState('');
-  const [webhookUrl, setWebhookUrl] = useState('');
-  const [webhookError, setWebhookError] = useState('');
 
   useEffect(() => {
     if (!site) return;
     setName(site.name ?? '');
     setTimezone(site.timezone ?? 'UTC');
-    setLocationLabel(site.locationLabel ?? '');
-    setWebhookUrl(site.webhookUrl ?? '');
+    setLocationLabel(site.description ?? site.locationLabel ?? '');
   }, [site]);
-
-  function validateWebhook(val) {
-    if (val && !/^https?:\/\//i.test(val)) {
-      return 'Webhook URL must start with http:// or https://';
-    }
-    return '';
-  }
 
   const saveMutation = useMutation({
     mutationFn: (payload) => updateSiteConfig(payload),
@@ -115,18 +123,10 @@ export default function GeneralSettingsPage() {
   function handleSave(e) {
     e.preventDefault();
 
-    const vErr = validateWebhook(webhookUrl);
-    if (vErr) {
-      setWebhookError(vErr);
-      return;
-    }
-    setWebhookError('');
-
     saveMutation.mutate({
       name: name.trim() || 'Site',
       timezone: timezone.trim() || 'UTC',
-      locationLabel: locationLabel.trim() || null,
-      webhookUrl: webhookUrl.trim() || null,
+      locationLabel: locationLabel.trim(),
     });
   }
 
@@ -173,7 +173,7 @@ export default function GeneralSettingsPage() {
           fontFamily: SANS, fontSize: '12px', color: 'var(--fg-3)',
           margin: '6px 0 0 0',
         }}>
-          Project site name, timezone, and outbound webhook for morning briefing delivery.
+          Project site name, timezone and site label. Webhook delivery is configured under Settings → Webhooks.
         </p>
       </div>
 
@@ -185,7 +185,7 @@ export default function GeneralSettingsPage() {
           </div>
           <div className="settings-form-grid" style={{ padding: '20px', display: 'grid', gap: '16px', gridTemplateColumns: '1fr 1fr' }}>
             <style dangerouslySetInnerHTML={{ __html: `
-              @media (max-width: 640px) {
+              ${mediaMax(BREAKPOINT_MOBILE)} {
                 .settings-form-grid { grid-template-columns: 1fr !important; }
               }
             ` }} />
@@ -207,40 +207,24 @@ export default function GeneralSettingsPage() {
           </div>
         </section>
 
-        <section style={CARD_STYLE}>
+        {/* Read-only pointer. The webhook endpoint, active flag and HMAC
+            secret are edited only on /settings/webhooks. */}
+        <section style={CARD_STYLE} aria-labelledby="webhook-summary-title">
           <div style={SECTION_HEADER_STYLE}>
-            <Globe size={13} style={{ color: 'var(--fg-3)' }} />
-            <h2 style={SECTION_TITLE_STYLE}>Webhook</h2>
+            <Webhook size={13} style={{ color: 'var(--fg-3)' }} />
+            <h2 id="webhook-summary-title" style={SECTION_TITLE_STYLE}>Webhook delivery</h2>
           </div>
-          <div style={{ padding: '20px' }}>
-            <label htmlFor="webhookUrl" style={{ ...LABEL_STYLE, display: 'block', marginBottom: '6px' }}>
-              Webhook URL
-            </label>
-            <input
-              id="webhookUrl"
-              type="text"
-              autoComplete="off"
-              placeholder="https://your-server.com/webhooks/sentinel"
-              value={webhookUrl}
-              disabled={!canEdit}
-              onChange={(e) => {
-                setWebhookUrl(e.target.value);
-                setWebhookError(validateWebhook(e.target.value));
-              }}
-              style={{
-                ...INPUT_BASE_STYLE,
-                borderColor: webhookError ? 'var(--sev-serious)' : 'var(--border-default)',
-              }}
-            />
-            {webhookError && (
-              <p style={{
-                margin: '6px 0 0 0', fontFamily: SANS, fontSize: '11px',
-                color: 'var(--sev-serious)', display: 'flex', alignItems: 'center', gap: '4px',
-              }}>
-                <AlertTriangle size={11} />
-                {webhookError}
-              </p>
-            )}
+          <div style={{
+            padding: '20px', display: 'flex', flexWrap: 'wrap',
+            alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+          }}>
+            <p style={{ margin: 0, maxWidth: '520px', fontFamily: SANS, fontSize: '13px', color: 'var(--fg-3)' }}>
+              Outbound webhooks are not live yet. When they ship, the endpoint URL, its active
+              state and the HMAC signing secret will be managed on the Webhooks page.
+            </p>
+            <Link href="/settings/webhooks" style={LINK_STYLE}>
+              Manage webhooks →
+            </Link>
           </div>
         </section>
 

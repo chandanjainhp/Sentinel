@@ -50,7 +50,7 @@ const siteSchema = new mongoose.Schema(
     timezone: {
       type: String,
       required: true,
-      default: "UTC",
+      default: "Asia/Kolkata",
     },
 
     coordinates: {

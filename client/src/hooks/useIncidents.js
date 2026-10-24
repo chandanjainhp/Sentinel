@@ -6,7 +6,9 @@ import {
   explainIncident,
 } from "@/lib/api";
 import { normalizeIncident } from "@/lib/projectContext";
+import { FALLBACK_SEVERITY } from "@/lib/severity";
 import { incidentQueryKey } from "@/store/incidentFilterStore";
+import { reportingWindow } from "@/lib/reporting-window";
 
 function normalizeList(data) {
   const raw = Array.isArray(data)
@@ -24,46 +26,56 @@ function bucket(incidents) {
   // critical | warning | minor | unknown. The old client-side
   // serious/minor/harmless/uncertain buckets never matched what the
   // pipeline emits, which left the Events Timeline empty.
+  // Statuses are the same enum the badges and filters use (lib/status.js):
+  // open | reviewed | closed.
   return {
     incidents,
     critical: incidents.filter((i) => i.severity === "critical"),
     warning: incidents.filter((i) => i.severity === "warning"),
     minor: incidents.filter((i) => i.severity === "minor"),
-    unknown: incidents.filter((i) => !i.severity || i.severity === "unknown"),
-    pending: incidents.filter(
-      (i) => i.status !== "resolved" && i.status !== "complete" && i.status !== "closed",
-    ),
+    unknown: incidents.filter((i) => i.severity === FALLBACK_SEVERITY),
+    open: incidents.filter((i) => i.status === "open"),
+    reviewed: incidents.filter((i) => i.status === "reviewed"),
+    closed: incidents.filter((i) => i.status === "closed"),
+    // Anything still on the lifecycle — reviewed incidents are not done.
+    unresolved: incidents.filter((i) => i.status !== "closed"),
   };
 }
 
 /**
- * @param {object} filters — nightDate, severity, status
+ * Query params for GET /incidents from filter state.
  *
- * nightDate is a client-side concept ("the night being viewed"); the server's
- * incident list filters on createdAt from/to, so it is converted here. Passing
- * nightDate as a raw query param would be silently ignored server-side and
- * the "overnight" counts would silently be all-time counts instead.
+ * nightDate is optional: when set, the server filters on createdAt from/to.
+ * The main incidents table omits it so open incidents match the dashboard;
+ * overnight investigation and EventPanel pass nightDate explicitly.
  */
-export function useIncidents(filters = {}, options = {}) {
+export function buildIncidentsListParams(filters = {}) {
   const key = incidentQueryKey(filters);
 
   const nightWindow = key.nightDate
     ? (() => {
-        const from = new Date(`${key.nightDate}T00:00:00`);
-        const to = new Date(from.getTime() + 24 * 60 * 60 * 1000);
-        if (Number.isNaN(from.getTime())) return {};
-        return { from: from.toISOString(), to: to.toISOString() };
+        const window = reportingWindow(key.nightDate);
+        if (!window) return {};
+        const { from, to } = window;
+        // The API's `to` filter is inclusive; send the last millisecond of the
+        // UTC calendar day so the next midnight is not included.
+        return { from: from.toISOString(), to: new Date(to.getTime() - 1).toISOString() };
       })()
     : {};
 
+  return {
+    severity: key.severity || undefined,
+    status: key.status || undefined,
+    ...nightWindow,
+  };
+}
+
+export function useIncidents(filters = {}, options = {}) {
+  const key = incidentQueryKey(filters);
+
   return useQuery({
     queryKey: ["incidents", key],
-    queryFn: () =>
-      getIncidents({
-        severity: key.severity || undefined,
-        status: key.status || undefined,
-        ...nightWindow,
-      }),
+    queryFn: () => getIncidents(buildIncidentsListParams(filters)),
     select: (data) => bucket(normalizeList(data)),
     staleTime: 15 * 1000,
     retry: (failureCount, error) => {

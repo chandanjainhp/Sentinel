@@ -8,9 +8,25 @@ import { registerUser } from '@/lib/api';
 import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
 import { SentinelLockup } from '@/components/brand/SentinelMark';
 import { initTheme } from '@/lib/theme';
+import AuthShell, {
+  AuthAlert,
+  AuthFooterLink,
+  OrDivider,
+} from '@/components/shared/AuthShell';
+import FormField from '@/components/shared/FormField';
+import PasswordInput from '@/components/shared/PasswordInput';
+import SubmitButton from '@/components/shared/SubmitButton';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const usernamePattern = /^[a-zA-Z0-9_]+$/;
+
+const STRENGTH_META = [
+  { width: '0%', color: 'var(--dim)', label: '—' },
+  { width: '25%', color: 'var(--sev-serious)', label: 'Weak' },
+  { width: '50%', color: 'var(--sev-minor)', label: 'Fair' },
+  { width: '75%', color: 'var(--sev-minor)', label: 'Good' },
+  { width: '100%', color: 'var(--health-healthy)', label: 'Strong' },
+];
 
 function getPasswordScore(pw) {
   if (!pw) return 0;
@@ -22,14 +38,6 @@ function getPasswordScore(pw) {
   return s;
 }
 
-const STRENGTH_META = [
-  { width: '25%', color: 'var(--sev-serious)', label: 'Weak' },
-  { width: '25%', color: 'var(--sev-serious)', label: 'Weak' },
-  { width: '50%', color: 'var(--sev-minor)', label: 'Fair' },
-  { width: '75%', color: 'var(--sev-minor)', label: 'Good' },
-  { width: '100%', color: 'var(--success)', label: 'Strong' },
-];
-
 const CAPABILITIES = [
   'Argus investigation feed',
   'Work-package incident list',
@@ -38,32 +46,57 @@ const CAPABILITIES = [
   'Overnight telemetry timeline',
 ];
 
+const fieldClass = (hasError) =>
+  [
+    'h-11 w-full px-[14px] bg-[var(--bg-surface-2)] text-[var(--fg-1)]',
+    'border font-mono text-[13px] tracking-[0.02em] transition-colors rounded-none',
+    'placeholder:text-[var(--fg-4)] placeholder:text-[12px]',
+    'focus:outline-none focus:border-[var(--border-focus)] focus:shadow-[0_0_0_1px_var(--border-focus)]',
+    hasError
+      ? 'border-[var(--sev-serious-dim)] focus:border-[var(--sev-serious)] focus:shadow-[0_0_0_1px_var(--sev-serious)]'
+      : 'border-[var(--border-default)]',
+  ].join(' ');
+
 export default function RegisterPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    username: '', email: '', password: '', confirmPassword: '', terms: false, ageConfirmed: false,
+    username: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    terms: false,
+    ageConfirmed: false,
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({
-    username: '', email: '', password: '', confirmPassword: '', terms: '', ageConfirmed: '',
+    username: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    terms: '',
+    ageConfirmed: '',
   });
   const [serverError, setServerError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  useEffect(() => { initTheme(); }, []);
+  useEffect(() => {
+    initTheme();
+  }, []);
 
   useEffect(() => {
     if (!successMessage) return;
-    const t = setTimeout(() => router.push(`/opt?email=${encodeURIComponent(formData.email)}`), 1500);
+    const t = setTimeout(
+      () => router.push(`/opt?email=${encodeURIComponent(formData.email)}`),
+      1500,
+    );
     return () => clearTimeout(t);
   }, [router, successMessage, formData.email]);
 
   const mutation = useMutation({
-    mutationFn: ({ username, email, password, ageConfirmed }) => registerUser({ username, email, password, ageConfirmed }),
-    onSuccess: (data) => { 
-      setServerError(''); 
-      setSuccessMessage('Account created successfully.'); 
+    mutationFn: ({ username, email, password, ageConfirmed }) =>
+      registerUser({ username, email, password, ageConfirmed }),
+    onSuccess: (data) => {
+      setServerError('');
+      setSuccessMessage('Account created successfully.');
       if (data?.user) {
         localStorage.setItem('ridgeway_user', JSON.stringify(data.user));
         document.cookie = 'ridgeway_auth=1; path=/; max-age=86400; SameSite=Lax';
@@ -71,26 +104,55 @@ export default function RegisterPage() {
     },
     onError: (error) => {
       setSuccessMessage('');
-      setServerError(error?.message || 'Unable to create account. Please try again.');
+      const msg = (error?.message || '').toLowerCase();
+      if (msg.includes('already') || msg.includes('exists')) {
+        setServerError('An account with that email already exists.');
+      } else if (error?.type === 'NETWORK_ERROR') {
+        setServerError('Connection lost. Check your network and try again.');
+      } else if (error?.type === 'VALIDATION_ERROR') {
+        setServerError('Some fields are invalid. Please review and try again.');
+      } else {
+        setServerError(
+          error?.message || 'Unable to create account. Please try again.',
+        );
+      }
     },
   });
 
   const validateForm = () => {
-    const errors = { username: '', email: '', password: '', confirmPassword: '', terms: '', ageConfirmed: '' };
+    const errors = {
+      username: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      terms: '',
+      ageConfirmed: '',
+    };
     if (!formData.username.trim()) errors.username = 'Username is required.';
-    else if (formData.username.length < 3) errors.username = 'Min 3 characters.';
-    else if (formData.username.length > 20) errors.username = 'Max 20 characters.';
-    else if (!usernamePattern.test(formData.username)) errors.username = 'Letters, numbers, underscores only.';
+    else if (formData.username.length < 3)
+      errors.username = 'Min 3 characters.';
+    else if (formData.username.length > 20)
+      errors.username = 'Max 20 characters.';
+    else if (!usernamePattern.test(formData.username))
+      errors.username = 'Letters, numbers, underscores only.';
     if (!formData.email.trim()) errors.email = 'Email is required.';
-    else if (!emailPattern.test(formData.email)) errors.email = 'Enter a valid email address.';
+    else if (!emailPattern.test(formData.email))
+      errors.email = 'Enter a valid email address.';
     if (!formData.password) errors.password = 'Password is required.';
-    else if (formData.password.length < 8) errors.password = 'Min 8 characters required.';
-    else if (!/[A-Z]/.test(formData.password)) errors.password = 'Must include an uppercase letter.';
-    else if (!/[0-9]/.test(formData.password)) errors.password = 'Must include a number.';
-    if (!formData.confirmPassword) errors.confirmPassword = 'Confirm password is required.';
-    else if (formData.confirmPassword !== formData.password) errors.confirmPassword = 'Passwords do not match.';
-    if (!formData.terms) errors.terms = 'You must agree to the terms to continue.';
-    if (!formData.ageConfirmed) errors.ageConfirmed = 'You must be 13 or older to create an account.';
+    else if (formData.password.length < 8)
+      errors.password = 'Min 8 characters required.';
+    else if (!/[A-Z]/.test(formData.password))
+      errors.password = 'Must include an uppercase letter.';
+    else if (!/[0-9]/.test(formData.password))
+      errors.password = 'Must include a number.';
+    if (!formData.confirmPassword)
+      errors.confirmPassword = 'Confirm password is required.';
+    else if (formData.confirmPassword !== formData.password)
+      errors.confirmPassword = 'Passwords do not match.';
+    if (!formData.terms)
+      errors.terms = 'You must agree to the terms to continue.';
+    if (!formData.ageConfirmed)
+      errors.ageConfirmed = 'You must be 13 or older to create an account.';
     setFieldErrors(errors);
     return !Object.values(errors).some(Boolean);
   };
@@ -105,464 +167,321 @@ export default function RegisterPage() {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!validateForm()) return;
-    mutation.mutate({ username: formData.username, email: formData.email, password: formData.password });
+    mutation.mutate({
+      username: formData.username,
+      email: formData.email,
+      password: formData.password,
+      ageConfirmed: formData.ageConfirmed,
+    });
   };
 
   const strength = STRENGTH_META[getPasswordScore(formData.password)];
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex' }}>
-
-      {/* ── LEFT CONTEXT PANEL ────────────────────────── */}
-      <aside className="auth-side" style={{
-        width: '360px', flexShrink: 0,
-        background: 'var(--bg-surface-1)',
-        borderRight: '1px solid var(--border-default)',
-        display: 'flex', flexDirection: 'column',
-        padding: '40px 32px',
-        position: 'relative', overflow: 'hidden',
-      }}>
-        {/* Dot grid */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          backgroundImage: 'radial-gradient(circle, rgba(35,43,56,0.7) 1px, transparent 1px)',
-          backgroundSize: '24px 24px', pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, height: '120px',
-          background: 'linear-gradient(to bottom, transparent, var(--bg-surface-1))',
-          pointerEvents: 'none', zIndex: 2,
-        }} />
-
-        <div style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column' }}>
-
-          {/* Logo */}
-          <div style={{ marginBottom: '40px' }}>
+    <AuthShell
+      asideChildren={
+        <>
+          <div className="mb-10">
             <SentinelLockup markSize={22} fontSize={13} />
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: '10px',
-              color: 'var(--fg-4)', letterSpacing: '0.1em',
-              textTransform: 'uppercase', paddingLeft: '2px', marginTop: '8px',
-            }}>6:10 Assistant</div>
+            <div className="mt-2 pl-[2px] font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--fg-4)]">
+              6:10 Assistant
+            </div>
           </div>
 
-          {/* Section: Clearance Request */}
-          <div style={{ marginBottom: '32px' }}>
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600,
-              letterSpacing: '0.14em', textTransform: 'uppercase',
-              color: 'var(--fg-4)', marginBottom: '12px',
-            }}>Clearance Request</div>
-            <p style={{
-              fontFamily: 'var(--font-sans)', fontSize: '13px',
-              color: 'var(--fg-2)', lineHeight: 1.6, margin: 0,
-            }}>
-              This is a restricted access system. Your account will be linked to the Sentinel operations team.
+          <div className="mb-8">
+            <div className="mb-3 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--fg-4)]">
+              Clearance Request
+            </div>
+            <p className="m-0 font-sans text-[13px] leading-[1.6] text-[var(--fg-2)]">
+              This is a restricted access system. Your account will be linked
+              to the Sentinel operations team.
             </p>
           </div>
 
-          <div style={{ height: '1px', background: 'var(--border-default)', marginBottom: '28px' }} />
+          <div className="mb-7 h-px bg-[var(--border-default)]" />
 
-          {/* Capabilities granted */}
-          <div style={{
-            fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600,
-            letterSpacing: '0.14em', textTransform: 'uppercase',
-            color: 'var(--fg-4)', marginBottom: '16px',
-          }}>Capabilities Granted</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '32px' }}>
+          <div className="mb-4 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--fg-4)]">
+            Capabilities Granted
+          </div>
+          <div className="mb-8 flex flex-col gap-[10px]">
             {CAPABILITIES.map((cap) => (
-              <div key={cap} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{
-                  width: '5px', height: '5px', borderRadius: '50%',
-                  background: 'var(--accent-dim)', flexShrink: 0,
-                }} />
-                <span style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--fg-2)' }}>{cap}</span>
+              <div key={cap} className="flex items-center gap-[10px]">
+                <span
+                  aria-hidden="true"
+                  className="inline-block h-[5px] w-[5px] shrink-0 rounded-full bg-[var(--accent-dim)]"
+                />
+                <span className="font-sans text-[12px] text-[var(--fg-2)]">
+                  {cap}
+                </span>
               </div>
             ))}
           </div>
 
-          <div style={{ height: '1px', background: 'var(--border-default)', marginBottom: '24px' }} />
+          <div className="mb-6 h-px bg-[var(--border-default)]" />
 
-          {/* Notice */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-            <span style={{
-              width: '7px', height: '7px', borderRadius: '50%',
-              background: 'var(--sev-minor)', flexShrink: 0, marginTop: '3px',
-            }} />
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: '10px',
-              color: 'var(--fg-4)', lineHeight: 1.6,
-            }}>All access requests are reviewed and authorized by the site operations lead.</div>
+          <div className="flex items-start gap-[10px]">
+            <span
+              aria-hidden="true"
+              className="mt-[3px] inline-block h-[7px] w-[7px] shrink-0 rounded-full bg-[var(--sev-minor)]"
+            />
+            <div className="font-mono text-[10px] leading-[1.6] text-[var(--fg-4)]">
+              All access requests are reviewed and authorized by the site
+              operations lead.
+            </div>
           </div>
 
-          <div style={{
-            marginTop: 'auto', paddingTop: '32px',
-            fontFamily: 'var(--font-mono)', fontSize: '10px',
-            color: 'var(--fg-4)', letterSpacing: '0.06em',
-          }}>v0.1 · restricted system</div>
-        </div>
-      </aside>
-
-      {/* ── RIGHT FORM PANEL ──────────────────────────── */}
-      <main style={{
-        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '40px 24px', minHeight: '100vh',
-      }}>
-        <div style={{ width: '100%', maxWidth: '400px' }}>
-
-          {/* Header */}
-          <div style={{ marginBottom: '32px' }}>
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600,
-              letterSpacing: '0.14em', textTransform: 'uppercase',
-              color: 'var(--fg-4)', marginBottom: '10px',
-            }}>New Project User</div>
-            <h1 style={{
-              fontFamily: 'var(--font-sans)', fontSize: '30px', fontWeight: 500,
-              lineHeight: 1.05, letterSpacing: '-0.02em',
-              color: 'var(--fg-1)', margin: '0 0 8px',
-            }}>Create account</h1>
-            <p style={{
-              fontFamily: 'var(--font-sans)', fontSize: '13px',
-              color: 'var(--fg-3)', lineHeight: 1.5, margin: 0,
-            }}>Request access to the Sentinel platform.</p>
+          <div className="mt-auto pt-8 font-mono text-[10px] tracking-[0.06em] text-[var(--fg-4)]">
+            v0.1 · restricted system
           </div>
-
-          {/* Server error */}
-          {serverError && (
-            <div role="alert" aria-live="polite" style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              padding: '10px 14px', marginBottom: '20px',
-              background: 'var(--sev-serious-bg)',
-              border: '1px solid var(--sev-serious-dim)',
-            }}>
-              <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--sev-serious)', flexShrink: 0 }} />
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--sev-serious)' }}>{serverError}</span>
-            </div>
-          )}
-
-          {/* Success */}
-          {successMessage && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              padding: '10px 14px', marginBottom: '20px',
-              background: 'var(--sev-harmless-bg)',
-              border: '1px solid var(--sev-harmless-dim)',
-            }}>
-              <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--success)', flexShrink: 0 }} />
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--success-text)' }}>Account created — redirecting to verification…</span>
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-            {/* Username */}
-            <div>
-              <label htmlFor="reg-username" style={labelStyle(fieldErrors.username)}>Username</label>
-              <input
-                id="reg-username"
-                type="text"
-                autoComplete="username"
-                value={formData.username}
-                onChange={(e) => handleFieldChange('username', e.target.value)}
-                required
-                placeholder="ops_lead"
-                className={`auth-field${fieldErrors.username ? ' auth-field-err' : ''}`}
-              />
-              {fieldErrors.username
-                ? <div style={errStyle}>{fieldErrors.username}</div>
-                : <div style={hintStyle}>3–20 chars · letters, numbers, underscores</div>
-              }
-            </div>
-
-            {/* Email */}
-            <div>
-              <label htmlFor="reg-email" style={labelStyle(fieldErrors.email)}>Email Address</label>
-              <input
-                id="reg-email"
-                type="email"
-                autoComplete="email"
-                value={formData.email}
-                onChange={(e) => handleFieldChange('email', e.target.value)}
-                required
-                placeholder="operator@example.com"
-                className={`auth-field${fieldErrors.email ? ' auth-field-err' : ''}`}
-              />
-              {fieldErrors.email && <div style={errStyle}>{fieldErrors.email}</div>}
-            </div>
-
-            {/* Password */}
-            <div>
-              <label htmlFor="reg-password" style={labelStyle(fieldErrors.password)}>Password</label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  id="reg-password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  value={formData.password}
-                  onChange={(e) => handleFieldChange('password', e.target.value)}
-                  required
-                  className={`auth-field${fieldErrors.password ? ' auth-field-err' : ''}`}
-                  style={{ paddingRight: '44px' }}
-                />
-                <button type="button" onClick={() => setShowPassword((p) => !p)} aria-label="Toggle password visibility" style={eyeBtn}>
-                  <EyeIcon open={showPassword} />
-                </button>
-              </div>
-              {/* Strength meter */}
-              {formData.password && !fieldErrors.password && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '7px' }}>
-                  <div style={{ flex: 1, height: '2px', background: 'var(--border-strong)' }}>
-                    <div style={{
-                      width: strength.width, height: '100%',
-                      background: strength.color,
-                      transition: 'width 200ms, background 200ms',
-                    }} />
-                  </div>
-                  <span style={{
-                    fontFamily: 'var(--font-mono)', fontSize: '10px',
-                    color: strength.color, letterSpacing: '0.08em', flexShrink: 0,
-                  }}>{strength.label}</span>
-                </div>
-              )}
-              {fieldErrors.password && <div style={errStyle}>{fieldErrors.password}</div>}
-            </div>
-
-            {/* Confirm password */}
-            <div>
-              <label htmlFor="reg-confirm" style={labelStyle(fieldErrors.confirmPassword)}>Confirm Password</label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  id="reg-confirm"
-                  type={showConfirm ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleFieldChange('confirmPassword', e.target.value)}
-                  required
-                  className={`auth-field${fieldErrors.confirmPassword ? ' auth-field-err' : ''}`}
-                  style={{ paddingRight: '44px' }}
-                />
-                <button type="button" onClick={() => setShowConfirm((p) => !p)} aria-label="Toggle confirm visibility" style={eyeBtn}>
-                  <EyeIcon open={showConfirm} />
-                </button>
-              </div>
-              {fieldErrors.confirmPassword && <div style={errStyle}>{fieldErrors.confirmPassword}</div>}
-            </div>
-
-            {/* Terms */}
-            <div>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                <div style={{ position: 'relative', marginTop: '1px' }}>
-                  <input
-                    id="terms"
-                    type="checkbox"
-                    checked={formData.terms}
-                    onChange={(e) => handleFieldChange('terms', e.target.checked)}
-                    style={{ position: 'absolute', opacity: 0, width: '16px', height: '16px', cursor: 'pointer', zIndex: 1 }}
-                  />
-                  <div style={{
-                    width: '16px', height: '16px',
-                    background: formData.terms ? 'var(--accent)' : 'var(--bg-surface-2)',
-                    border: `1px solid ${formData.terms ? 'var(--accent)' : fieldErrors.terms ? 'var(--sev-serious-dim)' : 'var(--border-default)'}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0,
-                  }}>
-                    {formData.terms && (
-                      <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="var(--bg-base)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M2 6l3 3 5-5" />
-                      </svg>
-                    )}
-                  </div>
-                </div>
-                <label htmlFor="terms" style={{
-                  fontFamily: 'var(--font-mono)', fontSize: '10px',
-                  color: 'var(--fg-3)', lineHeight: 1.6, cursor: 'pointer',
-                }}>
-                  I agree to the{' '}
-                  <Link href="#terms" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Terms of Service</Link>
-                  {' '}and{' '}
-                  <Link href="#privacy" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Privacy Policy</Link>
-                </label>
-              </div>
-              {fieldErrors.terms && <div style={{ ...errStyle, marginTop: '6px' }}>{fieldErrors.terms}</div>}
-            </div>
-
-            {/* Age gate — mirrors the server-side 13+ requirement */}
-            <div>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                <div style={{ position: 'relative', marginTop: '1px' }}>
-                  <input
-                    id="age-confirm"
-                    type="checkbox"
-                    checked={formData.ageConfirmed}
-                    onChange={(e) => handleFieldChange('ageConfirmed', e.target.checked)}
-                    style={{ position: 'absolute', opacity: 0, width: '16px', height: '16px', cursor: 'pointer', zIndex: 1 }}
-                  />
-                  <div style={{
-                    width: '16px', height: '16px',
-                    background: formData.ageConfirmed ? 'var(--accent)' : 'var(--bg-surface-2)',
-                    border: `1px solid ${formData.ageConfirmed ? 'var(--accent)' : fieldErrors.ageConfirmed ? 'var(--sev-serious-dim)' : 'var(--border-default)'}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0,
-                  }}>
-                    {formData.ageConfirmed && (
-                      <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="var(--bg-base)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M2 6l3 3 5-5" />
-                      </svg>
-                    )}
-                  </div>
-                </div>
-                <label htmlFor="age-confirm" style={{
-                  fontFamily: 'var(--font-mono)', fontSize: '10px',
-                  color: 'var(--fg-3)', lineHeight: 1.6, cursor: 'pointer',
-                }}>
-                  I confirm I am 13 years of age or older
-                </label>
-              </div>
-              {fieldErrors.ageConfirmed && <div style={{ ...errStyle, marginTop: '6px' }}>{fieldErrors.ageConfirmed}</div>}
-            </div>
-
-            <button
-              type="submit"
-              disabled={mutation.isPending}
-              aria-busy={mutation.isPending}
-              className="auth-submit"
-              style={{ marginTop: '4px' }}
+        </>
+      }
+      footerChildren={
+        <div className="flex flex-col gap-[10px]">
+          <AuthFooterLink href="/docs">Documentation</AuthFooterLink>
+          <div className="font-mono text-[10px] tracking-[0.06em] text-[var(--fg-4)]">
+            Already have access?{' '}
+            <Link
+              href="/login"
+              className="text-[var(--accent)] no-underline hover:underline focus-visible:outline-none"
             >
-              {mutation.isPending ? (
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                  <span className="auth-spinner" />
-                  Creating account…
-                </span>
-              ) : 'Create Account →'}
-            </button>
-          </form>
-
-          {/* Divider + Google Identity Services sign-up/sign-in. Google accounts
-              are auto-provisioned on first sign-in, so this doubles as registration. */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '12px',
-            margin: '22px 0 16px',
-          }}>
-            <div style={{ flex: 1, height: '1px', background: 'var(--border-hairline)' }} />
-            <span style={{
-              fontFamily: 'var(--font-mono)', fontSize: '9px', fontWeight: 600,
-              letterSpacing: '0.14em', textTransform: 'uppercase',
-              color: 'var(--fg-4)',
-            }}>or</span>
-            <div style={{ flex: 1, height: '1px', background: 'var(--border-hairline)' }} />
-          </div>
-          <GoogleSignInButton ageConfirmed={formData.ageConfirmed} />
-
-          {/* Footer links */}
-          <div style={{
-            marginTop: '24px', paddingTop: '20px',
-            borderTop: '1px solid var(--border-hairline)',
-            display: 'flex', flexDirection: 'column', gap: '10px',
-          }}>
-            <Link href="/docs" style={{
-              fontFamily: 'var(--font-mono)', fontSize: '10px',
-              color: 'var(--fg-3)', background: 'none', border: 'none',
-              cursor: 'pointer', textAlign: 'left',
-              letterSpacing: '0.06em', padding: 0, textDecoration: 'none',
-            }}>
-              Documentation
+              Sign in →
             </Link>
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: '10px',
-              color: 'var(--fg-4)', letterSpacing: '0.06em',
-            }}>
-              Already have access?{' '}
-              <Link href="/login" style={{ color: 'var(--accent)', textDecoration: 'none' }}>
-                Sign in →
-              </Link>
-            </div>
           </div>
         </div>
-      </main>
+      }
+    >
+      {/* Header */}
+      <div className="mb-8">
+        <div className="mb-[10px] font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--fg-4)]">
+          New Project User
+        </div>
+        <h1 className="m-0 mb-2 font-sans text-[30px] font-medium leading-[1.05] tracking-[-0.02em] text-[var(--fg-1)]">
+          Create account
+        </h1>
+        <p className="m-0 text-[13px] leading-[1.5] text-[var(--fg-3)]">
+          Request access to the Sentinel platform.
+        </p>
+      </div>
 
-      <style>{`
-        .auth-field {
-          width: 100%; box-sizing: border-box; height: 44px;
-          padding: 0 14px;
-          background: var(--bg-surface-2);
-          border: 1px solid var(--border-default);
-          color: var(--fg-1);
-          font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.02em;
-          border-radius: 0;
-          transition: border-color 120ms, box-shadow 120ms;
-        }
-        .auth-field::placeholder { color: var(--fg-4); font-size: 12px; }
-        .auth-field:focus {
-          border-color: var(--border-focus);
-          box-shadow: 0 0 0 1px var(--border-focus), 0 0 14px rgba(184,212,232,0.07);
-        }
-        .auth-field-err { border-color: var(--sev-serious-dim) !important; }
-        .auth-field-err:focus {
-          border-color: var(--sev-serious) !important;
-          box-shadow: 0 0 0 1px var(--sev-serious), 0 0 8px rgba(255,56,56,0.08) !important;
-        }
-        .auth-submit {
-          width: 100%; height: 46px;
-          background: var(--accent); color: var(--bg-base);
-          border: none;
-          font-family: var(--font-mono); font-size: 11px; font-weight: 600;
-          letter-spacing: 0.12em; text-transform: uppercase;
-          cursor: pointer; transition: opacity 150ms; border-radius: 0;
-        }
-        .auth-submit:hover:not(:disabled) { opacity: 0.85; }
-        .auth-submit:active:not(:disabled) { opacity: 0.7; }
-        .auth-submit:disabled { opacity: 0.4; cursor: not-allowed; }
-        .auth-spinner {
-          display: inline-block; width: 10px; height: 10px;
-          border: 1.5px solid rgba(7,9,12,0.3);
-          border-top-color: var(--bg-base);
-          border-radius: 50%;
-          animation: auth-spin 0.7s linear infinite;
-        }
-        @keyframes auth-spin { to { transform: rotate(360deg); } }
-        @media (max-width: 768px) { .auth-side { display: none !important; } }
-      `}</style>
-    </div>
+      {serverError && <AuthAlert tone="error">{serverError}</AuthAlert>}
+
+      {successMessage && (
+        <AuthAlert tone="success">
+          Account created — redirecting to verification…
+        </AuthAlert>
+      )}
+
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        className="flex flex-col gap-4"
+      >
+        <FormField
+          label="Username"
+          htmlFor="reg-username"
+          error={fieldErrors.username}
+          required
+          hint="3–20 chars · letters, numbers, underscores"
+        >
+          <input
+            id="reg-username"
+            type="text"
+            autoComplete="username"
+            value={formData.username}
+            onChange={(e) => handleFieldChange('username', e.target.value)}
+            required
+            placeholder="ops_lead"
+            aria-invalid={Boolean(fieldErrors.username)}
+            className={fieldClass(Boolean(fieldErrors.username))}
+          />
+        </FormField>
+
+        <FormField
+          label="Email Address"
+          htmlFor="reg-email"
+          error={fieldErrors.email}
+          required
+        >
+          <input
+            id="reg-email"
+            type="email"
+            autoComplete="email"
+            value={formData.email}
+            onChange={(e) => handleFieldChange('email', e.target.value)}
+            required
+            placeholder="operator@example.com"
+            aria-invalid={Boolean(fieldErrors.email)}
+            className={fieldClass(Boolean(fieldErrors.email))}
+          />
+        </FormField>
+
+        <FormField
+          label="Password"
+          htmlFor="reg-password"
+          error={fieldErrors.password}
+          required
+          hint="Min 8 characters · one uppercase · one number"
+        >
+          <PasswordInput
+            id="reg-password"
+            autoComplete="new-password"
+            value={formData.password}
+            onChange={(e) => handleFieldChange('password', e.target.value)}
+            required
+            placeholder="Create a password"
+            error={Boolean(fieldErrors.password)}
+            aria-invalid={Boolean(fieldErrors.password)}
+          />
+          {/* Strength meter */}
+          {formData.password && !fieldErrors.password && (
+            <div className="mt-[7px] flex items-center gap-[10px]">
+              <div className="h-[2px] flex-1 bg-[var(--border-strong)]">
+                <div
+                  className="h-full transition-all duration-200"
+                  style={{
+                    width: strength.width,
+                    background: strength.color,
+                  }}
+                />
+              </div>
+              <span
+                className="shrink-0 font-mono text-[10px] tracking-[0.08em]"
+                style={{ color: strength.color }}
+              >
+                {strength.label}
+              </span>
+            </div>
+          )}
+        </FormField>
+
+        <FormField
+          label="Confirm Password"
+          htmlFor="reg-confirm"
+          error={fieldErrors.confirmPassword}
+          required
+        >
+          <PasswordInput
+            id="reg-confirm"
+            autoComplete="new-password"
+            value={formData.confirmPassword}
+            onChange={(e) => handleFieldChange('confirmPassword', e.target.value)}
+            required
+            placeholder="Re-enter your password"
+            error={Boolean(fieldErrors.confirmPassword)}
+            aria-invalid={Boolean(fieldErrors.confirmPassword)}
+          />
+        </FormField>
+
+        {/* Terms checkbox */}
+        <CheckboxField
+          id="terms"
+          checked={formData.terms}
+          onChange={(v) => handleFieldChange('terms', v)}
+          error={fieldErrors.terms}
+          label={
+            <>
+              I agree to the{' '}
+              <Link
+                href="#terms"
+                className="text-[var(--accent)] no-underline hover:underline"
+              >
+                Terms of Service
+              </Link>{' '}
+              and{' '}
+              <Link
+                href="#privacy"
+                className="text-[var(--accent)] no-underline hover:underline"
+              >
+                Privacy Policy
+              </Link>
+            </>
+          }
+        />
+
+        {/* Age gate */}
+        <CheckboxField
+          id="age-confirm"
+          checked={formData.ageConfirmed}
+          onChange={(v) => handleFieldChange('ageConfirmed', v)}
+          error={fieldErrors.ageConfirmed}
+          label="I confirm I am 13 years of age or older"
+        />
+
+        <SubmitButton
+          isLoading={mutation.isPending}
+          loadingLabel="Creating account…"
+          className="mt-1"
+        >
+          Create Account →
+        </SubmitButton>
+      </form>
+
+      <OrDivider />
+
+      <GoogleSignInButton ageConfirmed={formData.ageConfirmed} />
+    </AuthShell>
   );
 }
 
-/* ── small helpers ───────────────────────────────────── */
-function labelStyle(hasError) {
-  return {
-    display: 'block',
-    fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600,
-    letterSpacing: '0.12em', textTransform: 'uppercase',
-    color: hasError ? 'var(--sev-serious)' : 'var(--fg-3)',
-    marginBottom: '7px',
-  };
-}
-
-const errStyle = {
-  fontFamily: 'var(--font-mono)', fontSize: '10px',
-  color: 'var(--sev-serious)', marginTop: '5px',
-};
-
-const hintStyle = {
-  fontFamily: 'var(--font-mono)', fontSize: '10px',
-  color: 'var(--fg-4)', marginTop: '5px',
-};
-
-const eyeBtn = {
-  position: 'absolute', right: 0, top: 0, bottom: 0, width: '44px',
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  background: 'none', border: 'none', cursor: 'pointer', color: 'var(--fg-4)',
-};
-
-function EyeIcon({ open }) {
-  return open ? (
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 3l18 18m-3.5-3.5A10.5 10.5 0 0 1 12 19c-6 0-10-7-10-7a19.2 19.2 0 0 1 5.2-5.6M9.9 5.3A9.8 9.8 0 0 1 12 5c6 0 10 7 10 7a19 19 0 0 1-2.6 3.6M14.1 14.1a3 3 0 0 1-4.2-4.2" />
-    </svg>
-  ) : (
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7Zm10 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-    </svg>
+/* Local helper — checkbox row with proper a11y + error.
+   Could be promoted to a shared component later if reused. */
+function CheckboxField({ id, checked, onChange, error, label }) {
+  return (
+    <div className="flex flex-col gap-[6px]">
+      <div className="flex items-start gap-[10px]">
+        <div className="relative mt-[1px]">
+          <input
+            id={id}
+            type="checkbox"
+            checked={checked}
+            onChange={(e) => onChange(e.target.checked)}
+            className="absolute h-4 w-4 cursor-pointer opacity-0 z-[1]"
+          />
+          <div
+            aria-hidden="true"
+            className="flex h-4 w-4 shrink-0 items-center justify-center border"
+            style={{
+              background: checked
+                ? 'var(--accent)'
+                : 'var(--bg-surface-2)',
+              borderColor: checked
+                ? 'var(--accent)'
+                : error
+                ? 'var(--sev-serious-dim)'
+                : 'var(--border-default)',
+            }}
+          >
+            {checked && (
+              <svg
+                viewBox="0 0 12 12"
+                width="9"
+                height="9"
+                fill="none"
+                stroke="var(--bg-base)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M2 6l3 3 5-5" />
+              </svg>
+            )}
+          </div>
+        </div>
+        <label
+          htmlFor={id}
+          className="cursor-pointer font-mono text-[10px] leading-[1.6] text-[var(--fg-3)]"
+        >
+          {label}
+        </label>
+      </div>
+      {error && (
+        <p
+          role="alert"
+          className="font-mono text-[10px] text-[var(--sev-serious)]"
+        >
+          {error}
+        </p>
+      )}
+    </div>
   );
 }

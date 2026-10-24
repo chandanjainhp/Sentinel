@@ -3,6 +3,7 @@ import { Site } from "../models/site.model.js";
 import { Incident } from "../models/incident.model.js";
 import { Prediction } from "../models/prediction.model.js";
 import { WARNING_ANOMALY_SCORE } from "./ml-contract.service.js";
+import { getMachineCoverage } from "./coverage.service.js";
 
 /**
  * Dashboard aggregation — every number the /overview stats band shows is
@@ -70,6 +71,7 @@ export const getDashboardSummary = async (userFilter = {}) => {
         critical: 0,
         offline: 0,
         unknown: 0,
+        machines: [],
       });
     }
     return siteRollups.get(siteId);
@@ -83,6 +85,13 @@ export const getDashboardSummary = async (userFilter = {}) => {
     const rollup = ensureRollup(siteIdStr);
     rollup.total += 1;
     rollup[key] += 1;
+    rollup.machines.push({
+      id: String(m._id),
+      machineId: m.machineId,
+      name: m.name,
+      assetId: m.assetId,
+      status: key,
+    });
   }
 
   // ---- Fleet-wide predicted risk: worst anomaly among latest predictions ----
@@ -115,6 +124,7 @@ export const getDashboardSummary = async (userFilter = {}) => {
       offline: rollup.offline,
       unknown: rollup.unknown,
       status,
+      machinesDetail: rollup.machines,
     };
   });
 
@@ -131,6 +141,16 @@ export const getDashboardSummary = async (userFilter = {}) => {
   }));
 
   const activeIncidentCount = openIncidents.length;
+  const coverageResults = await Promise.all(
+    machines.map((machine) =>
+      getMachineCoverage(machine._id, { userFilter }).then((coverage) => ({
+        isReady: coverage.isReady,
+        stale: coverage.gateState === "PARTIAL_REPORTING",
+      })),
+    ),
+  );
+  const coveredMachines = coverageResults.filter((coverage) => coverage.isReady).length;
+  const staleMachines = coverageResults.filter((coverage) => coverage.stale).length;
 
   return {
     generatedAt: new Date().toISOString(),
@@ -142,6 +162,14 @@ export const getDashboardSummary = async (userFilter = {}) => {
       offline: byStatus.offline,
       unknown: byStatus.unknown,
       activeIncidents: activeIncidentCount,
+    },
+    telemetry: {
+      totalMachines: machines.length,
+      coveredMachines,
+      staleMachines,
+      percentage: machines.length
+        ? round2((coveredMachines / machines.length) * 100)
+        : null,
     },
     predictedRisk:
       worstPrediction

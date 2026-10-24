@@ -12,7 +12,7 @@ import {
   resetForgotPassword,
   verifyEmail,
 } from "../controllers/auth.controller.js";
-import { authLimiter } from "../middlewares/rateLimit.middleware.js";
+import { authLimiter, passwordResetLimiter, emailVerificationLimiter } from "../middlewares/rateLimit.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import {
@@ -34,10 +34,10 @@ router.post("/login", authLimiter, validate(loginSchema), login);
 // Google Identity Services: the GIS client posts the ID token here; the
 // backend verifies it against GOOGLE_CLIENT_ID before issuing session cookies.
 router.post("/google", authLimiter, validate(googleAuthSchema), googleAuth);
-router.post("/verify-email", validate(verifyEmailSchema), verifyEmail);
+router.post("/verify-email", emailVerificationLimiter, validate(verifyEmailSchema), verifyEmail);
 router.post("/refresh-token", validate(refreshTokenSchema), refreshAccessToken);
-router.post("/forgot-password", validate(forgotPasswordSchema), forgotPasswordRequest);
-router.post("/reset-password", validate(resetPasswordSchema), resetForgotPassword);
+router.post("/forgot-password", passwordResetLimiter, validate(forgotPasswordSchema), forgotPasswordRequest);
+router.post("/reset-password", passwordResetLimiter, validate(resetPasswordSchema), resetForgotPassword);
 
 // Secure routes
 router.post("/logout", verifyJWT, logoutUser);

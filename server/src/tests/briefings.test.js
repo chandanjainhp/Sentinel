@@ -383,9 +383,32 @@ describe("briefings API", () => {
       expect(res.status).toBe(500);
       const body = await res.json();
       expect(body.success).toBe(false);
-      expect(body.message).toBe("injected database failure");
+      expect(body.message).toBe("Internal server error");
+      expect(body.stack).toBeUndefined();
     } finally {
       Briefing.findOne = original;
     }
+  });
+
+  it("serializes concurrent approval requests and never edits an approved briefing", async () => {
+    const generated = await api("POST", "/briefings/generate", {
+      cookie: owner.cookie,
+      body: { nightDate: "2026-08-04" },
+    });
+    const briefingId = (await generated.json()).data.briefingId;
+
+    const results = await Promise.all([
+      api("POST", `/briefings/${briefingId}/approve`, { cookie: owner.cookie }),
+      api("POST", `/briefings/${briefingId}/approve`, { cookie: owner.cookie }),
+      api("PATCH", `/briefings/${briefingId}/sections/executive_summary`, {
+        cookie: owner.cookie,
+        body: { content: "Concurrent edit" },
+      }),
+    ]);
+
+    expect(results.map((res) => res.status).sort()).toEqual([200, 409, 409]);
+    const final = await Briefing.findOne({ briefingId });
+    expect(final.status).toBe("approved");
+    expect(final.approvedBy.toString()).toBe(owner.user._id);
   });
 });

@@ -1,15 +1,20 @@
-import { defineConfig, globalIgnores } from 'eslint/config';
-import nextVitals from 'eslint-config-next/core-web-vitals';
+import { FlatCompat } from "@eslint/eslintrc";
 
-export default defineConfig([
-  ...nextVitals,
-  // files/ holds design reference samples that are not compiled.
-  globalIgnores(['.next/**', 'node_modules/**', 'next-env.d.ts', 'files/**']),
+const compat = new FlatCompat({
+  baseDirectory: import.meta.dirname,
+});
+
+export default [
+  ...compat.extends("next"),
+  ...compat.extends("next/core-web-vitals"),
+  {
+    ignores: [".next/**", "node_modules/**", "out/**", "build/**"],
+  },
   {
     rules: {
-      // shortcut: 10 pre-existing mount-time state syncs are warnings; raise to
-      // error once those components derive that state during render instead.
-      'react-hooks/set-state-in-effect': 'warn',
+      "react/no-unescaped-entities": "off",
+      "react-hooks/exhaustive-deps": "warn",
+      "@next/next/no-img-element": "warn",
     },
   },
-]);
+];

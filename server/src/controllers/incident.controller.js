@@ -1,6 +1,7 @@
 import { asyncHandler } from "../utils/async-handler.js";
 import { ApiResponse } from "../utils/api-response.js";
 import * as incidentService from "../services/incident.service.js";
+import { recordIncidentAction } from "../utils/metrics.js";
 
 export const getIncidents = asyncHandler(async (req, res) => {
   const incidents = await incidentService.getIncidents(req.query, req.userFilter);
@@ -32,5 +33,13 @@ export const updateIncidentStatus = asyncHandler(async (req, res) => {
   const userId = req.user._id;
 
   const incident = await incidentService.updateIncidentStatus(incidentId, status, userId, req.userFilter);
+
+  // Record incident status change
+  if (status === 'reviewed') {
+    recordIncidentAction('reviewed');
+  } else if (status === 'closed') {
+    recordIncidentAction('closed');
+  }
+
   return res.status(200).json(new ApiResponse(200, incident, "Incident status updated successfully"));
 });

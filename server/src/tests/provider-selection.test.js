@@ -92,6 +92,17 @@ afterEach(() => {
 });
 
 describe("sarvam provider selection", () => {
+  it("rejects an unknown explicit provider instead of silently switching", () => {
+    process.env.LLM_PROVIDER = "stale-provider";
+    expect(() => getAIProviderName()).toThrow("Unsupported LLM_PROVIDER=stale-provider");
+  });
+
+  it("uses a current Anthropic model by default", () => {
+    process.env.LLM_PROVIDER = "anthropic";
+    process.env.ANTHROPIC_API_KEY = "test-key";
+    expect(getModelName()).toBe("claude-sonnet-4-6");
+  });
+
   it("LLM_PROVIDER=sarvam selects sarvam and initializes a key-bearing client", () => {
     process.env.LLM_PROVIDER = "sarvam";
     process.env.SARVAM_API_KEY = "test-key";

@@ -85,6 +85,7 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:?set CORS_ORIGIN in server/.env}
       # ML service (in-network). The stack degrades gracefully if it is down.
       ML_SERVICE_URL: http://ml-service:9000
+      ML_API_KEY: ${ML_API_KEY:?set ML_API_KEY in server/.env}
       # LLM wiring — leave everything unset to run Argus on deterministic
       # fallback explanations. LM Studio runs on the host; point
       # OPENAI_BASE_URL at host.docker.internal (see extra_hosts below).
@@ -96,6 +97,9 @@ services:
       LMSTUDIO_MAX_TOKENS: ${LMSTUDIO_MAX_TOKENS:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       MOCK_AI: ${MOCK_AI:-false}
+      OVERNIGHT_TIMEZONE: ${OVERNIGHT_TIMEZONE:-Asia/Kolkata}
+      OVERNIGHT_END_HOUR: ${OVERNIGHT_END_HOUR:-9}
+      OVERNIGHT_CHECK_INTERVAL_MS: ${OVERNIGHT_CHECK_INTERVAL_MS:-60000}
     depends_on:
       mongodb:
         condition: service_healthy
@@ -174,6 +178,7 @@ services:
     restart: unless-stopped
     environment:
       ML_PORT: "9000"
+      ML_API_KEY: ${ML_API_KEY:?set ML_API_KEY in server/.env}
     volumes:
       # Host-trained checkpoints (see ml-service/CONTRACT.md). The service
       # starts even with an empty models dir and reports degraded / 503.

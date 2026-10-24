@@ -2,6 +2,12 @@ import mongoose from 'mongoose';
 
 const investigationSchema = new mongoose.Schema(
   {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
+      index: true,
+    },
     incidentId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Incident',
@@ -35,6 +41,16 @@ const investigationSchema = new mongoose.Schema(
       type: String,
       description: 'Claude model version used, e.g. "claude-sonnet-4-20250514"',
     },
+
+    resultSource: {
+      type: String,
+      enum: ['llm', 'fallback'],
+      description: 'How the completed investigation result was generated',
+    },
+    provider: String,
+    executiveSummary: String,
+    dataLimitations: [String],
+    unresolvedQuestions: [String],
 
     // Tool calls sequence
     toolCallSequence: [
@@ -136,8 +152,10 @@ const investigationSchema = new mongoose.Schema(
 );
 
 // Indexes for common queries
+investigationSchema.index({ userId: 1, incidentId: 1, nightDate: 1 }, { unique: true });
 investigationSchema.index({ nightDate: 1, status: 1 });
 investigationSchema.index({ status: 1, createdAt: -1 });
+investigationSchema.index({ userId: 1, status: 1, createdAt: -1 });
 
 // Ensure virtuals are included in JSON output
 investigationSchema.set('toJSON', { virtuals: true });

@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/api-error.js";
 import { asyncHandler } from "../utils/async-handler.js";
+import { accessTokenSecret } from "../config/secrets.js";
 
 export const verifyJWT = asyncHandler(async (req, _res, next) => {
   const cookieToken = req.cookies?.accessToken;
@@ -16,7 +17,7 @@ export const verifyJWT = asyncHandler(async (req, _res, next) => {
   try {
     const decoded = jwt.verify(
       token,
-      process.env.ACCESS_TOKEN_SECRET || "default-secret-key"
+      accessTokenSecret()
     );
 
     const userId = decoded?._id || decoded?.sub;

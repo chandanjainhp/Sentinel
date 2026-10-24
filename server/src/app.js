@@ -1,10 +1,12 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import helmet from 'helmet';
 import mongoSanitize from 'express-mongo-sanitize';
 import { httpLogger } from './utils/logger.js';
 import { apiLimiter } from './middlewares/rateLimit.middleware.js';
+import { csrfProtection } from './middlewares/csrf.middleware.js';
+import { metricsMiddleware } from './middlewares/metrics.middleware.js';
+import { securityMiddleware } from './middlewares/security.middleware.js';
 import { errorHandler, notFoundHandler } from './middlewares/error.middleware.js';
 
 import healthCheckRouter from './routes/healthcheck.routes.js';
@@ -19,18 +21,23 @@ import predictionRoutes from "./routes/prediction.routes.js";
 import incidentRoutes from "./routes/incident.routes.js";
 import investigationRoutes from "./routes/investigation.routes.js";
 import briefingRoutes from "./routes/briefing.routes.js";
+import overnightHealthRoutes from "./routes/overnight-health.routes.js";
 import testRoutes from "./routes/test.routes.js";
 
 const app = express();
+const allowedOrigins = (process.env.CORS_ORIGIN || process.env.CLIENT_URL || 'http://localhost:3000')
+  .split(',')
+  .map((origin) => origin.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
 
 // MIDDLEWARE ORDER
-// 1. Security headers
-app.use(helmet());
+// 1. Security headers (helmet + custom CSP, HSTS, etc.)
+app.use(securityMiddleware);
 
 // 2. CORS
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
+    origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -48,12 +55,19 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // 5. Request logger
 app.use(httpLogger);
 
-// 6. Global rate limiter — skip health + event ingestion
+// 6. Metrics collection — must be early to capture full request lifecycle
+app.use(metricsMiddleware);
+
+// 7. Global rate limiter — skip health + event ingestion + metrics
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/v1/health')) return next();
+  if (req.path.startsWith('/api/v1/metrics')) return next();
   if (req.method === 'POST' && req.path.startsWith('/api/v1/events')) return next();
   return apiLimiter(req, res, next);
 });
+
+// 8. CSRF protection for state-changing requests with cookie auth
+app.use(csrfProtection);
 
 // ROUTE MOUNTING (all under /api/v1)
 app.use('/api/v1/health', healthCheckRouter);
@@ -68,6 +82,13 @@ app.use("/api/v1/predictions", predictionRoutes);
 app.use("/api/v1/incidents", incidentRoutes);
 app.use("/api/v1/investigations", investigationRoutes);
 app.use("/api/v1/briefings", briefingRoutes);
+app.use("/api/v1/overnight-health", overnightHealthRoutes);
+
+// Metrics endpoint - restricted access, Prometheus-compatible
+// Mount path can be customized via METRICS_PATH environment variable
+const metricsPath = process.env.METRICS_PATH || '/api/v1/metrics';
+import { metricsHandler } from './middlewares/metrics.middleware.js';
+app.get(metricsPath, metricsHandler);
 
 // DEVELOPMENT ONLY — test routes. Never mounted in production: the seed
 // helper must not exist on a deployed instance.
