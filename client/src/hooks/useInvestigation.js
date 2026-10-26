@@ -1,73 +1,10 @@
-import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
-import { startInvestigation, getInvestigation, getIncidents } from "@/lib/api";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { getInvestigation, getIncidents } from "@/lib/api";
 import { summarizeInvestigations } from "@/lib/investigation-state";
 import { useInvestigationStore } from "@/store/investigationStore";
 import { incidentQueryKey } from "@/store/incidentFilterStore";
-import { toast } from "sonner";
 import { useEffect } from "react";
-import { previousReportingDate } from "@/lib/reporting-window";
 import { buildIncidentsListParams } from "@/hooks/useIncidents";
-
-export function useStartInvestigation(options = {}) {
-  const setJobIds = useInvestigationStore((state) => state.setJobIds);
-  const setJobStatus = useInvestigationStore((state) => state.setJobStatus);
-  const setInvestigationStats = useInvestigationStore(
-    (state) => state.setInvestigationStats,
-  );
-  const setError = useInvestigationStore((state) => state.setError);
-
-  return useMutation({
-    mutationFn: (input) => {
-      const nightDate =
-        typeof input === "string"
-          ? input
-          : input?.nightDate ||
-            previousReportingDate();
-
-      return startInvestigation(nightDate);
-    },
-    onSuccess: (result, variables, context) => {
-      const jobIds = result.jobIds || [];
-      setJobIds(jobIds);
-
-      // Server tells us there is nothing to investigate — stay idle.
-      if (result.status === "no_incidents") {
-        setJobStatus("idle");
-        setInvestigationStats({ totalIncidents: 0, resolvedIncidents: 0 });
-        toast.success("No incidents to investigate for this night.");
-        if (options.onSuccess) options.onSuccess(result, variables, context);
-        return;
-      }
-
-      setInvestigationStats({
-        totalIncidents: result.totalJobs ?? jobIds.length,
-        resolvedIncidents: 0,
-      });
-      if (jobIds.length > 0) setJobStatus("queued");
-
-      const toastMessages = {
-        already_running:
-          "Investigation already running — polling for status.",
-        already_complete: "Night already investigated — loading results.",
-      };
-      toast.success(
-        toastMessages[result.status] || "Investigation protocol initiated.",
-      );
-      if (options.onSuccess) options.onSuccess(result, variables, context);
-    },
-    onError: (error, variables, context) => {
-      setJobIds([]);
-      setJobStatus("failed");
-      setInvestigationStats({ totalIncidents: 0, resolvedIncidents: 0 });
-      setError(error?.message || "Unknown error");
-      toast.error(
-        `Investigation failed to initialize: ${error?.message || String(error) || "Unknown error"}`,
-      );
-      if (options.onError) options.onError(error, variables, context);
-    },
-    ...options,
-  });
-}
 
 /**
  * Poll every investigation job the night's start call returned.

@@ -1,6 +1,7 @@
 import {
   startInvestigation,
   getInvestigationById,
+  listInvestigations,
 } from "../services/investigation.service.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/async-handler.js";
@@ -30,4 +31,9 @@ export const getInvestigation = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, doc, "Investigation fetched successfully"));
+});
+
+export const getInvestigationReports = asyncHandler(async (req, res) => {
+  const reports = await listInvestigations(req.userFilter, req.query.limit);
+  return res.status(200).json(new ApiResponse(200, reports, "Monitoring reports fetched successfully"));
 });

@@ -31,6 +31,13 @@ const sensorSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    nameNormalized: { type: String, index: true },
+    status: {
+      type: String,
+      enum: ["active", "disabled", "deleted"],
+      default: "active",
+      index: true,
+    },
 
     name: {
       type: String,
@@ -95,6 +102,11 @@ sensorSchema.index(
   { userId: 1, sensorId: 1 },
   { unique: true }
 );
+sensorSchema.index({ machineId: 1, nameNormalized: 1 }, { unique: true, sparse: true });
+sensorSchema.pre("validate", function normalizeSensorName(next) {
+  this.nameNormalized = this.name?.trim().replace(/\s+/g, " ").toLowerCase();
+  next();
+});
 
 export const Sensor = mongoose.model(
   "Sensor",

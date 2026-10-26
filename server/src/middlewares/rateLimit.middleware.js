@@ -54,7 +54,7 @@ const authLimiter = wrapLimiter(
 // Ingest is authenticated by API key before this limiter runs, so keying by
 // user keeps one site's gateway from throttling another site behind the same
 // NAT/proxy IP.
-const eventKey = (req) => req.apiKey?.userId?.toString() || req.ip;
+const eventKey = (req) => req.apiKey?.keyId || req.apiKey?.siteId?.toString() || req.ip;
 
 // 600/min (~10/s) per key. A 5-channel gateway posting once a second is the
 // realistic ceiling; above this is a runaway or abusive client, not sensors.

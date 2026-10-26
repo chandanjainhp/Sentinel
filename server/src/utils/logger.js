@@ -60,12 +60,15 @@ export const httpLogger = pinoHttp({
       }
 
       // Filter sensitive data from response
+      // Bun's HTTP layer does not expose getHeaders() on every response object
+      // pino-http logs, so never assume the Node API here.
+      const headers = typeof res.getHeaders === 'function' ? res.getHeaders() : {};
       return {
         status: res.statusCode,
         headers: {
-          ...res.getHeaders(),
+          ...headers,
           // Remove set-cookie header
-          'set-cookie': res.getHeaders()['set-cookie'] ? ['[FILTERED]'] : undefined,
+          'set-cookie': headers['set-cookie'] ? ['[FILTERED]'] : undefined,
         },
       };
     },

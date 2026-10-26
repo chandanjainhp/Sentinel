@@ -9,6 +9,7 @@ const keyName = z
 export const createApiKeySchema = z.object({
   body: z.object({
     name: keyName,
+    siteId: z.string().optional(),
   }),
   params: z.object({}),
   query: z.object({}),
@@ -31,3 +32,5 @@ export const renameApiKeySchema = z.object({
   }),
   query: z.object({}),
 });
+
+export const rotateApiKeySchema = apiKeyIdSchema;

@@ -26,11 +26,12 @@ const offsetAt = (date, timeZone) => {
 };
 
 /** Convert a wall-clock time in an IANA zone into its UTC instant. */
-export const zonedDateTimeToUtc = (date, hour, timeZone = REPORTING_TIMEZONE) => {
+export const zonedDateTimeToUtc = (date, time, timeZone = REPORTING_TIMEZONE) => {
   const [year, month, day] = date.split("-").map(Number);
-  let instant = new Date(Date.UTC(year, month - 1, day, hour, 0, 0));
+  const [hour, minute = 0] = typeof time === "string" ? time.split(":").map(Number) : [time, 0];
+  let instant = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
   instant = new Date(instant.getTime() - offsetAt(instant, timeZone));
-  instant = new Date(Date.UTC(year, month - 1, day, hour, 0, 0) - offsetAt(instant, timeZone));
+  instant = new Date(Date.UTC(year, month - 1, day, hour, minute, 0) - offsetAt(instant, timeZone));
   return instant;
 };
 

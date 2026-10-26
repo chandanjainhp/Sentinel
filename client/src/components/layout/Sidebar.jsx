@@ -10,39 +10,35 @@ import {
   FileText,
   Key,
   LayoutDashboard,
+  Factory,
   LogOut,
   Menu,
   Moon,
   Search,
   Settings,
-  User,
-  Webhook,
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SentinelLockup } from "@/components/brand/SentinelMark";
 import { useAuth } from "@/hooks/useAuth";
-import { useAuthStore } from "@/store/authStore";
 
 // Top-level navigation entries.
-// Settings is special: it has sub-items, so we render it as an expandable
-// section. When the user is on any /settings/* route, the section auto-expands
-// to reveal General / API Keys / Webhooks.
+// Settings is special: it has one focused sub-item for integration credentials.
 const NAV_ITEMS = [
   { href: "/overview", label: "Overview", icon: LayoutDashboard },
-  { href: "/sensors", label: "Machines", icon: Activity },
-  { href: "/sensors/trends", label: "Sensor Trends", icon: BarChart3 },
-  { href: "/incidents", label: "Incidents", icon: AlertTriangle },
-  { href: "/overnight-health", label: "Overnight Health", icon: Moon },
-  { href: "/investigations", label: "Investigations", icon: Search },
   { href: "/briefing", label: "Reports", icon: FileText },
+  { href: "/incidents", label: "Incidents", icon: AlertTriangle },
+  { href: "/incident-configuration", label: "Incident Configuration", icon: Search },
+  { href: "/sensors", label: "Sensors", icon: Activity },
+  { href: "/sites", label: "Sites", icon: Factory },
+  { href: "/machines", label: "Machines", icon: Factory },
+  { href: "/sensors/trends", label: "Sensor morting", icon: BarChart3 },
+  { href: "/overnight-health", label: "Overnight Health", icon: Moon },
 ];
 
 // Sub-items under "Settings" in the sidebar.
 const SETTINGS_SUBITEMS = [
-  { href: "/settings/general", label: "General", icon: Settings },
   { href: "/settings/api-keys", label: "API Keys", icon: Key },
-  { href: "/settings/webhooks", label: "Webhooks", icon: Webhook },
 ];
 
 function isActiveRoute(pathname, href) {
@@ -74,7 +70,6 @@ export default function Sidebar() {
     if (isSettingsActive(pathname)) setSettingsExpanded(true);
   }, [pathname]);
 
-  const user = useAuthStore((state) => state.user);
   const { logout } = useAuth();
 
   useEffect(() => {
@@ -118,7 +113,7 @@ export default function Sidebar() {
       <div className="sentinel-sidebar-section-label">Account</div>
       <div className="sentinel-sidebar-settings-group">
         <Link
-          href="/settings/general"
+          href="/settings/api-keys"
           className={`sentinel-sidebar-link sentinel-sidebar-link--has-chevron${
             isSettingsActive(pathname) ? " is-active" : ""
           }`}
@@ -220,18 +215,6 @@ export default function Sidebar() {
         {navigation}
 
         <div className="sentinel-sidebar-footer">
-          {user && (
-            <Link
-              href="/profile"
-              className="sentinel-sidebar-user"
-              aria-label={`Open profile for ${user.username || user.email || "account"}`}
-              title="Profile"
-              onClick={closeMobile}
-            >
-              <User size={16} aria-hidden="true" />
-              <span>{user.username || user.email || "Account"}</span>
-            </Link>
-          )}
           <button
             type="button"
             className="sentinel-sidebar-logout"

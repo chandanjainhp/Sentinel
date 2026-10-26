@@ -36,7 +36,7 @@ export default function InvestigationEmptyState({ nightDate, onStart, isStarting
             opacity: isStarting ? 0.6 : 1,
           }}
         >
-          {isStarting ? "Initiating…" : "Start Investigation"}
+          {isStarting ? "Saving…" : "Monitoring runs automatically"}
         </button>
       )}
     </div>

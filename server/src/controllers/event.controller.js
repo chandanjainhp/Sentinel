@@ -2,8 +2,26 @@ import { asyncHandler } from "../utils/async-handler.js";
 import { ApiResponse } from "../utils/api-response.js";
 import * as eventService from "../services/event.service.js";
 import { recordEventIngestion } from "../utils/metrics.js";
+import { ingestSiteEvent } from "../services/site-ingest.service.js";
 
 export const ingestEvent = asyncHandler(async (req, res) => {
+  if (req.siteKey) {
+    const payloads = Array.isArray(req.body) ? req.body : [req.body];
+    const results = [];
+    for (const payload of payloads) {
+      try {
+        results.push({ ok: true, ...(await ingestSiteEvent({ apiKey: req.apiKey, apiSiteId: req.apiSiteId, body: payload })) });
+      } catch (error) {
+        if (!Array.isArray(req.body)) throw error;
+        results.push({ ok: false, status: error.statusCode || 500, error: error.message });
+      }
+    }
+    const failed = results.filter((item) => !item.ok);
+    const status = Array.isArray(req.body)
+      ? (failed.length && failed.length === results.length ? 422 : 201)
+      : (results[0].duplicate ? 200 : 201);
+    return res.status(status).json(new ApiResponse(status, Array.isArray(req.body) ? results : results[0], "Events processed"));
+  }
   const { siteId, machineId, sensorId, type, timestamp, values, rawData, source } = req.body;
   const idempotencyHeader = req.get("Idempotency-Key");
 

@@ -306,9 +306,9 @@ export const getOvernightHealthHistory = async (siteId) =>
 export const getMachineDetail = (machineId) =>
   api.get(`/machines/${machineId}/detail`);
 
-// Investigations
-export const startInvestigation = async (nightDate) =>
-  api.post("/investigations/start", { nightDate });
+// Automated monitoring reports (legacy investigation records are retained).
+export const getInvestigationReports = async (limit = 30) =>
+  api.get("/investigations", { params: { limit } });
 export const getInvestigation = async (id) => api.get(`/investigations/${id}`);
 
 // Events
@@ -352,12 +352,19 @@ export const approveBriefing = async (briefingId) => api.post(`/briefings/${brie
 export const listApiKeys = () => api.get("/settings/api-keys");
 export const createNamedApiKey = (name) =>
   api.post("/settings/api-keys", { name });
+export const createOnboarding = (data, idempotencyKey) =>
+  api.post("/onboarding", data, { headers: { "Idempotency-Key": idempotencyKey } });
 export const revokeApiKeyByKeyId = (keyId) =>
   api.delete(`/settings/api-keys/${keyId}`);
+export const rotateApiKeyByKeyId = (keyId) =>
+  api.post(`/settings/api-keys/${keyId}/rotate`);
 
 // Sensors
 export const getSites = () => api.get("/sites");
 export const createSite = (data) => api.post("/sites", data);
+export const getSiteById = (siteId) => api.get(`/sites/${siteId}`);
+export const updateSite = (siteId, data) => api.patch(`/sites/${siteId}`, data);
+export const deleteSite = (siteId) => api.delete(`/sites/${siteId}`);
 export const getSensorSummary = () => api.get("/sensors/summary");
 export const listSensors = () => api.get("/sensors");
 export const createSensor = (machineId, data) =>
@@ -368,6 +375,8 @@ export const getMachinesForSite = (siteId) => api.get(`/machines/sites/${siteId}
 export const getMachineCoverages = () => api.get("/machines/coverage");
 export const createMachine = (siteId, data) =>
   api.post(`/machines/sites/${siteId}/machines`, data);
+export const updateMachine = (machineId, data) => api.patch(`/machines/${machineId}`, data);
+export const deleteMachine = (machineId) => api.delete(`/machines/${machineId}`);
 
 // Site Webhooks
 export const getOrgWebhooks = () => api.get("/site/webhooks/config");
@@ -388,9 +397,9 @@ export const getSite = async () => {
 };
 
 export const updateSiteConfig = async (payload = {}) => {
-  const { name, timezone, locationLabel } = payload;
+  const { name, timezone, locationLabel, monitoringEnabled, monitoringStartTime, monitoringEndTime } = payload;
   const updates = [];
-  if (name !== undefined || timezone !== undefined || locationLabel !== undefined) {
+  if (name !== undefined || timezone !== undefined || locationLabel !== undefined || monitoringEnabled !== undefined || monitoringStartTime !== undefined || monitoringEndTime !== undefined) {
     const sites = await api.get("/sites");
     const site = Array.isArray(sites) ? sites[0] : null;
     if (site) {
@@ -403,6 +412,9 @@ export const updateSiteConfig = async (payload = {}) => {
           // shortcut: label === description, upgrade when the backend models
           // a dedicated location field.
           ...(locationLabel !== undefined ? { description: locationLabel } : {}),
+          ...(monitoringEnabled !== undefined ? { monitoringEnabled } : {}),
+          ...(monitoringStartTime !== undefined ? { monitoringStartTime } : {}),
+          ...(monitoringEndTime !== undefined ? { monitoringEndTime } : {}),
         })
       );
     }

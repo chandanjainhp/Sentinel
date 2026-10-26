@@ -1,6 +1,7 @@
 import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { getCurrentRun, getRunHistory } from "../services/overnight-health.service.js";
+import { getMonitoringReport } from "../services/incident-configuration.service.js";
 
 export const getCurrentOvernightRun = asyncHandler(async (req, res) => {
   const run = await getCurrentRun(req.query.siteId || req.user.siteId, req.user._id);
@@ -10,4 +11,14 @@ export const getCurrentOvernightRun = asyncHandler(async (req, res) => {
 export const getOvernightRunHistory = asyncHandler(async (req, res) => {
   const runs = await getRunHistory(req.user._id, req.query.siteId, req.query.limit);
   res.json(new ApiResponse(200, runs, "Overnight Health Checker history"));
+});
+
+/** Persisted monitoring report for one site and reporting date. */
+export const getOvernightReport = asyncHandler(async (req, res) => {
+  const report = await getMonitoringReport(
+    req.user._id,
+    req.query.siteId || req.user.siteId,
+    req.params.reportingDate
+  );
+  res.json(new ApiResponse(200, report, "Monitoring report fetched"));
 });

@@ -14,6 +14,7 @@ import {
   listApiKeys, createNamedApiKey, getSites, createSite,
   getMachinesForSite, createMachine, listSensors, createSensor,
 } from '@/lib/api';
+import { validateMachineFields, validateSiteName } from '@/lib/validation';
 
 const MONO = 'var(--font-mono)';
 const SANS = 'var(--font-sans)';
@@ -376,8 +377,9 @@ export default function AddSensorModal({ open, onOpenChange, summary }) {
 
   function handleCreateSite() {
     const trimmed = newSiteName.trim();
-    if (!trimmed) {
-      toast.error('Enter a site name first');
+    const validationError = validateSiteName(trimmed);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
     createSiteMutation.mutate({ name: trimmed });
@@ -406,8 +408,13 @@ export default function AddSensorModal({ open, onOpenChange, summary }) {
       toast.error('Choose or create a site first');
       return;
     }
-    if (!trimmedName) {
-      toast.error('Enter a machine name first');
+    const validationError = validateMachineFields({
+      name: trimmedName,
+      machineType: trimmedType || 'general',
+      assetId: trimmedName,
+    });
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
     createMachineMutation.mutate({

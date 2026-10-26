@@ -24,6 +24,7 @@ const machineSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    nameNormalized: { type: String, index: true },
 
     assetId: {
       type: String,
@@ -85,6 +86,8 @@ const machineSchema = new mongoose.Schema(
         "offline",
         "maintenance",
         "unknown",
+        "disabled",
+        "deleted",
       ],
       default: "unknown",
       index: true,
@@ -107,6 +110,11 @@ machineSchema.index(
   { userId: 1, assetId: 1 },
   { unique: true }
 );
+machineSchema.index({ siteId: 1, nameNormalized: 1 }, { unique: true, sparse: true });
+machineSchema.pre("validate", function normalizeMachineName(next) {
+  this.nameNormalized = this.name?.trim().replace(/\s+/g, " ").toLowerCase();
+  next();
+});
 
 export const Machine = mongoose.model(
   "Machine",

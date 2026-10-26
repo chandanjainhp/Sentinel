@@ -83,3 +83,23 @@ export const validateForm = (data, schema) => {
 export const hasErrors = (errors) => {
   return Object.keys(errors).length > 0;
 };
+
+// Keep onboarding and dedicated management forms aligned with the server's
+// create schemas.
+export const validateSiteName = (value) => {
+  const length = value?.trim().length || 0;
+  return length < 2 || length > 120
+    ? 'Site name must be between 2 and 120 characters'
+    : null;
+};
+
+export const validateMachineFields = ({ name, machineType, assetId }) => {
+  if (!assetId?.trim()) return 'Asset ID is required';
+  if ((name?.trim().length || 0) < 2 || (name?.trim().length || 0) > 120) {
+    return 'Machine name must be between 2 and 120 characters';
+  }
+  if ((machineType?.trim().length || 0) < 1 || (machineType?.trim().length || 0) > 100) {
+    return 'Machine type is required and must be 100 characters or fewer';
+  }
+  return null;
+};

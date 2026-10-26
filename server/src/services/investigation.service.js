@@ -136,7 +136,7 @@ export const aggregateChannelStats = (events) => {
 /**
  * Overnight investigation orchestration.
  *
- * POST /investigations/start { nightDate }:
+ * Scheduled monitoring supplies the reporting window:
  *   1. Find the user's incidents created within the night window
  *      (nightDate 00:00 → +24h, UTC — same convention as the client's
  *      useIncidents night-window conversion).
@@ -161,15 +161,18 @@ const findInvestigationDoc = async (investigationId) => {
   return Investigation.findOne({ jobId: investigationId });
 };
 
-export const startInvestigation = async ({ userId, nightDate, dispatch = dispatchInvestigation }) => {
+export const startInvestigation = async ({ userId, nightDate, window: suppliedWindow, dispatch = dispatchInvestigation }) => {
   const window = reportingWindow(nightDate);
   if (!window) {
     throw new ApiError(400, "nightDate must be a valid YYYY-MM-DD date");
   }
 
+  const incidentWindow = suppliedWindow?.from && suppliedWindow?.to
+    ? suppliedWindow
+    : window;
   const incidents = await Incident.find({
     userId,
-    createdAt: { $gte: window.from, $lt: window.to },
+    createdAt: { $gte: incidentWindow.from, $lt: incidentWindow.to },
   })
     .sort({ createdAt: -1 })
     .lean();
@@ -244,6 +247,13 @@ export const startInvestigation = async ({ userId, nightDate, dispatch = dispatc
   const status = complete ? "already_complete" : existing.length && !retried ? "already_running" : "started";
   return { status, jobIds, totalJobs: jobIds.length };
 };
+
+export const listInvestigations = async (userFilter = {}, limit = 30) =>
+  Investigation.find(userFilter.userId ? { userId: userFilter.userId } : {})
+    .sort({ createdAt: -1 })
+    .limit(Math.min(Number(limit) || 30, 100))
+    .populate("incidentId", "incidentId title severity machineId")
+    .lean();
 
 export const getInvestigationById = async (investigationId, userFilter = {}) => {
   const doc = await findInvestigationDoc(investigationId);

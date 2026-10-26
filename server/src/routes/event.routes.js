@@ -20,8 +20,14 @@ const router = Router();
 router.post(
   "/",
   verifyApiKey,
+  (req, res, next) => {
+    if (req.is("application/json") !== "application/json") {
+      return res.status(415).json({ success: false, message: "Content-Type must be application/json" });
+    }
+    next();
+  },
   eventsLimiter,
-  validate(ingestEventSchema),
+  (req, res, next) => (req.siteKey ? next() : validate(ingestEventSchema)(req, res, next)),
   ingestEvent
 );
 

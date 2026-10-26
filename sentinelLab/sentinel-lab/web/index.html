@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sentinel Lab — Device & Fault Simulator</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0a0d12;--panel:#111720;--panel2:#151e29;--line:#283444;--text:#e8eef6;--muted:#92a0b1;--teal:#45dfbd;--blue:#72a9ff;--amber:#f7bd62;--red:#ff7777;--green:#81e2a4;--shadow:0 16px 36px rgba(0,0,0,.22)}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 10% 0%,#152333 0,transparent 36%),var(--bg);color:var(--text);font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button,input,select,textarea{font:inherit}button{cursor:pointer;border:1px solid var(--line);border-radius:10px;padding:9px 13px;background:#202c3a;color:var(--text);font-weight:650;transition:filter .15s,transform .15s}button:hover{filter:brightness(1.14)}button:active{transform:translateY(1px)}button:disabled{opacity:.45;cursor:not-allowed}
+    .primary{background:var(--teal);color:#08120f;border-color:var(--teal)}.danger{background:#3c2028;border-color:#69303b;color:#ffb8bd}.quiet{background:transparent}.wrap{max-width:1440px;margin:auto;padding:26px 24px 40px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:22px}.brand{display:flex;gap:13px;align-items:center}.logo{display:grid;place-items:center;width:44px;height:44px;border-radius:13px;background:linear-gradient(135deg,#4ae2c2,#238c9a);color:#071413;font-weight:950;font-size:19px;box-shadow:0 8px 26px #37bcac29}.eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--teal);font-weight:850}.brand h1{font-size:21px;letter-spacing:-.04em;margin:0}.brand p{margin:2px 0 0;color:var(--muted);font-size:12px}.status-pill{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:8px 12px;color:var(--muted);font-size:12px;white-space:nowrap}.dot{width:7px;height:7px;border-radius:50%;background:#778697}.dot.live{background:var(--green);box-shadow:0 0 0 4px #81e2a414}.dot.warn{background:var(--amber)}
+    .notice{display:flex;align-items:flex-start;gap:11px;padding:12px 14px;border:1px solid #69502b;background:#211b12;border-radius:12px;color:#f5d9a7;margin-bottom:18px;font-size:12px}.notice strong{color:#ffe8bd}.layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(330px,.8fr);gap:18px;align-items:start}.stack{display:grid;gap:18px;min-width:0}.panel{border:1px solid var(--line);background:linear-gradient(160deg,#141b25f5,#0f151df5);border-radius:16px;padding:18px;box-shadow:var(--shadow);min-width:0}.panel-title{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px}.panel-title h2{font-size:14px;letter-spacing:-.01em;margin:0;font-weight:750}.panel-title p{font-size:11px;color:var(--muted);margin:4px 0 0}.tag{font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;padding:5px 8px;border:1px solid var(--line);border-radius:7px;color:var(--muted)}
+    .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}.metric{background:#101720;border:1px solid var(--line);border-radius:13px;padding:13px;min-width:0}.metric-top{display:flex;align-items:center;justify-content:space-between;gap:5px;color:var(--muted);font-size:11px}.metric-symbol{display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:#1d2934;color:var(--teal);font-size:12px;font-weight:800}.metric-value{font-size:25px;font-weight:770;letter-spacing:-.055em;margin-top:11px;white-space:nowrap}.metric-unit{font-size:11px;color:var(--muted);font-weight:500;letter-spacing:0}.metric-foot{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:3px;font-size:10px;color:var(--muted)}canvas.spark{width:100%;height:40px;margin-top:8px;display:block}.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.chart-card{border:1px solid var(--line);background:#0e141c;border-radius:12px;padding:12px;min-width:0}.chart-head{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted);margin-bottom:7px}.chart-head strong{color:var(--text);font-size:12px}.chart{width:100%;height:100px;display:block}
+    .controls-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{display:grid;gap:6px;min-width:0}.field label{font-size:11px;color:#b3bfcd;font-weight:700}.field input,.field select,.field textarea{width:100%;min-width:0;background:#0a1017;border:1px solid #334153;border-radius:9px;padding:10px;color:var(--text);outline:none}.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--teal);box-shadow:0 0 0 2px #45dfbd17}.field textarea{min-height:120px;resize:vertical;font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}.help{font-size:10px;color:var(--muted);line-height:1.45}.checkline{display:flex;align-items:flex-start;gap:10px;background:#111923;border:1px solid var(--line);border-radius:10px;padding:11px}.checkline input{accent-color:var(--teal);margin-top:3px}.checkline strong{font-size:12px;display:block}.checkline span{font-size:10px;color:var(--muted);display:block;line-height:1.5}.formstack{display:grid;gap:12px}.button-row{display:flex;flex-wrap:wrap;gap:8px}.scenario-label{font-size:11px;color:var(--muted);margin-top:9px}.config-divider{height:1px;background:var(--line);margin:2px 0}.delivery{padding:11px 12px;background:#0e141c;border:1px solid var(--line);border-radius:10px;font-size:11px;color:#bdc9d7;overflow-wrap:anywhere}.delivery strong{display:block;color:var(--text);font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+    .counter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.counter{padding:11px;border-radius:10px;background:#0e141c;border:1px solid var(--line)}.counter span{display:block;color:var(--muted);font-size:10px}.counter strong{font-size:22px;letter-spacing:-.04em}.log-list{display:grid;gap:0;max-height:380px;overflow:auto}.log-row{display:grid;grid-template-columns:62px 48px minmax(0,1fr);gap:9px;padding:9px 0;border-bottom:1px solid #202a37;font-size:11px}.log-row:last-child{border-bottom:0}.log-time{color:#738195;font-variant-numeric:tabular-nums}.log-level{font-size:9px;font-weight:850;letter-spacing:.06em;color:var(--muted);padding-top:2px}.log-level.error{color:var(--red)}.log-level.sent{color:var(--green)}.log-level.warn{color:var(--amber)}.log-level.data{color:var(--blue)}.log-message{overflow-wrap:anywhere;color:#c1ccd9}.empty{font-size:12px;color:var(--muted);padding:22px 0;text-align:center}.footnote{font-size:10px;color:#7e8b9c;margin-top:14px;line-height:1.6}.hidden{display:none!important}
+    @media(max-width:1050px){.layout{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(4,1fr)}}@media(max-width:650px){.wrap{padding:16px 12px 30px}header{align-items:flex-start}.brand p{max-width:210px}.status-pill{font-size:10px;padding:6px 8px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.controls-row,.chart-grid{grid-template-columns:1fr}.panel{padding:14px}.metric-value{font-size:23px}.log-row{grid-template-columns:53px 44px minmax(0,1fr);gap:6px}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><div class="logo">S</div><div><div class="eyebrow">Sentinel developer tools</div><h1>Sentinel Lab</h1><p>Device simulator · fault injection · API test bench</p></div></div>
+    <div class="status-pill"><span id="statusDot" class="dot"></span><span id="statusText">SIMULATOR STOPPED</span></div>
+  </header>
+  <div class="notice"><span style="font-weight:900">!</span><div><strong>Simulation data only.</strong> This is an independent test harness. Values are synthetic and do not represent a real motor. Start in dry-run mode. Enable forwarding only after you have copied the correct Site, Machine and Sensor IDs from your Sentinel test environment.</div></div>
+
+  <main class="layout">
+    <section class="stack">
+      <div class="panel">
+        <div class="panel-title"><div><h2>Live telemetry</h2><p>Generated by the simulator in real time. No hardware required.</p></div><span class="tag" id="modeTag">DRY RUN</span></div>
+        <div class="metrics">
+          <div class="metric"><div class="metric-top"><span>Temperature</span><span class="metric-symbol">T°</span></div><div class="metric-value" id="temperatureValue">— <span class="metric-unit">°C</span></div><div class="metric-foot"><span id="temperatureStatus">Waiting for data</span><span>°C</span></div><canvas id="temperatureSpark" class="spark"></canvas></div>
+          <div class="metric"><div class="metric-top"><span>Vibration</span><span class="metric-symbol">〰</span></div><div class="metric-value" id="vibrationValue">— <span class="metric-unit">mm/s*</span></div><div class="metric-foot"><span id="vibrationStatus">Waiting for data</span><span>mm/s*</span></div><canvas id="vibrationSpark" class="spark"></canvas></div>
+          <div class="metric"><div class="metric-top"><span>Motor current</span><span class="metric-symbol">A</span></div><div class="metric-value" id="currentValue">— <span class="metric-unit">A</span></div><div class="metric-foot"><span id="currentStatus">Waiting for data</span><span>A</span></div><canvas id="currentSpark" class="spark"></canvas></div>
+          <div class="metric"><div class="metric-top"><span>Motor speed</span><span class="metric-symbol">RPM</span></div><div class="metric-value" id="rpmValue">— <span class="metric-unit">RPM</span></div><div class="metric-foot"><span id="rpmStatus">Waiting for data</span><span>RPM</span></div><canvas id="rpmSpark" class="spark"></canvas></div>
+        </div>
+        <div style="height:12px"></div>
+        <div class="chart-grid">
+          <div class="chart-card"><div class="chart-head"><strong>Temperature trend</strong><span id="temperatureRange">—</span></div><canvas id="temperatureChart" class="chart"></canvas></div>
+          <div class="chart-card"><div class="chart-head"><strong>Vibration trend</strong><span id="vibrationRange">—</span></div><canvas id="vibrationChart" class="chart"></canvas></div>
+          <div class="chart-card"><div class="chart-head"><strong>Current trend</strong><span id="currentRange">—</span></div><canvas id="currentChart" class="chart"></canvas></div>
+          <div class="chart-card"><div class="chart-head"><strong>RPM trend</strong><span id="rpmRange">—</span></div><canvas id="rpmChart" class="chart"></canvas></div>
+        </div>
+        <div class="footnote">*Illustrative sensor units. Use the units and operating ranges configured for your Sentinel sensors. The simulator's trends are designed for pipeline testing, not as calibrated physical motor models.</div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title"><div><h2>Simulation controls</h2><p>Switch between healthy running, fault ramps, startup and missing-sensor cases.</p></div><span class="tag" id="sequenceTag">FRAME 0</span></div>
+        <div class="formstack">
+          <div class="controls-row">
+            <div class="field"><label for="scenario">Operating scenario</label><select id="scenario"><option value="normal">Normal operation</option><option value="vibration_ramp">Vibration ramp / bearing fault</option><option value="overheating">Overheating</option><option value="overload">Motor overload</option><option value="sensor_dropout">Sensor dropout</option><option value="startup">Motor startup</option><option value="combined_fault">Combined fault</option></select><span id="scenarioDescription" class="help">Stable readings with small, correlated variations.</span></div>
+            <div class="field"><label for="dropoutChannel">Dropout channel</label><select id="dropoutChannel"><option value="temperature">Temperature</option><option value="vibration" selected>Vibration</option><option value="current">Current</option><option value="rpm">RPM</option><option value="pressure">Pressure</option></select><span class="help">Used only by the sensor-dropout scenario.</span></div>
+          </div>
+          <div class="button-row"><button id="startButton" class="primary">▶ Start simulation</button><button id="stopButton" class="danger" disabled>■ Stop</button><button id="resetButton" class="quiet">Reset local test</button></div>
+          <div class="delivery"><strong>Last delivery status</strong><span id="lastDelivery">Dry-run mode. Readings will not be sent to Sentinel.</span></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title"><div><h2>Test activity</h2><p>Newest messages first. API responses are shown when live forwarding is enabled.</p></div><span class="tag" id="logCount">0 LOGS</span></div>
+        <div id="logs" class="log-list"><div class="empty">Start the simulator to generate activity.</div></div>
+      </div>
+    </section>
+
+    <aside class="stack">
+      <div class="panel">
+        <div class="panel-title"><div><h2>Sentinel connection</h2><p>Configure the target API. Settings are stored only in this process memory.</p></div><span class="tag">API</span></div>
+        <form id="configForm" class="formstack">
+          <div class="field"><label for="apiBaseUrl">API base URL</label><input id="apiBaseUrl" type="url" value="http://localhost:8000/api/v1" required><span class="help">The simulator appends <code>/events</code>. This URL must be reachable from the Rust server machine.</span></div>
+          <div class="field"><label for="apiKey">Sentinel API key</label><input id="apiKey" type="password" autocomplete="new-password" placeholder="Paste a test API key"><span id="apiKeyHelp" class="help">Stored in memory by this test process. Never commit real keys.</span></div>
+          <div class="controls-row"><div class="field"><label for="siteId">Site ID</label><input id="siteId" placeholder="site_…" required></div><div class="field"><label for="machineId">Machine ID</label><input id="machineId" placeholder="machine_…" required></div></div>
+          <div class="field"><label for="sensorIds">Sensor IDs (JSON map)</label><textarea id="sensorIds" spellcheck="false">{
+  "temperature": "",
+  "vibration": "",
+  "current": "",
+  "rpm": "",
+  "pressure": ""
+}</textarea><span class="help">For per-channel mode, use the actual sensor ID for each channel. Register those sensors in Sentinel first. Pressure is needed only for a pressure-enabled test.</span></div>
+          <div class="controls-row"><div class="field"><label for="intervalMs">Sample interval</label><select id="intervalMs"><option value="500">500 ms (fast)</option><option value="1000">1 second</option><option value="2000" selected>2 seconds</option><option value="5000">5 seconds</option><option value="10000">10 seconds</option><option value="30000">30 seconds</option></select></div><div class="field"><label for="payloadMode">Event format</label><select id="payloadMode"><option value="per_channel" selected>One event per sensor</option><option value="multi_channel">One multi-channel event</option></select></div></div>
+          <div class="checkline"><input id="includePressure" type="checkbox"><label for="includePressure"><strong>Include pressure channel</strong><span>Enable for compressor/pump tests. Configure a pressure sensor ID.</span></label></div>
+          <div class="checkline"><input id="forwardToSentinel" type="checkbox"><label for="forwardToSentinel"><strong>Forward generated events to Sentinel</strong><span>OFF = local dry run. ON = send authenticated HTTP requests to the API while simulation runs.</span></label></div>
+          <div class="checkline"><input id="clearApiKey" type="checkbox"><label for="clearApiKey"><strong>Clear the saved API key</strong><span>Use only if you need to remove the key from this process.</span></label></div>
+          <button type="submit" class="primary">Save configuration</button>
+          <div class="help" id="configStatus" role="status">Configuration has not been loaded yet.</div>
+        </form>
+      </div>
+      <div class="panel">
+        <div class="panel-title"><div><h2>Run statistics</h2><p>Local counters for this session.</p></div><span class="tag">SESSION</span></div>
+        <div class="counter-grid">
+          <div class="counter"><span>Frames generated</span><strong id="framesGenerated">0</strong></div>
+          <div class="counter"><span>Events attempted</span><strong id="eventsAttempted">0</strong></div>
+          <div class="counter"><span>Events accepted</span><strong id="eventsAccepted">0</strong></div>
+          <div class="counter"><span>Events failed</span><strong id="eventsFailed">0</strong></div>
+        </div>
+        <div class="footnote">The reset button clears these local counters and charts only. It does not delete, roll back or reset any data inside Sentinel.</div>
+      </div>
+      <div class="panel">
+        <div class="panel-title"><div><h2>Suggested test sequence</h2><p>Verify each stage in the Sentinel application.</p></div></div>
+        <div class="log-message" style="font-size:12px;line-height:1.8">1. Run in dry-run mode; verify telemetry changes.<br>2. Configure registered site, machine and sensor IDs.<br>3. Enable forwarding and confirm HTTP acceptance.<br>4. Send normal readings until the coverage gate opens.<br>5. Run the vibration-ramp scenario and watch predictions.<br>6. Test overheating, overload and sensor dropout.<br>7. Stop forwarding and inspect queue recovery after a service outage.</div>
+      </div>
+    </aside>
+  </main>
+</div>
+<script>
+  const $ = id => document.getElementById(id);
+  let firstLoad = true, currentState = null, requestBusy = false;
+  const specs = {
+    temperature: {label:'Temperature', unit:'°C', valueId:'temperatureValue', statusId:'temperatureStatus', chartId:'temperatureChart', sparkId:'temperatureSpark', rangeId:'temperatureRange', get:v=>v.temperature, decimals:1},
+    vibration: {label:'Vibration', unit:'mm/s*', valueId:'vibrationValue', statusId:'vibrationStatus', chartId:'vibrationChart', sparkId:'vibrationSpark', rangeId:'vibrationRange', get:v=>v.vibration, decimals:2},
+    current: {label:'Current', unit:'A', valueId:'currentValue', statusId:'currentStatus', chartId:'currentChart', sparkId:'currentSpark', rangeId:'currentRange', get:v=>v.current, decimals:2},
+    rpm: {label:'RPM', unit:'RPM', valueId:'rpmValue', statusId:'rpmStatus', chartId:'rpmChart', sparkId:'rpmSpark', rangeId:'rpmRange', get:v=>v.rpm, decimals:0},
+  };
+  const desc = {
+    normal:'Stable readings with small, correlated variations.',
+    vibration_ramp:'Vibration rises progressively. Temperature rises more slowly to simulate a developing bearing issue.',
+    overheating:'Temperature ramps upward over successive samples.',
+    overload:'Current rises and RPM falls as simulated load increases.',
+    sensor_dropout:'The selected channel is omitted from outgoing sensor events.',
+    startup:'RPM ramps from zero to operating speed while starting current is elevated.',
+    combined_fault:'Vibration, temperature and current rise together while RPM and pressure can fall.'
+  };
+  function setConfigForm(c){
+    $('apiBaseUrl').value=c.api_base_url || 'http://localhost:8000/api/v1';
+    $('siteId').value=c.site_id || ''; $('machineId').value=c.machine_id || '';
+    $('sensorIds').value=JSON.stringify(c.sensor_ids || {},null,2);
+    $('intervalMs').value=String(c.interval_ms || 2000);
+    $('payloadMode').value=c.payload_mode || 'per_channel';
+    $('includePressure').checked=!!c.include_pressure;
+    $('forwardToSentinel').checked=!!c.forward_to_sentinel;
+    $('dropoutChannel').value=c.dropout_channel || 'vibration';
+    $('apiKeyHelp').textContent=c.api_key_configured ? 'An API key is already saved in this process. Leave blank to keep it, or use “Clear the saved API key”.' : 'Stored in memory by this test process. Never commit real keys.';
+    $('configStatus').textContent='Configuration loaded. Save after making changes.';
+  }
+  async function api(path, options={}){
+    const method=(options.method||'GET').toUpperCase();
+    const headers={'Content-Type':'application/json',...(options.headers||{})};
+    const {headers: _ignoredHeaders, ...fetchOptions}=options;
+    const response=await fetch(path,{...fetchOptions,headers});
+    const raw=await response.text();
+    const contentType=response.headers.get('content-type')||'(missing content-type)';
+    let data=null;
+    if(raw){try{data=JSON.parse(raw)}catch(_e){data=null}}
+    if(!response.ok){
+      const detail=(data && (data.message||data.error)) || raw.replace(/\s+/g,' ').slice(0,240) || '(empty response body)';
+      throw new Error(`${method} ${path} failed: HTTP ${response.status}; ${contentType}; ${detail}`);
+    }
+    if(data===null){
+      const detail=raw.replace(/\s+/g,' ').slice(0,240) || '(empty response body)';
+      throw new Error(`${method} ${path} returned non-JSON: HTTP ${response.status}; ${contentType}; response: ${detail}`);
+    }
+    return data;
+  }
+  async function saveConfig(showMessage=true){
+    let sensors;
+    try{sensors=JSON.parse($('sensorIds').value); if(!sensors || Array.isArray(sensors) || typeof sensors!=='object') throw new Error('Expected a JSON object.');}
+    catch(e){throw new Error('Sensor IDs must be a valid JSON object: '+e.message)}
+    const data={api_base_url:$('apiBaseUrl').value.trim(),api_key:$('apiKey').value,clear_api_key:$('clearApiKey').checked,site_id:$('siteId').value.trim(),machine_id:$('machineId').value.trim(),sensor_ids:sensors,interval_ms:Number($('intervalMs').value),forward_to_sentinel:$('forwardToSentinel').checked,include_pressure:$('includePressure').checked,payload_mode:$('payloadMode').value,dropout_channel:$('dropoutChannel').value};
+    await api('/api/config',{method:'POST',body:JSON.stringify(data)});
+    $('apiKey').value=''; $('clearApiKey').checked=false;
+    const state=await api('/api/state');
+    $('apiKeyHelp').textContent=state.config.api_key_configured ? 'An API key is saved in this process. Leave blank to keep it, or choose clear to remove it.' : 'No API key saved. Paste a test key only if forwarding is enabled.';
+    if(showMessage) $('configStatus').textContent='Saved at '+new Date().toLocaleTimeString()+'.';
+    return true;
+  }
+  async function scenarioChange(){
+    $('scenarioDescription').textContent=desc[$('scenario').value]||'';
+    try { await api('/api/scenario',{method:'POST',body:JSON.stringify({scenario:$('scenario').value,dropout_channel:$('dropoutChannel').value})}); }
+    catch(e){showConfigError(e.message)}
+  }
+  function showConfigError(message){$('configStatus').textContent=message;$('configStatus').style.color='var(--red)';setTimeout(()=>$('configStatus').style.color='',4500)}
+  function drawLine(canvas, values, compact=false){
+    if(!canvas) return;
+    const rect=canvas.getBoundingClientRect();const w=Math.max(100,rect.width||240),h=Math.max(30,rect.height||80),dpr=window.devicePixelRatio||1;
+    canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);
+    const pad=compact?3:9;ctx.strokeStyle='#293443';ctx.lineWidth=1;
+    if(!compact){for(let i=1;i<4;i++){const y=pad+(h-pad*2)*i/4;ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(w-pad,y);ctx.stroke();}}
+    const nums=values.filter(v=>Number.isFinite(v));if(nums.length<2)return;
+    let min=Math.min(...nums),max=Math.max(...nums);if(min===max){min-=1;max+=1;}const extra=(max-min)*.12;min-=extra;max+=extra;
+    const points=values.map((v,i)=>Number.isFinite(v)?{x:pad+(w-pad*2)*i/Math.max(1,values.length-1),y:h-pad-(v-min)/(max-min)*(h-pad*2)}:null);
+    const colour=compact?'#45dfbd':(canvas.id.includes('temperature')?'#f7bd62':canvas.id.includes('vibration')?'#ff7777':canvas.id.includes('current')?'#72a9ff':'#45dfbd');
+    ctx.strokeStyle=colour;ctx.lineWidth=compact?1.7:2;ctx.lineJoin='round';ctx.lineCap='round';ctx.beginPath();let started=false;
+    for(const p of points){if(!p){started=false;continue}if(!started){ctx.moveTo(p.x,p.y);started=true}else ctx.lineTo(p.x,p.y)}ctx.stroke();
+    const last=points[points.length-1];if(last){ctx.fillStyle=colour;ctx.beginPath();ctx.arc(last.x,last.y,compact?2:3,0,Math.PI*2);ctx.fill()}
+  }
+  function render(s){
+    currentState=s;
+    $('statusText').textContent=s.running?'SIMULATOR RUNNING':'SIMULATOR STOPPED';$('statusDot').className='dot'+(s.running?' live':'');
+    $('startButton').disabled=!!s.running;$('stopButton').disabled=!s.running;
+    $('modeTag').textContent=s.config.forward_to_sentinel?'LIVE FORWARD':'DRY RUN';$('modeTag').style.color=s.config.forward_to_sentinel?'var(--amber)':'var(--teal)';
+    $('sequenceTag').textContent='FRAME '+s.sequence;$('lastDelivery').textContent=s.last_delivery||'No delivery status yet.';
+    $('framesGenerated').textContent=s.counters.frames_generated;$('eventsAttempted').textContent=s.counters.events_attempted;$('eventsAccepted').textContent=s.counters.events_accepted;$('eventsFailed').textContent=s.counters.events_failed;
+    $('scenario').value=s.scenario;$('scenarioDescription').textContent=desc[s.scenario]||s.scenario_label;
+    $('logCount').textContent=s.logs.length+' LOGS';
+    const frames=s.frames||[];
+    for(const [key,sp] of Object.entries(specs)){
+      const vals=frames.map(f=>f.values?.[key]);const finite=vals.filter(Number.isFinite);const latest=finite.length?finite[finite.length-1]:null;
+      $(sp.valueId).innerHTML=(latest===null?'—':latest.toFixed(sp.decimals))+' <span class="metric-unit">'+sp.unit+'</span>';
+      const omitted=frames.length && frames[frames.length-1].omitted_channels?.includes(key);
+      $(sp.statusId).textContent=omitted?'NOT SENT (DROPOUT)':(latest===null?'Waiting for data':(s.running?'Live simulation':'Last sample'));
+      $(sp.statusId).style.color=omitted?'var(--amber)':'var(--muted)';
+      drawLine($(sp.sparkId),vals,true);drawLine($(sp.chartId),vals,false);
+      $(sp.rangeId).textContent=finite.length?`${Math.min(...finite).toFixed(sp.decimals)} – ${Math.max(...finite).toFixed(sp.decimals)}`:'—';
+    }
+    const logRoot=$('logs');
+    if(!s.logs.length){logRoot.innerHTML='<div class="empty">No activity yet.</div>'}
+    else logRoot.innerHTML=s.logs.slice(0,90).map(entry=>`<div class="log-row"><span class="log-time">${esc(entry.time)}</span><span class="log-level ${esc(entry.level.toLowerCase())}">${esc(entry.level)}</span><span class="log-message">${esc(entry.message)}</span></div>`).join('');
+    if(firstLoad){setConfigForm(s.config);firstLoad=false;}
+  }
+  function esc(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
+  $('configForm').addEventListener('submit',async e=>{e.preventDefault();try{await saveConfig();$('configStatus').style.color='var(--green)';}catch(err){showConfigError(err.message)}});
+  $('scenario').addEventListener('change',scenarioChange);
+  $('dropoutChannel').addEventListener('change',scenarioChange);
+  $('startButton').addEventListener('click',async()=>{try{await saveConfig(false);await api('/api/scenario',{method:'POST',body:JSON.stringify({scenario:$('scenario').value,dropout_channel:$('dropoutChannel').value})});await api('/api/start',{method:'POST',body:'{}'});await refresh()}catch(e){showConfigError(e.message)}});
+  $('stopButton').addEventListener('click',async()=>{try{await api('/api/stop',{method:'POST',body:'{}'});await refresh()}catch(e){showConfigError(e.message)}});
+  $('resetButton').addEventListener('click',async()=>{if(!confirm('Reset local counters and chart history? This does not delete anything from Sentinel.'))return;try{await api('/api/reset',{method:'POST',body:'{}'});await refresh()}catch(e){showConfigError(e.message)}});
+  async function refresh(){try{const s=await api('/api/state');render(s)}catch(e){$('statusText').textContent='LAB API ERROR';$('statusDot').className='dot warn';$('configStatus').textContent=e.message;}}
+  refresh();setInterval(refresh,850);window.addEventListener('resize',()=>{if(currentState)render(currentState)});
+</script>
+</body>
+</html>

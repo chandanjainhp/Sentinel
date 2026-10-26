@@ -40,6 +40,7 @@ import {
   getIncidents,
 } from "@/lib/api";
 import AddSensorModal from "@/components/sensors/AddSensorModal";
+import AddSiteWizard from "@/components/sensors/AddSiteWizard";
 import PageContainer from "@/components/layout/PageContainer";
 import { healthMeta } from "@/lib/health";
 
@@ -1172,7 +1173,7 @@ export default function SensorsPage() {
           }}
         >
           <Plus size={11} />
-          {atLimit ? `Limit reached (${summaryData.total}/${summaryData.limit})` : "Add sensor"}
+          {atLimit ? `Limit reached (${summaryData.total}/${summaryData.limit})` : "Add site / sensor"}
         </button>
       </div>
 
@@ -1743,7 +1744,7 @@ export default function SensorsPage() {
       </div>
 
       {/* Modals */}
-      <AddSensorModal open={addOpen} onOpenChange={setAddOpen} summary={summary} />
+      <AddSiteWizard open={addOpen} onOpenChange={setAddOpen} sites={sites || []} />
       <EditSensorDialog
         sensor={editTarget}
         onClose={() => setEditTarget(null)}

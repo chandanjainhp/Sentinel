@@ -23,6 +23,14 @@ const overnightHealthRunSchema = new mongoose.Schema(
     sensorCoverageGaps: { type: [mongoose.Schema.Types.Mixed], default: [] },
     machineResults: { type: [mongoose.Schema.Types.Mixed], default: [] },
     incidents: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    // Compact report header for list views (the detail arrays stay below).
+    summary: { type: mongoose.Schema.Types.Mixed, default: {} },
+    // Investigation records dispatched for this report's incidents. The
+    // scheduler retries dispatch after a restart until investigationsQueued
+    // is true, so a Redis outage never silently drops overnight analysis.
+    investigationIds: { type: [mongoose.Schema.Types.ObjectId], default: [] },
+    investigationsQueued: { type: Boolean, default: false },
+    investigationError: { type: String, default: null },
     errorDetails: { type: [String], default: [] },
     retryCount: { type: Number, default: 0 },
     startedAt: { type: Date, default: null },

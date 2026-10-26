@@ -12,6 +12,14 @@ export function generateApiKeySecret() {
   return `sk_${prefix}_${body}`;
 }
 
+export function generateSiteApiKeySecret() {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const bytes = crypto.randomBytes(32);
+  let body = "";
+  for (const byte of bytes) body += alphabet[byte % alphabet.length];
+  return `sk_live_${body}`;
+}
+
 export function apiKeyPrefixFromSecret(raw) {
   // sk_a1b2c3d4_… → sk_a1b2c3d4
   const parts = String(raw).split('_');
@@ -45,11 +53,19 @@ const apiKeySchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    siteId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Site",
+      index: true,
+      default: null,
+    },
+    label: { type: String, trim: true, maxlength: 64, default: "Site key" },
     keyPrefix: {
       type: String,
       required: true,
       index: true,
     },
+    prefix: { type: String, index: true },
     hashedSecret: {
       type: String,
       required: true,
@@ -60,6 +76,8 @@ const apiKeySchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    revokedAt: { type: Date, default: null, index: true },
+    expiresAt: { type: Date, default: null, index: true },
   },
   { timestamps: true }
 );
@@ -69,8 +87,10 @@ apiKeySchema.methods.toPublicJSON = function toPublicJSON() {
     keyId: this.keyId,
     id: this._id.toString(),
     userId: this.userId,
+    siteId: this.siteId?.toString?.() || null,
     name: this.name,
     keyPrefix: this.keyPrefix,
+    prefix: this.prefix || this.keyPrefix,
     createdAt: this.createdAt,
     lastUsedAt: this.lastUsedAt,
   };

@@ -143,6 +143,7 @@ eventSchema.index({
   machineId: 1,
   timestamp: -1,
 });
+eventSchema.index({ sensorId: 1, timestamp: 1 }, { unique: true });
 
 export const Event = mongoose.model(
   "Event",

@@ -4,6 +4,8 @@ import { memo, useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Calendar, Filter, Search, X } from "lucide-react";
 import { useIncidents } from "@/hooks/useIncidents";
+import { useQuery } from "@tanstack/react-query";
+import { getInvestigationReports } from "@/lib/api";
 import { useIncidentFilterStore } from "@/store/incidentFilterStore";
 import SeverityBadge from "@/components/events/SeverityBadge";
 import StatusBadge from "@/components/incident/StatusBadge";
@@ -288,6 +290,12 @@ export default function IncidentsPage() {
   );
 
   const incidents = useMemo(() => data?.incidents ?? [], [data]);
+  const { data: reports = [] } = useQuery({
+    queryKey: ["investigation-reports"],
+    queryFn: () => getInvestigationReports(20),
+    select: (value) => Array.isArray(value) ? value : [],
+    staleTime: 30 * 1000,
+  });
 
   // Priority and free-text search are client-side; the server only filters
   // severity / status / date window.
@@ -322,8 +330,8 @@ export default function IncidentsPage() {
               Incidents
             </h1>
             <p className={styles.description}>
-              Monitor, investigate, and resolve machine anomalies and fault predictions. Open an
-              incident for its evidence; the Argus agent workspace lives under Investigations.
+              Monitor and resolve machine anomalies and fault predictions. Open an incident for
+              its evidence; automated monitoring reports are retained below.
             </p>
             <p className={styles.window}>
               <Calendar size={12} aria-hidden="true" />
@@ -333,9 +341,9 @@ export default function IncidentsPage() {
             </p>
           </div>
 
-          <Link href="/investigations" className={styles.headerAction}>
+          <Link href="/incident-configuration" className={styles.headerAction}>
             <Search size={12} aria-hidden="true" />
-            Open investigations
+            Incident configuration
           </Link>
         </div>
 
@@ -349,6 +357,27 @@ export default function IncidentsPage() {
           searchQuery={searchQuery}
         />
       </header>
+
+      {reports.length > 0 && (
+        <section style={{ marginBottom: 20, padding: 16, border: "1px solid var(--border-default)", background: "var(--bg-surface-1)" }} aria-labelledby="monitoring-reports-title">
+          <h2 id="monitoring-reports-title" style={{ margin: "0 0 12px", color: "var(--fg-1)", fontFamily: "var(--font-mono)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+            Automated monitoring reports
+          </h2>
+          <div style={{ display: "grid", gap: 8 }}>
+            {reports.slice(0, 5).map((report) => (
+              <div key={report._id} style={{ display: "grid", gap: 3, color: "var(--fg-3)", fontSize: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <span>{report.incidentId?.title || "Incident report"} · {report.nightDate}</span>
+                  <span style={{ color: report.status === "complete" ? "var(--accent)" : "var(--fg-4)", textTransform: "uppercase", fontFamily: "var(--font-mono)", fontSize: 10 }}>
+                    {report.status}
+                  </span>
+                </div>
+                {report.classification?.reasoning && <span style={{ color: "var(--fg-4)" }}>{report.classification.reasoning}</span>}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className={styles.tableCard}>
         <div className={`${styles.tableScroll} table-scroll`}>

@@ -12,6 +12,7 @@ import {
   listApiKeys,
   createNamedApiKey,
   revokeApiKeyByKeyId,
+  rotateApiKeyByKeyId,
 } from '@/lib/api';
 import { BREAKPOINT_MOBILE, mediaMax } from '@/lib/layout-tokens';
 
@@ -195,7 +196,8 @@ function RevealSecretModal({ open, secret, keyName, onClose }) {
 }
 
 /* ── One row of the key list ── */
-function KeyRow({ k, onRevoke, revoking }) {
+function KeyRow({ k, onRevoke, onRotate, revoking, rotating }) {
+  const status = k.revokedAt ? 'Revoked' : k.expiresAt && new Date(k.expiresAt) <= new Date() ? 'Expired' : 'Active';
   return (
     <div style={{
       display: 'flex', alignItems: 'center', flexWrap: 'wrap',
@@ -226,16 +228,25 @@ function KeyRow({ k, onRevoke, revoking }) {
           {k.lastUsedAt ? formatDistanceToNow(new Date(k.lastUsedAt), { addSuffix: true }) : 'Never'}
         </span>
       </div>
+      <div style={{ minWidth: '80px' }}>
+        <div style={{ ...LABEL, marginBottom: '3px' }}>Status</div>
+        <span style={{ fontFamily: MONO, fontSize: '11px', color: status === 'Active' ? 'var(--accent)' : 'var(--sev-serious)' }}>
+          {status}
+        </span>
+      </div>
       <div style={{ marginLeft: 'auto' }}>
-        <button
-          type="button"
-          onClick={() => onRevoke(k)}
-          disabled={revoking}
-          style={{ ...DANGER_BTN, padding: '5px 10px', fontSize: '10px' }}
-        >
-          {revoking ? <Loader2 size={11} className="animate-spin" /> : <Ban size={11} />}
-          Revoke
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {status === 'Active' && (
+            <button type="button" onClick={() => onRotate(k)} disabled={rotating} style={{ ...SECONDARY_BTN, padding: '5px 10px', fontSize: '10px' }}>
+              {rotating ? <Loader2 size={11} className="animate-spin" /> : null} Rotate
+            </button>
+          )}
+          {status === 'Active' && (
+            <button type="button" onClick={() => onRevoke(k)} disabled={revoking} style={{ ...DANGER_BTN, padding: '5px 10px', fontSize: '10px' }}>
+              {revoking ? <Loader2 size={11} className="animate-spin" /> : <Ban size={11} />} Revoke
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -283,6 +294,19 @@ export default function ApiKeysPage() {
       toast.success('API key revoked');
     },
     onError: (err) => toast.error(err?.message ?? 'Failed to revoke API key'),
+  });
+
+  const rotateMutation = useMutation({
+    mutationFn: rotateApiKeyByKeyId,
+    onSuccess: (result) => {
+      if (!result?.secret) {
+        toast.error('Key rotated but secret was not returned');
+        return;
+      }
+      setReveal({ secret: result.secret, name: result.name });
+      invalidate();
+    },
+    onError: (err) => toast.error(err?.message ?? 'Failed to rotate API key'),
   });
 
   function submitCreate(e) {
@@ -409,7 +433,9 @@ export default function ApiKeysPage() {
               key={k.keyId || k.id}
               k={k}
               onRevoke={setPendingRevoke}
+              onRotate={(key) => rotateMutation.mutate(key.keyId)}
               revoking={revokeMutation.isPending && pendingRevoke?.keyId === k.keyId}
+              rotating={rotateMutation.isPending}
             />
           ))
         )}

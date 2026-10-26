@@ -34,6 +34,13 @@ export const errorHandler = (error, _req, res, _next) => {
   let { message, errors } = filterErrorForResponse(error);
 
   if (!(error instanceof ApiError)) {
+    if (error.type === "entity.too.large") {
+      statusCode = 413;
+      message = "Request body too large";
+    } else if (error instanceof SyntaxError && "body" in error) {
+      statusCode = 400;
+      message = "Invalid JSON";
+    }
     if (error.name === "CastError") {
       statusCode = 400;
       message = `Invalid format for ${error.path}`;
